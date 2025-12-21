@@ -13,8 +13,6 @@ class SecureChatApp {
         this.viewedOnceFiles = new Set();
         this.roomKeys = new Map(); // Store room encryption keys
         this.messageCache = new Map(); // Cache decrypted messages by roomId
-        this.isScrolling = false; // Track if user is actively scrolling
-        this.scrollTimeout = null;
         this.userPrivateKey = null; // User's private key for E2E
         
         // Navigation history for swipe back
@@ -1804,7 +1802,7 @@ class SecureChatApp {
                 </div>
 
                 <!-- WhatsApp-style Messages Area -->
-                <div style="flex: 1; overflow-y: scroll; overflow-x: hidden; background: #efeae2; -webkit-overflow-scrolling: touch;" id="messages-scroll-container">
+                <div style="flex: 1; overflow-y: auto; overflow-x: hidden; background: #efeae2; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; will-change: scroll-position;" id="messages-scroll-container">
                     <div id="messages" style="max-width: 800px; margin: 0 auto; padding: 20px 16px; min-height: 100%;">
                         <div style="text-align: center; padding: 40px 20px; color: #667781;">
                             <i class="fas fa-spinner fa-spin" style="font-size: 32px; margin-bottom: 16px;"></i>
@@ -1852,27 +1850,8 @@ class SecureChatApp {
 
         await this.loadMessages();
         
-        // Force scroll to bottom immediately after loading (force=true on initial open)
-        console.log('[CHAT] 🎯 Opening room - forcing scroll to bottom');
-        this.scrollToBottom(true);
-        
-        // Aggressive scroll with force=true for initial room open
-        setTimeout(() => this.scrollToBottom(true), 50);
-        setTimeout(() => this.scrollToBottom(true), 150);
-        setTimeout(() => this.scrollToBottom(true), 400);
-        setTimeout(() => this.scrollToBottom(true), 800);
-        
-        // Add scroll detection to prevent interrupting user's scroll
-        const scrollContainer = document.getElementById('messages-scroll-container');
-        if (scrollContainer) {
-            scrollContainer.addEventListener('scroll', () => {
-                this.isScrolling = true;
-                clearTimeout(this.scrollTimeout);
-                this.scrollTimeout = setTimeout(() => {
-                    this.isScrolling = false;
-                }, 150); // 150ms after scroll stops
-            });
-        }
+        // Single scroll to bottom after messages load
+        setTimeout(() => this.scrollToBottom(true), 100);
         
         this.startPolling();
     }
@@ -2106,18 +2085,16 @@ class SecureChatApp {
                         this.messages = decryptedMessages;
                         this.messageCache.set(this.currentRoom.id, decryptedMessages);
                         
-                        // CRITICAL: Skip ALL DOM updates if user is actively scrolling!
-                        if (this.isScrolling) {
-                            // User is scrolling - don't touch the DOM at all!
-                            console.log('[SCROLL] User scrolling - skipping DOM update');
-                        } else if (isInitialLoad) {
-                            // Full rebuild (only on initial load)
+                        // Render strategy: Full render ONLY on initial load, otherwise append
+                        if (isInitialLoad) {
+                            // Full render (only on first open)
                             container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('');
                         } else if (messagesToAdd.length > 0) {
-                            // Append new messages only (no full rebuild!)
+                            // Append new messages only - never rebuild existing!
                             const newHTML = messagesToAdd.map(msg => this.renderMessage(msg)).join('');
                             container.insertAdjacentHTML('beforeend', newHTML);
                         }
+                        // If no new messages and not initial load, do NOTHING (keep DOM unchanged)
                         
                         // Only scroll if at bottom or initial load
                         if (isInitialLoad) {
