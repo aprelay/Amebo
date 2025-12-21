@@ -53,6 +53,76 @@ class SecureChatApp {
         }
     }
 
+    // Poll for notifications (for mobile push when app is in background)
+    startNotificationPolling() {
+        // Clear any existing interval
+        if (this.notificationPollInterval) {
+            clearInterval(this.notificationPollInterval);
+        }
+        
+        console.log('[NOTIFICATIONS] 📡 Starting notification polling (every 15s)');
+        
+        this.notificationPollInterval = setInterval(async () => {
+            if (this.currentUser) {
+                try {
+                    const response = await fetch(`/api/notifications/${this.currentUser.id}/unread`);
+                    const { notifications } = await response.json();
+                    
+                    if (notifications && notifications.length > 0) {
+                        console.log(`[NOTIFICATIONS] 📬 ${notifications.length} unread notification(s)`);
+                        
+                        for (const notif of notifications) {
+                            if ('Notification' in window && Notification.permission === 'granted') {
+                                const browserNotif = new Notification(notif.title, {
+                                    body: notif.message,
+                                    icon: '/static/icon-192.svg',
+                                    badge: '/static/icon-192.svg',
+                                    tag: `amebo-${notif.id}`,
+                                    vibrate: [200, 100, 300, 100, 200],
+                                    timestamp: new Date(notif.created_at).getTime(),
+                                    requireInteraction: false
+                                });
+                                
+                                // Handle notification click
+                                browserNotif.onclick = () => {
+                                    window.focus();
+                                    try {
+                                        const data = JSON.parse(notif.data || '{}');
+                                        if (data.roomId) {
+                                            // Navigate to room
+                                            this.joinRoomById(data.roomId);
+                                        }
+                                    } catch (e) {
+                                        console.error('[NOTIFICATIONS] Data parse error:', e);
+                                    }
+                                    browserNotif.close();
+                                };
+                                
+                                // Play sound
+                                this.playNotificationSound();
+                            }
+                            
+                            // Mark as read
+                            await fetch(`/api/notifications/${notif.id}/read`, { 
+                                method: 'POST' 
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error('[NOTIFICATIONS] Poll error:', error);
+                }
+            }
+        }, 15000); // Check every 15 seconds
+    }
+
+    stopNotificationPolling() {
+        if (this.notificationPollInterval) {
+            clearInterval(this.notificationPollInterval);
+            this.notificationPollInterval = null;
+            console.log('[NOTIFICATIONS] ⏹️ Stopped notification polling');
+        }
+    }
+
     playNotificationSound() {
         try {
             // Create audio context if not exists
@@ -428,6 +498,10 @@ class SecureChatApp {
                 this.viewedOnceFiles = new Set(JSON.parse(viewedFiles));
             }
             
+            // Start notification polling for mobile push notifications
+            this.startNotificationPolling();
+            console.log('[NOTIFICATIONS] ✅ Notification polling started (auto-login)');
+            
             // FEATURE: Direct to room list (no room code prompt)
             await this.showRoomList();
         } else {
@@ -657,6 +731,10 @@ class SecureChatApp {
                 const keyPair = await CryptoUtils.generateUserKeyPair();
                 this.userPrivateKey = keyPair.privateKey;
                 await CryptoUtils.storePrivateKey(this.currentUser.id, keyPair.privateKey);
+                
+                // Start notification polling for mobile push notifications
+                this.startNotificationPolling();
+                console.log('[NOTIFICATIONS] ✅ Notification polling started after login');
                 
                 setTimeout(() => this.showRoomList(), 500);
             } else if (data.verificationRequired) {
@@ -1304,6 +1382,39 @@ class SecureChatApp {
         } catch (error) {
             console.error('[V3] Join error:', error);
             this.showMessage(msgDiv, 'Error: ' + error.message, 'error');
+        }
+    }
+
+    async joinRoomById(roomId) {
+        console.log('[V3] Opening room by ID:', roomId);
+        
+        try {
+            // Load rooms if not already loaded
+            if (!this.rooms || this.rooms.length === 0) {
+                await this.loadRooms();
+            }
+            
+            // Find room
+            const room = this.rooms.find(r => r.id === roomId);
+            
+            if (room) {
+                // Open the room directly
+                await this.openRoom(room.id, room.room_code);
+            } else {
+                console.error('[V3] Room not found:', roomId);
+                // Try to load rooms again and retry
+                await this.loadRooms();
+                const retryRoom = this.rooms.find(r => r.id === roomId);
+                if (retryRoom) {
+                    await this.openRoom(retryRoom.id, retryRoom.room_code);
+                } else {
+                    console.error('[V3] Room still not found after reload:', roomId);
+                    await this.showRoomList();
+                }
+            }
+        } catch (error) {
+            console.error('[V3] Error opening room by ID:', error);
+            await this.showRoomList();
         }
     }
 
@@ -1981,6 +2092,11 @@ class SecureChatApp {
         this.userPrivateKey = null;
         
         if (this.messagePoller) clearInterval(this.messagePoller);
+        if (this.notificationPollInterval) {
+            clearInterval(this.notificationPollInterval);
+            this.notificationPollInterval = null;
+            console.log('[NOTIFICATIONS] ⏹️ Stopped notification polling on logout');
+        }
         
         this.showAuth();
     }
