@@ -7722,8 +7722,13 @@ class SecureChatApp {
 
     async showNotifications() {
         console.log('[NOTIFICATIONS] showNotifications called');
-        const content = document.getElementById('content');
-        console.log('[NOTIFICATIONS] content element:', content);
+        const appElement = document.getElementById('app');
+        console.log('[NOTIFICATIONS] app element:', appElement);
+        
+        if (!appElement) {
+            console.error('[NOTIFICATIONS] App element not found!');
+            return;
+        }
         
         // Fetch notifications
         let notifications = [];
@@ -7738,7 +7743,7 @@ class SecureChatApp {
             console.error('[NOTIFICATIONS] Fetch error:', error);
         }
         
-        content.innerHTML = `
+        appElement.innerHTML = `
             <div class="min-h-screen bg-gray-50 pb-20">
                 <!-- Header -->
                 <div class="bg-gradient-to-r from-purple-600 to-purple-800 text-white p-4 sticky top-0 z-10 shadow-lg">
