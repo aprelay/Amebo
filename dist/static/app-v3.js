@@ -1652,7 +1652,7 @@ class SecureChatApp {
                 </div>
 
                 <!-- Messages -->
-                <div id="messages" class="flex-1 overflow-y-auto p-4 max-w-4xl mx-auto w-full">
+                <div id="messages" class="flex-1 overflow-y-auto p-4 max-w-4xl mx-auto w-full" style="min-height: 0;">
                     <div class="text-gray-500 text-center py-8">
                         <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
                         <p>Loading encrypted messages...</p>
@@ -1709,13 +1709,35 @@ class SecureChatApp {
             </div>
         `;
 
+        // Force scroll to bottom immediately after HTML is rendered
+        setTimeout(() => {
+            const messagesDiv = document.getElementById('messages');
+            if (messagesDiv) {
+                messagesDiv.scrollTop = 999999; // Use large number to ensure we go to bottom
+                console.log('[CHAT] 🎯 Pre-load scroll attempt');
+            }
+        }, 10);
+
         await this.loadMessages();
         this.startPolling();
         
         // Ensure scroll to bottom after room is fully loaded
         setTimeout(() => {
-            this.scrollToBottom();
-        }, 200);
+            const messagesDiv = document.getElementById('messages');
+            if (messagesDiv) {
+                messagesDiv.scrollTop = 999999; // Use large number
+                console.log('[CHAT] 🎯 Post-load scroll attempt');
+            }
+        }, 300);
+        
+        // One more time to be absolutely sure
+        setTimeout(() => {
+            const messagesDiv = document.getElementById('messages');
+            if (messagesDiv) {
+                messagesDiv.scrollTop = 999999;
+                console.log('[CHAT] 🎯 Final scroll attempt - Height:', messagesDiv.scrollHeight, 'Position:', messagesDiv.scrollTop);
+            }
+        }, 600);
     }
 
     toggleEmojiPicker() {
