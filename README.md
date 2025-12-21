@@ -8,7 +8,51 @@ A Progressive Web App (PWA) with military-grade encrypted messaging and payment 
 
 ## 🆕 Latest Updates (December 2025)
 
-### 🔥 V3 USER SEARCH & PRIVACY - ALL NEW FEATURES!
+### 🚀 V4 COMPLETE SOCIAL SUITE - ALL 5 ENHANCED FEATURES!
+
+**✅ THE ULTIMATE CHAT APP - WHATSAPP + TELEGRAM COMBINED:**
+
+1. **👥 Contact System** - Build Your Network
+   - Send contact requests to users
+   - Accept/reject incoming requests
+   - View all contacts with online status
+   - Remove contacts anytime
+   - Beautiful contact management UI
+   - Request notifications
+
+2. **🚫 Block/Unblock Users** - Total Control
+   - Block unwanted users instantly
+   - View all blocked users
+   - Unblock users with one click
+   - Privacy enforcement on all APIs
+   - Optional reason for blocking
+   - Automatic contact removal when blocked
+
+3. **🟢 Online Status** - Real-Time Presence
+   - See who's online right now (green dot)
+   - Last seen timestamps ("5m ago", "2h ago")
+   - Auto-update every 60 seconds
+   - Privacy-aware (respects last seen settings)
+   - Offline detection on app close
+   - Works across all devices
+
+4. **⌨️ Typing Indicators** - Know When Someone's Responding
+   - Beautiful animated dots (• • •)
+   - "John is typing..." indicator
+   - Auto-stop after 5 seconds
+   - Multiple users typing support
+   - Real-time polling (3s intervals)
+   - WhatsApp-style indicator placement
+
+5. **✓ Read Receipts** - Message Confirmation
+   - See who read your messages
+   - Checkmarks for read status
+   - Auto-mark messages when viewing
+   - Privacy controls (coming soon)
+   - Group chat support
+   - Timestamp of when read
+
+### 🔥 V3 USER SEARCH & PRIVACY - COMPREHENSIVE DISCOVERY!
 
 **✅ COMPREHENSIVE USER DISCOVERY & PRIVACY CONTROLS:**
 
@@ -614,9 +658,26 @@ npm run deploy:prod
 - `GET /api/users/search?q=query` - Search users by username or email
 - `GET /api/users/:userId/privacy` - Get user privacy settings
 - `POST /api/users/privacy` - Update privacy settings
+- `POST /api/users/status` - Update online status (online/offline/away)
+- `GET /api/users/blocked` - Get blocked users list
+- `POST /api/users/block` - Block a user
+- `DELETE /api/users/block/:userId` - Unblock a user
+
+### Contact Management 🆕
 - `POST /api/contacts/request` - Send contact request
 - `POST /api/contacts/accept` - Accept contact request
+- `POST /api/contacts/reject` - Reject contact request
+- `GET /api/contacts/requests` - Get pending requests
+- `GET /api/contacts` - Get all contacts
 - `DELETE /api/contacts/:userId` - Remove contact
+
+### Real-Time Features 🆕
+- `GET /api/rooms/:roomId/online` - Get online users in room
+- `POST /api/typing/start` - Start typing indicator
+- `POST /api/typing/stop` - Stop typing indicator
+- `GET /api/typing/:roomId` - Get who's typing in room
+- `POST /api/messages/:messageId/read` - Mark message as read
+- `GET /api/messages/:messageId/receipts` - Get read receipts
 
 ### Messages
 - `POST /api/messages/send` - Send encrypted message
