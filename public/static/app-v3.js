@@ -71,15 +71,27 @@ class SecureChatApp {
                     
                     const unreadCount = notifications ? notifications.length : 0;
                     
-                    // Update app badge (works on iOS PWA!)
+                    console.log(`[NOTIFICATIONS] Polling check: ${unreadCount} unread notification(s)`);
+                    
+                    // Always update badge with unread count
                     await this.updateAppBadge(unreadCount);
                     
                     if (notifications && notifications.length > 0) {
-                        console.log(`[NOTIFICATIONS] 📬 ${notifications.length} unread notification(s)`);
+                        console.log(`[NOTIFICATIONS] 📬 ${notifications.length} unread notification(s) found`);
+                        
+                        // Track which notifications we've already shown to avoid duplicates
+                        if (!this.shownNotifications) {
+                            this.shownNotifications = new Set();
+                        }
                         
                         // Only show browser notifications if enabled
                         if (this.notificationsEnabled) {
                             for (const notif of notifications) {
+                                // Skip if we've already shown this notification
+                                if (this.shownNotifications.has(notif.id)) {
+                                    continue;
+                                }
+                                
                                 if ('Notification' in window && Notification.permission === 'granted') {
                                     const browserNotif = new Notification(notif.title, {
                                         body: notif.message,
@@ -108,25 +120,16 @@ class SecureChatApp {
                                     
                                     // Play sound
                                     this.playNotificationSound();
+                                    
+                                    console.log(`[NOTIFICATIONS] ✅ Showed notification: ${notif.title}`);
                                 }
                                 
-                                // Mark as read
-                                await fetch(`/api/notifications/${notif.id}/read`, { 
-                                    method: 'POST' 
-                                });
+                                // Mark this notification as shown (but keep as unread in DB for badge)
+                                this.shownNotifications.add(notif.id);
                             }
                         } else {
-                            // If notifications disabled, still mark as read but don't show
-                            console.log(`[NOTIFICATIONS] ⏭️ Notifications disabled, skipping display`);
-                            for (const notif of notifications) {
-                                await fetch(`/api/notifications/${notif.id}/read`, { 
-                                    method: 'POST' 
-                                });
-                            }
+                            console.log(`[NOTIFICATIONS] ⏭️ Notifications disabled, badge will still show count`);
                         }
-                        
-                        // Update badge again after marking as read
-                        await this.updateAppBadge(0);
                     }
                 } catch (error) {
                     console.error('[NOTIFICATIONS] Poll error:', error);
@@ -145,23 +148,44 @@ class SecureChatApp {
 
     async updateAppBadge(count) {
         try {
+            console.log(`[BADGE] 🔵 updateAppBadge called with count: ${count}`);
+            
             // Only update badge if badge notifications are enabled
             if (!this.badgeNotificationsEnabled) {
                 console.log('[BADGE] ⏭️ Badge notifications disabled, skipping update');
+                console.log('[BADGE] 💡 Enable in: Profile > Notifications > Badge Notifications');
                 return;
             }
             
+            // Diagnostic checks
+            console.log('[BADGE] 🔍 Diagnostics:');
+            console.log('  - Badge API support:', 'setAppBadge' in navigator);
+            console.log('  - Service Worker:', 'serviceWorker' in navigator);
+            console.log('  - SW Active:', navigator.serviceWorker?.controller ? 'Yes' : 'No');
+            console.log('  - Display mode:', window.matchMedia('(display-mode: standalone)').matches ? 'Standalone (PWA)' : 'Browser');
+            console.log('  - iOS check:', /iPhone|iPad|iPod/.test(navigator.userAgent));
+            
             // Check if Badge API is supported
             if (!('setAppBadge' in navigator)) {
-                console.log('[BADGE] ⚠️ Badge API not supported in this browser');
-                console.log('[BADGE] ℹ️ Badge API requires iOS 16.4+, iPadOS 16.4+, or Chrome 81+');
+                console.log('[BADGE] ❌ Badge API not supported in this browser');
+                console.log('[BADGE] ℹ️ Badge API requires:');
+                console.log('  - iOS 16.4+ (in PWA mode)');
+                console.log('  - iPadOS 16.4+ (in PWA mode)');
+                console.log('  - Chrome/Edge 81+');
+                console.log('[BADGE] 💡 Make sure:');
+                console.log('  1. iOS version is 16.4 or higher');
+                console.log('  2. App is saved to home screen');
+                console.log('  3. App is opened from home screen (not Safari)');
                 return;
             }
+            
+            console.log('[BADGE] ✅ Badge API is supported');
             
             // Update app badge (iOS PWA compatible!)
             if (count > 0) {
                 await navigator.setAppBadge(count);
-                console.log('[BADGE] ✅ Badge set to:', count);
+                console.log(`[BADGE] ✅ Badge set to: ${count}`);
+                console.log('[BADGE] 📱 Check your home screen icon for the red badge');
             } else {
                 await navigator.clearAppBadge();
                 console.log('[BADGE] ✅ Badge cleared');
@@ -174,6 +198,8 @@ class SecureChatApp {
                     count: count
                 });
                 console.log('[BADGE] 📤 Sent badge update to service worker');
+            } else {
+                console.log('[BADGE] ⚠️ Service worker not active yet');
             }
         } catch (error) {
             console.error('[BADGE] ❌ Error updating badge:', error);
