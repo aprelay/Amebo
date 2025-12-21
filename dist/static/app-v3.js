@@ -77,41 +77,52 @@ class SecureChatApp {
                     if (notifications && notifications.length > 0) {
                         console.log(`[NOTIFICATIONS] 📬 ${notifications.length} unread notification(s)`);
                         
-                        for (const notif of notifications) {
-                            if ('Notification' in window && Notification.permission === 'granted') {
-                                const browserNotif = new Notification(notif.title, {
-                                    body: notif.message,
-                                    icon: '/static/icon-192.svg',
-                                    badge: '/static/icon-192.svg',
-                                    tag: `amebo-${notif.id}`,
-                                    vibrate: [200, 100, 300, 100, 200],
-                                    timestamp: new Date(notif.created_at).getTime(),
-                                    requireInteraction: false
-                                });
-                                
-                                // Handle notification click
-                                browserNotif.onclick = () => {
-                                    window.focus();
-                                    try {
-                                        const data = JSON.parse(notif.data || '{}');
-                                        if (data.roomId) {
-                                            // Navigate to room
-                                            this.joinRoomById(data.roomId);
+                        // Only show browser notifications if enabled
+                        if (this.notificationsEnabled) {
+                            for (const notif of notifications) {
+                                if ('Notification' in window && Notification.permission === 'granted') {
+                                    const browserNotif = new Notification(notif.title, {
+                                        body: notif.message,
+                                        icon: '/static/icon-192.svg',
+                                        badge: '/static/icon-192.svg',
+                                        tag: `amebo-${notif.id}`,
+                                        vibrate: [200, 100, 300, 100, 200],
+                                        timestamp: new Date(notif.created_at).getTime(),
+                                        requireInteraction: false
+                                    });
+                                    
+                                    // Handle notification click
+                                    browserNotif.onclick = () => {
+                                        window.focus();
+                                        try {
+                                            const data = JSON.parse(notif.data || '{}');
+                                            if (data.roomId) {
+                                                // Navigate to room
+                                                this.joinRoomById(data.roomId);
+                                            }
+                                        } catch (e) {
+                                            console.error('[NOTIFICATIONS] Data parse error:', e);
                                         }
-                                    } catch (e) {
-                                        console.error('[NOTIFICATIONS] Data parse error:', e);
-                                    }
-                                    browserNotif.close();
-                                };
+                                        browserNotif.close();
+                                    };
+                                    
+                                    // Play sound
+                                    this.playNotificationSound();
+                                }
                                 
-                                // Play sound
-                                this.playNotificationSound();
+                                // Mark as read
+                                await fetch(`/api/notifications/${notif.id}/read`, { 
+                                    method: 'POST' 
+                                });
                             }
-                            
-                            // Mark as read
-                            await fetch(`/api/notifications/${notif.id}/read`, { 
-                                method: 'POST' 
-                            });
+                        } else {
+                            // If notifications disabled, still mark as read but don't show
+                            console.log(`[NOTIFICATIONS] ⏭️ Notifications disabled, skipping display`);
+                            for (const notif of notifications) {
+                                await fetch(`/api/notifications/${notif.id}/read`, { 
+                                    method: 'POST' 
+                                });
+                            }
                         }
                         
                         // Update badge again after marking as read
@@ -140,26 +151,66 @@ class SecureChatApp {
                 return;
             }
             
-            // Update app badge (iOS PWA compatible!)
-            if ('setAppBadge' in navigator) {
-                if (count > 0) {
-                    await navigator.setAppBadge(count);
-                    console.log('[BADGE] ✅ Badge set to:', count);
-                } else {
-                    await navigator.clearAppBadge();
-                    console.log('[BADGE] ✅ Badge cleared');
-                }
+            // Check if Badge API is supported
+            if (!('setAppBadge' in navigator)) {
+                console.log('[BADGE] ⚠️ Badge API not supported in this browser');
+                console.log('[BADGE] ℹ️ Badge API requires iOS 16.4+, iPadOS 16.4+, or Chrome 81+');
+                return;
             }
             
-            // Also tell service worker to update badge
+            // Update app badge (iOS PWA compatible!)
+            if (count > 0) {
+                await navigator.setAppBadge(count);
+                console.log('[BADGE] ✅ Badge set to:', count);
+            } else {
+                await navigator.clearAppBadge();
+                console.log('[BADGE] ✅ Badge cleared');
+            }
+            
+            // Also tell service worker to update badge (for reliability)
             if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
                 navigator.serviceWorker.controller.postMessage({
                     type: 'UPDATE_BADGE',
                     count: count
                 });
+                console.log('[BADGE] 📤 Sent badge update to service worker');
             }
         } catch (error) {
-            console.error('[BADGE] Error updating badge:', error);
+            console.error('[BADGE] ❌ Error updating badge:', error);
+            console.error('[BADGE] This might happen if:');
+            console.error('[BADGE] 1. Badge API not supported (need iOS 16.4+ or Chrome 81+)');
+            console.error('[BADGE] 2. App not installed as PWA (need to "Add to Home Screen")');
+            console.error('[BADGE] 3. Browser security restrictions');
+        }
+    }
+
+    checkBadgeSupport() {
+        console.log('[BADGE] 🔍 Checking Badge API support...');
+        console.log('[BADGE] Navigator.setAppBadge:', 'setAppBadge' in navigator ? '✅ Available' : '❌ Not available');
+        console.log('[BADGE] Service Worker:', 'serviceWorker' in navigator ? '✅ Available' : '❌ Not available');
+        
+        if ('setAppBadge' in navigator) {
+            console.log('[BADGE] ✅ Badge notifications supported on this device!');
+            console.log('[BADGE] Make sure app is saved to home screen for iOS PWA support');
+        } else {
+            console.log('[BADGE] ⚠️ Badge API not supported');
+            console.log('[BADGE] Requirements:');
+            console.log('[BADGE] - iOS 16.4+ / iPadOS 16.4+');
+            console.log('[BADGE] - Chrome 81+');
+            console.log('[BADGE] - Edge 81+');
+            console.log('[BADGE] - App saved to home screen (iOS)');
+        }
+        
+        // Check display mode
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+        console.log('[BADGE] Display mode:', isStandalone ? '✅ Standalone (PWA)' : '⚠️ Browser (not PWA)');
+        
+        if (!isStandalone) {
+            console.log('[BADGE] ℹ️ To enable badge on iOS:');
+            console.log('[BADGE] 1. Open in Safari');
+            console.log('[BADGE] 2. Tap Share button');
+            console.log('[BADGE] 3. Select "Add to Home Screen"');
+            console.log('[BADGE] 4. Open from home screen icon');
         }
     }
 
@@ -548,6 +599,9 @@ class SecureChatApp {
             this.startNotificationPolling();
             console.log('[NOTIFICATIONS] ✅ Notification polling started (auto-login)');
             
+            // Check badge API support
+            this.checkBadgeSupport();
+            
             // FEATURE: Direct to room list (no room code prompt)
             await this.showRoomList();
         } else {
@@ -781,6 +835,9 @@ class SecureChatApp {
                 // Start notification polling for mobile push notifications
                 this.startNotificationPolling();
                 console.log('[NOTIFICATIONS] ✅ Notification polling started after login');
+                
+                // Check badge API support
+                this.checkBadgeSupport();
                 
                 setTimeout(() => this.showRoomList(), 500);
             } else if (data.verificationRequired) {
