@@ -1907,9 +1907,22 @@ class SecureChatApp {
                 }
 
                 this.messages = decryptedMessages; // Store decrypted messages
-                container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('');
+                container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('') + 
+                    '<div id="messages-bottom" style="height: 1px;"></div>';
                 
-                // Scroll to bottom after rendering
+                // Immediate scroll using scrollIntoView
+                const bottom = document.getElementById('messages-bottom');
+                if (bottom) {
+                    bottom.scrollIntoView({ behavior: 'instant', block: 'end' });
+                }
+                
+                // Immediate scroll using scrollTo
+                container.scrollTo({
+                    top: container.scrollHeight,
+                    behavior: 'instant'
+                });
+                
+                // Also call our scroll function for redundancy
                 this.scrollToBottom();
             }
         } catch (error) {
