@@ -12,6 +12,7 @@ class SecureChatApp {
         this.unreadNotifications = 0;
         this.viewedOnceFiles = new Set();
         this.roomKeys = new Map(); // Store room encryption keys
+        this.messageCache = new Map(); // Cache decrypted messages by roomId
         this.userPrivateKey = null; // User's private key for E2E
         
         // Navigation history for swipe back
@@ -1956,21 +1957,35 @@ class SecureChatApp {
     async loadMessages() {
         if (!this.currentRoom) return;
         
-        console.log('[V3] Loading encrypted messages for room:', this.currentRoom.id);
+        const container = document.getElementById('messages');
+        if (!container) {
+            console.error('[V3] Messages container not found!');
+            return;
+        }
+        
+        // Check cache first
+        const cachedMessages = this.messageCache.get(this.currentRoom.id);
+        if (cachedMessages && cachedMessages.length > 0) {
+            this.messages = cachedMessages;
+            container.innerHTML = cachedMessages.map(msg => this.renderMessage(msg)).join('');
+            setTimeout(() => this.scrollToBottom(), 50);
+            // Still fetch in background to get new messages
+        } else {
+            // Show loading spinner with fast fade-in
+            container.innerHTML = `
+                <div class="text-gray-500 text-center py-8">
+                    <i class="fas fa-lock text-2xl mb-1 text-purple-600"></i>
+                    <p class="text-sm">🔐 Decrypting...</p>
+                </div>
+            `;
+        }
 
         try {
             const response = await fetch(`${API_BASE}/api/messages/${this.currentRoom.id}`);
             const data = await response.json();
             
-            console.log('[V3] Messages loaded (encrypted):', data);
             const newMessages = data.messages || [];
 
-            const container = document.getElementById('messages');
-            if (!container) {
-                console.error('[V3] Messages container not found! Cannot render messages.');
-                return;
-            }
-            
             if (newMessages.length === 0) {
                 container.innerHTML = `
                     <div class="text-gray-500 text-center py-8">
@@ -1982,81 +1997,88 @@ class SecureChatApp {
                 `;
                 this.messages = [];
             } else {
-                // Decrypt messages
+                // Decrypt messages in batches for better performance
                 const roomKey = this.roomKeys.get(this.currentRoom.id);
-                console.log('[V3] Decrypting messages - Room key exists:', !!roomKey);
-                console.log('[V3] Total messages to decrypt:', newMessages.length);
                 
-                const decryptedMessages = await Promise.all(
-                    newMessages.map(async (msg, index) => {
-                        try {
-                            const encryptedContent = msg.encrypted_content || msg.content;
-                            const iv = msg.iv;
-                            
-                            console.log(`[V3] Message ${index + 1}: has encrypted_content=${!!msg.encrypted_content}, has iv=${!!iv}, roomKey=${!!roomKey}`);
-                            
-                            if (!roomKey) {
-                                console.warn('[V3] No room key available for decryption');
-                                return { ...msg, decrypted: '[No encryption key - rejoin room]' };
+                if (!roomKey) {
+                    container.innerHTML = `
+                        <div class="text-red-500 text-center py-8">
+                            <i class="fas fa-exclamation-triangle text-4xl mb-2"></i>
+                            <p class="font-semibold">No encryption key</p>
+                            <p class="text-sm mt-2">Please rejoin the room to decrypt messages</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Decrypt messages - optimized with batching
+                const BATCH_SIZE = 20;
+                const decryptedMessages = [];
+                
+                for (let i = 0; i < newMessages.length; i += BATCH_SIZE) {
+                    const batch = newMessages.slice(i, i + BATCH_SIZE);
+                    const batchResults = await Promise.all(
+                        batch.map(async (msg) => {
+                            try {
+                                const encryptedContent = msg.encrypted_content || msg.content;
+                                const iv = msg.iv;
+                                
+                                if (!iv) {
+                                    return { ...msg, decrypted: encryptedContent };
+                                }
+                                
+                                const decrypted = await CryptoUtils.decryptMessage(encryptedContent, iv, roomKey);
+                                return { ...msg, decrypted };
+                            } catch (error) {
+                                console.error('[V3] Decryption error:', error);
+                                return { ...msg, decrypted: '[Decryption failed]' };
                             }
-                            
-                            if (!iv) {
-                                console.warn('[V3] No IV for message, cannot decrypt');
-                                return { ...msg, decrypted: encryptedContent };
-                            }
-                            
-                            const decrypted = await CryptoUtils.decryptMessage(encryptedContent, iv, roomKey);
-                            console.log(`[V3] Message ${index + 1} decrypted successfully:`, decrypted.substring(0, 50) + '...');
-                            return { ...msg, decrypted };
-                        } catch (error) {
-                            console.error('[V3] Message decryption error:', error);
-                            return { ...msg, decrypted: '[Decryption failed]' };
-                        }
-                    })
-                );
+                        })
+                    );
+                    
+                    decryptedMessages.push(...batchResults);
+                    
+                    // Render progressively (show first batch immediately)
+                    if (i === 0) {
+                        this.messages = decryptedMessages;
+                        container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('');
+                        setTimeout(() => this.scrollToBottom(), 50);
+                    }
+                }
 
                 // Check for new messages and notify
                 const lastMessageId = this.lastMessageIds.get(this.currentRoom.id);
                 if (lastMessageId && decryptedMessages.length > 0) {
-                    // Find new messages (messages after the last known message)
                     const lastIndex = decryptedMessages.findIndex(m => m.id === lastMessageId);
                     if (lastIndex !== -1 && lastIndex < decryptedMessages.length - 1) {
                         const newMessagesOnly = decryptedMessages.slice(lastIndex + 1);
-                        console.log('[NOTIFICATIONS] New messages detected:', newMessagesOnly.length);
                         
-                        // Queue notifications for each new message (but not if window is focused on this room)
                         if (document.hidden || !document.hasFocus()) {
                             newMessagesOnly.forEach(msg => {
                                 this.queueNotification(msg, this.currentRoom.room_name || this.currentRoom.room_code);
                             });
-                        } else {
-                            console.log('[NOTIFICATIONS] ⏭️ Skipping notifications - app is visible and focused');
                         }
                     }
                 }
 
-                // Update last message ID
+                // Update last message ID and render final state
                 if (decryptedMessages.length > 0) {
                     const latestMessageId = decryptedMessages[decryptedMessages.length - 1].id;
                     const previousLastMessageId = this.lastMessageIds.get(this.currentRoom.id);
                     
-                    // Only re-render if there are NEW messages (different last message ID)
                     if (previousLastMessageId !== latestMessageId) {
-                        console.log('[CHAT] 🆕 New messages detected, re-rendering...');
-                        this.messages = decryptedMessages; // Store decrypted messages
+                        this.messages = decryptedMessages;
+                        // Cache decrypted messages
+                        this.messageCache.set(this.currentRoom.id, decryptedMessages);
                         container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('');
                         
-                        // Smart scroll: only auto-scroll if user is near bottom (don't force)
                         requestAnimationFrame(() => {
-                            this.scrollToBottom(); // Don't force
+                            this.scrollToBottom();
                         });
-                    } else {
-                        console.log('[CHAT] ✅ No new messages, skipping re-render');
                     }
                     
                     this.lastMessageIds.set(this.currentRoom.id, latestMessageId);
                 } else {
-                    // First load with messages
                     this.messages = decryptedMessages;
                     container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('');
                     
@@ -2068,6 +2090,13 @@ class SecureChatApp {
             
         } catch (error) {
             console.error('[V3] Error loading messages:', error);
+            container.innerHTML = `
+                <div class="text-red-500 text-center py-8">
+                    <i class="fas fa-exclamation-circle text-4xl mb-2"></i>
+                    <p class="font-semibold">Failed to load messages</p>
+                    <p class="text-sm mt-2">${error.message}</p>
+                </div>
+            `;
         }
     }
 
@@ -2368,6 +2397,8 @@ class SecureChatApp {
 
             if (data.success) {
                 input.value = '';
+                // Invalidate cache to force reload with new message
+                this.messageCache.delete(this.currentRoom.id);
                 await this.loadMessages();
                 
                 // Force scroll to bottom after sending your own message
