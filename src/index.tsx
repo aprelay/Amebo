@@ -223,7 +223,7 @@ app.post('/api/auth/login-email', async (c) => {
       .join('')
     
     const user = await c.env.DB.prepare(`
-      SELECT id, username, email, email_verified, tokens, token_tier, created_at 
+      SELECT id, username, email, email_verified, tokens, token_tier, avatar, created_at 
       FROM users 
       WHERE email = ? AND public_key = ?
     `).bind(email, passwordHash).first()
@@ -247,6 +247,7 @@ app.post('/api/auth/login-email', async (c) => {
         id: user.id,
         username: user.username,
         email: user.email,
+        avatar: user.avatar || null,
         tokens: user.tokens || 0,
         tier: user.token_tier || 'bronze',
         emailVerified: user.email_verified === 1
@@ -2156,8 +2157,8 @@ app.get('/', (c) => {
         <div id="app"></div>
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
-        <script src="/static/crypto-v2.js?v=PURE-CSS-SCROLL-V6"></script>
-        <script src="/static/app-v3.js?v=PURE-CSS-SCROLL-V6"></script>
+        <script src="/static/crypto-v2.js?v=AVATAR-PERSIST-V7"></script>
+        <script src="/static/app-v3.js?v=AVATAR-PERSIST-V7"></script>
         
         <script>
           // Register service worker for PWA

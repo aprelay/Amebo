@@ -883,11 +883,12 @@ class SecureChatApp {
             if (data.success && data.user) {
                 this.showMessage(msgDiv, 'Login successful!', 'success');
                 
-                // Set current user
+                // Set current user (including avatar!)
                 this.currentUser = {
                     id: data.user.id,
                     username: data.user.username,
                     email: data.user.email,
+                    avatar: data.user.avatar || null,
                     tokens: data.user.tokens || 0,
                     tier: data.user.tier || 'bronze'
                 };
