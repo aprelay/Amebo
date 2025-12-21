@@ -7829,8 +7829,9 @@ class SecureChatApp {
                 headers: { 'X-User-Email': this.currentUser.email }
             });
             
-            // Refresh notifications
-            this.showNotifications();
+            // Don't auto-redirect - just update badge count
+            await this.updateNotificationBadge();
+            console.log('[NOTIFICATIONS] ✅ Marked notification as read');
         } catch (error) {
             console.error('[NOTIFICATIONS] Mark read error:', error);
         }
@@ -7853,7 +7854,8 @@ class SecureChatApp {
             }
             
             this.showToast('All notifications marked as read', 'success');
-            this.showNotifications();
+            // Don't auto-redirect - just close notification center
+            this.showRoomList();
         } catch (error) {
             console.error('[NOTIFICATIONS] Mark all read error:', error);
         }
