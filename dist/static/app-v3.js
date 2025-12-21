@@ -7035,6 +7035,60 @@ class SecureChatApp {
         }
     }
     
+    // Accept contact request from notification
+    async acceptContactRequestFromNotification(notificationId, requesterId) {
+        try {
+            const response = await fetch('/api/contacts/accept', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-Email': this.currentUser.email
+                },
+                body: JSON.stringify({ requester_id: requesterId })
+            });
+            
+            if (response.ok) {
+                // Mark notification as read
+                await this.markNotificationRead(notificationId);
+                this.showToast('Contact request accepted!', 'success');
+                // Refresh notifications to remove the accepted request
+                setTimeout(() => this.showNotifications(), 500);
+            } else {
+                this.showToast('Failed to accept request', 'error');
+            }
+        } catch (error) {
+            console.error('[CONTACTS] Accept error:', error);
+            this.showToast('Failed to accept request', 'error');
+        }
+    }
+    
+    // Reject contact request from notification
+    async rejectContactRequestFromNotification(notificationId, requesterId) {
+        try {
+            const response = await fetch('/api/contacts/reject', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-Email': this.currentUser.email
+                },
+                body: JSON.stringify({ requester_id: requesterId })
+            });
+            
+            if (response.ok) {
+                // Mark notification as read
+                await this.markNotificationRead(notificationId);
+                this.showToast('Contact request rejected', 'info');
+                // Refresh notifications to remove the rejected request
+                setTimeout(() => this.showNotifications(), 500);
+            } else {
+                this.showToast('Failed to reject request', 'error');
+            }
+        } catch (error) {
+            console.error('[CONTACTS] Reject error:', error);
+            this.showToast('Failed to reject request', 'error');
+        }
+    }
+    
     // Show My Contacts
     async showMyContacts() {
         document.getElementById('app').innerHTML = `
@@ -7788,6 +7842,25 @@ class SecureChatApp {
                                             <h4 class="font-semibold text-gray-900">${this.escapeHtml(notif.title)}</h4>
                                             <p class="text-gray-600 text-sm mt-1">${this.escapeHtml(notif.message)}</p>
                                             <p class="text-xs text-gray-400 mt-2">${this.formatTimeAgo(notif.created_at)}</p>
+                                            
+                                            ${notif.type === 'contact_request' && notif.data ? `
+                                                <div class="flex gap-2 mt-3">
+                                                    <button 
+                                                        onclick="app.acceptContactRequestFromNotification('${notif.id}', '${JSON.parse(notif.data).requester_id}')"
+                                                        class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition"
+                                                    >
+                                                        <i class="fas fa-check mr-1"></i>
+                                                        Accept
+                                                    </button>
+                                                    <button 
+                                                        onclick="app.rejectContactRequestFromNotification('${notif.id}', '${JSON.parse(notif.data).requester_id}')"
+                                                        class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition"
+                                                    >
+                                                        <i class="fas fa-times mr-1"></i>
+                                                        Reject
+                                                    </button>
+                                                </div>
+                                            ` : ''}
                                         </div>
                                         ${!notif.is_read ? `
                                             <button 

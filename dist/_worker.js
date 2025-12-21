@@ -654,7 +654,7 @@ var Ir=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
         <script src="/static/crypto-v2.js?v=20251221-fresh"><\/script>
-        <script src="/static/app-v3.js?v=20251221-loop-fixed"><\/script>
+        <script src="/static/app-v3.js?v=20251221-accept-buttons"><\/script>
         
         <script>
           // Register service worker for PWA
@@ -1021,9 +1021,9 @@ var Ir=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
     `).bind(s.id,t).run();const a=await e.env.DB.prepare(`
       SELECT username FROM users WHERE id = ?
     `).bind(s.id).first();return await e.env.DB.prepare(`
-      INSERT INTO notifications (id, user_id, type, title, message, read, created_at)
-      VALUES (?, ?, ?, ?, ?, 0, datetime('now'))
-    `).bind(crypto.randomUUID(),t,"contact_request","New Contact Request",`${(a==null?void 0:a.username)||"Someone"} wants to connect with you`).run(),console.log(`[CONTACTS] Request sent from ${s.id} to ${t}`),e.json({success:!0,message:"Contact request sent"})}catch(r){return console.error("[CONTACTS] Request error:",r),e.json({error:"Failed to send contact request"},500)}});f.post("/api/contacts/accept",async e=>{try{const r=e.req.header("X-User-Email"),{requester_id:t}=await e.req.json();if(!r||!t)return e.json({error:"User email and requester ID required"},400);const s=await e.env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(r).first();if(!s)return e.json({error:"User not found"},404);await e.env.DB.prepare(`
+      INSERT INTO notifications (id, user_id, type, title, message, data, read, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, 0, datetime('now'))
+    `).bind(crypto.randomUUID(),t,"contact_request","New Contact Request",`${(a==null?void 0:a.username)||"Someone"} wants to connect with you`,JSON.stringify({requester_id:s.id,requester_username:a==null?void 0:a.username})).run(),console.log(`[CONTACTS] Request sent from ${s.id} to ${t}`),e.json({success:!0,message:"Contact request sent"})}catch(r){return console.error("[CONTACTS] Request error:",r),e.json({error:"Failed to send contact request"},500)}});f.post("/api/contacts/accept",async e=>{try{const r=e.req.header("X-User-Email"),{requester_id:t}=await e.req.json();if(!r||!t)return e.json({error:"User email and requester ID required"},400);const s=await e.env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(r).first();if(!s)return e.json({error:"User not found"},404);await e.env.DB.prepare(`
       UPDATE user_contacts SET status = 'accepted', created_at = datetime('now')
       WHERE user_id = ? AND contact_user_id = ?
     `).bind(t,s.id).run(),await e.env.DB.prepare(`

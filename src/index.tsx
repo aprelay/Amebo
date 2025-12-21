@@ -2070,7 +2070,7 @@ app.get('/', (c) => {
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
         <script src="/static/crypto-v2.js?v=20251221-fresh"></script>
-        <script src="/static/app-v3.js?v=20251221-loop-fixed"></script>
+        <script src="/static/app-v3.js?v=20251221-accept-buttons"></script>
         
         <script>
           // Register service worker for PWA
@@ -4275,16 +4275,17 @@ app.post('/api/contacts/request', async (c) => {
       SELECT username FROM users WHERE id = ?
     `).bind(user.id).first()
     
-    // Create notification for recipient
+    // Create notification for recipient with requester_id in data field
     await c.env.DB.prepare(`
-      INSERT INTO notifications (id, user_id, type, title, message, read, created_at)
-      VALUES (?, ?, ?, ?, ?, 0, datetime('now'))
+      INSERT INTO notifications (id, user_id, type, title, message, data, read, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, 0, datetime('now'))
     `).bind(
       crypto.randomUUID(),
       contact_id,
       'contact_request',
       'New Contact Request',
-      `${requester?.username || 'Someone'} wants to connect with you`
+      `${requester?.username || 'Someone'} wants to connect with you`,
+      JSON.stringify({ requester_id: user.id, requester_username: requester?.username })
     ).run()
     
     console.log(`[CONTACTS] Request sent from ${user.id} to ${contact_id}`)
