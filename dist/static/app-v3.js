@@ -24,6 +24,7 @@ class SecureChatApp {
         this.lastMessageIds = new Map(); // roomId -> last message ID
         this.notificationSound = null;
         this.notificationsEnabled = true;
+        this.badgeNotificationsEnabled = true; // Badge notifications for iOS PWA
         
         // Enhanced notification queue system
         this.notificationQueue = [];
@@ -133,6 +134,12 @@ class SecureChatApp {
 
     async updateAppBadge(count) {
         try {
+            // Only update badge if badge notifications are enabled
+            if (!this.badgeNotificationsEnabled) {
+                console.log('[BADGE] ⏭️ Badge notifications disabled, skipping update');
+                return;
+            }
+            
             // Update app badge (iOS PWA compatible!)
             if ('setAppBadge' in navigator) {
                 if (count > 0) {
@@ -494,6 +501,12 @@ class SecureChatApp {
         const notificationPref = localStorage.getItem('notificationsEnabled');
         if (notificationPref !== null) {
             this.notificationsEnabled = notificationPref === 'true';
+        }
+        
+        // Load badge notification preference
+        const badgeNotificationPref = localStorage.getItem('badgeNotificationsEnabled');
+        if (badgeNotificationPref !== null) {
+            this.badgeNotificationsEnabled = badgeNotificationPref === 'true';
         }
         
         // Check URL parameters
@@ -1129,6 +1142,19 @@ class SecureChatApp {
                                     <div class="flex items-center gap-2">
                                         <span class="text-sm ${this.notificationsEnabled ? 'text-green-600' : 'text-gray-400'}">${this.notificationsEnabled ? 'ON' : 'OFF'}</span>
                                         <i class="fas fa-toggle-${this.notificationsEnabled ? 'on text-green-600' : 'off text-gray-400'} text-2xl"></i>
+                                    </div>
+                                </button>
+                                <button onclick="app.toggleBadgeNotifications()" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition border-t border-gray-100">
+                                    <i class="fas fa-certificate text-red-600 text-xl w-6"></i>
+                                    <div class="flex-1 text-left">
+                                        <div class="font-medium">Badge Notifications</div>
+                                        <div class="text-xs text-gray-500 mt-1">
+                                            <i class="fas fa-mobile-alt"></i> Show unread count on app icon (iOS PWA)
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm ${this.badgeNotificationsEnabled ? 'text-green-600' : 'text-gray-400'}">${this.badgeNotificationsEnabled ? 'ON' : 'OFF'}</span>
+                                        <i class="fas fa-toggle-${this.badgeNotificationsEnabled ? 'on text-green-600' : 'off text-gray-400'} text-2xl"></i>
                                     </div>
                                 </button>
                             </div>
@@ -6494,6 +6520,36 @@ class SecureChatApp {
             toast.style.opacity = '0';
             setTimeout(() => toast.remove(), 300);
         }, 2000);
+    }
+
+    async toggleBadgeNotifications() {
+        this.badgeNotificationsEnabled = !this.badgeNotificationsEnabled;
+        localStorage.setItem('badgeNotificationsEnabled', this.badgeNotificationsEnabled);
+        
+        // If disabling, clear the badge immediately
+        if (!this.badgeNotificationsEnabled) {
+            await this.updateAppBadge(0);
+        }
+        
+        // Refresh the drawer to show updated toggle state
+        this.closeProfileDrawer();
+        setTimeout(() => this.openProfileDrawer(), 300);
+        
+        // Show feedback
+        const message = this.badgeNotificationsEnabled 
+            ? '🎖️ Badge notifications enabled!\n📱 Unread count will show on app icon (iOS PWA)' 
+            : '🎖️ Badge notifications disabled.';
+        
+        // Create a temporary toast notification
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg z-[100] transition-opacity duration-300 text-center';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
     }
 
     showNotifications() {
