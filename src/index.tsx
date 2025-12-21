@@ -544,7 +544,85 @@ app.post('/api/auth/login', async (c) => {
   }
 })
 
-// Get user by ID
+// ============================================
+// SPECIFIC USER ROUTES (MUST COME BEFORE :userId)
+// ============================================
+
+// Search users by username or email
+app.get('/api/users/search', async (c) => {
+  try {
+    const query = c.req.query('q')
+    const userEmail = c.req.header('X-User-Email')
+    
+    if (!query || query.length < 2) {
+      return c.json({ error: 'Search query must be at least 2 characters' }, 400)
+    }
+    
+    // Get current user ID from email
+    let currentUserId = ''
+    if (userEmail) {
+      const currentUser = await c.env.DB.prepare(`
+        SELECT id FROM users WHERE email = ?
+      `).bind(userEmail).first()
+      currentUserId = currentUser?.id || ''
+    }
+    
+    const result = await c.env.DB.prepare(`
+      SELECT id, username, display_name, bio, email, avatar
+      FROM users
+      WHERE is_searchable = 1
+        AND id != ?
+        AND (username LIKE ? OR display_name LIKE ? OR email LIKE ?)
+      LIMIT 20
+    `).bind(
+      currentUserId,
+      `%${query}%`,
+      `%${query}%`,
+      `%${query}%`
+    ).all()
+    
+    console.log(`[SEARCH] Query: "${query}", Found: ${result.results?.length || 0} users`)
+    return c.json({ success: true, users: result.results || [] })
+  } catch (error) {
+    console.error('User search error:', error)
+    return c.json({ error: 'Search failed' }, 500)
+  }
+})
+
+// Get blocked users list
+app.get('/api/users/blocked', async (c) => {
+  try {
+    const userEmail = c.req.header('X-User-Email')
+    
+    if (!userEmail) {
+      return c.json({ error: 'Email required' }, 400)
+    }
+    
+    // Get user ID from email
+    const currentUser = await c.env.DB.prepare(`
+      SELECT id FROM users WHERE email = ?
+    `).bind(userEmail).first()
+    
+    if (!currentUser) {
+      return c.json({ error: 'User not found' }, 404)
+    }
+    
+    const result = await c.env.DB.prepare(`
+      SELECT u.id, u.username, u.display_name, u.avatar, bu.blocked_at
+      FROM blocked_users bu
+      JOIN users u ON bu.blocked_user_id = u.id
+      WHERE bu.user_id = ?
+      ORDER BY bu.blocked_at DESC
+    `).bind(currentUser.id).all()
+    
+    return c.json({ success: true, blockedUsers: result.results || [] })
+  } catch (error) {
+    console.error('Get blocked users error:', error)
+    return c.json({ error: 'Failed to get blocked users' }, 500)
+  }
+})
+
+// Get user by ID (MUST COME AFTER SPECIFIC ROUTES)
 app.get('/api/users/:userId', async (c) => {
   try {
     const userId = c.req.param('userId')
@@ -769,49 +847,8 @@ app.get('/api/rooms/:roomId/members', async (c) => {
 })
 
 // ============================================
-// USER SEARCH & PRIVACY ROUTES
+// USER PRIVACY ROUTES
 // ============================================
-
-// Search users by username
-app.get('/api/users/search', async (c) => {
-  try {
-    const query = c.req.query('q')
-    const userEmail = c.req.header('X-User-Email')
-    
-    if (!query || query.length < 2) {
-      return c.json({ error: 'Search query must be at least 2 characters' }, 400)
-    }
-    
-    // Get current user ID from email
-    let currentUserId = ''
-    if (userEmail) {
-      const currentUser = await c.env.DB.prepare(`
-        SELECT id FROM users WHERE email = ?
-      `).bind(userEmail).first()
-      currentUserId = currentUser?.id || ''
-    }
-    
-    const result = await c.env.DB.prepare(`
-      SELECT id, username, display_name, bio, email, avatar
-      FROM users
-      WHERE is_searchable = 1
-        AND id != ?
-        AND (username LIKE ? OR display_name LIKE ? OR email LIKE ?)
-      LIMIT 20
-    `).bind(
-      currentUserId,
-      `%${query}%`,
-      `%${query}%`,
-      `%${query}%`
-    ).all()
-    
-    console.log(`[SEARCH] Query: "${query}", Found: ${result.results?.length || 0} users`)
-    return c.json({ success: true, users: result.results || [] })
-  } catch (error) {
-    console.error('User search error:', error)
-    return c.json({ error: 'Search failed' }, 500)
-  }
-})
 
 // Update user privacy settings
 app.post('/api/users/privacy', async (c) => {
@@ -2120,8 +2157,8 @@ app.get('/', (c) => {
         <div id="app"></div>
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
-        <script src="/static/crypto-v2.js?v=20251221-enhanced"></script>
-        <script src="/static/app-v3.js?v=20251221-enhanced"></script>
+        <script src="/static/crypto-v2.js?v=20251221-search-working"></script>
+        <script src="/static/app-v3.js?v=20251221-search-working"></script>
         
         <script>
           // Register service worker for PWA
@@ -4546,34 +4583,6 @@ app.delete('/api/users/block/:userId', async (c) => {
   } catch (error) {
     console.error('[BLOCK] Unblock error:', error)
     return c.json({ error: 'Failed to unblock user' }, 500)
-  }
-})
-
-// Get Blocked Users
-app.get('/api/users/blocked', async (c) => {
-  try {
-    const userEmail = c.req.header('X-User-Email')
-    if (!userEmail) {
-      return c.json({ error: 'User email required' }, 400)
-    }
-    
-    const user = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(userEmail).first()
-    if (!user) {
-      return c.json({ error: 'User not found' }, 404)
-    }
-    
-    const blocked = await c.env.DB.prepare(`
-      SELECT u.id, u.username, u.email, u.avatar, b.blocked_at, b.reason
-      FROM blocked_users b
-      JOIN users u ON b.blocked_user_id = u.id
-      WHERE b.user_id = ?
-      ORDER BY b.blocked_at DESC
-    `).bind(user.id).all()
-    
-    return c.json({ blocked: blocked.results || [] })
-  } catch (error) {
-    console.error('[BLOCK] Get blocked error:', error)
-    return c.json({ error: 'Failed to get blocked users' }, 500)
   }
 })
 

@@ -78,7 +78,24 @@ var Ir=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
       INSERT INTO users (id, username, public_key) VALUES (?, ?, ?)
     `).bind(n,t,s).run(),e.json({success:!0,userId:n,username:t,message:"User registered successfully"})}catch(t){return(r=t.message)!=null&&r.includes("UNIQUE constraint failed")?e.json({error:"Username already exists"},409):e.json({error:"Registration failed"},500)}});f.post("/api/auth/login",async e=>{try{const{username:r}=await e.req.json(),t=await e.env.DB.prepare(`
       SELECT id, username, public_key, created_at FROM users WHERE username = ?
-    `).bind(r).first();return t?e.json({success:!0,user:t}):e.json({error:"User not found"},404)}catch{return e.json({error:"Login failed"},500)}});f.get("/api/users/:userId",async e=>{try{const r=e.req.param("userId"),t=await e.env.DB.prepare(`
+    `).bind(r).first();return t?e.json({success:!0,user:t}):e.json({error:"User not found"},404)}catch{return e.json({error:"Login failed"},500)}});f.get("/api/users/search",async e=>{var r;try{const t=e.req.query("q"),s=e.req.header("X-User-Email");if(!t||t.length<2)return e.json({error:"Search query must be at least 2 characters"},400);let n="";if(s){const o=await e.env.DB.prepare(`
+        SELECT id FROM users WHERE email = ?
+      `).bind(s).first();n=(o==null?void 0:o.id)||""}const a=await e.env.DB.prepare(`
+      SELECT id, username, display_name, bio, email, avatar
+      FROM users
+      WHERE is_searchable = 1
+        AND id != ?
+        AND (username LIKE ? OR display_name LIKE ? OR email LIKE ?)
+      LIMIT 20
+    `).bind(n,`%${t}%`,`%${t}%`,`%${t}%`).all();return console.log(`[SEARCH] Query: "${t}", Found: ${((r=a.results)==null?void 0:r.length)||0} users`),e.json({success:!0,users:a.results||[]})}catch(t){return console.error("User search error:",t),e.json({error:"Search failed"},500)}});f.get("/api/users/blocked",async e=>{try{const r=e.req.header("X-User-Email");if(!r)return e.json({error:"Email required"},400);const t=await e.env.DB.prepare(`
+      SELECT id FROM users WHERE email = ?
+    `).bind(r).first();if(!t)return e.json({error:"User not found"},404);const s=await e.env.DB.prepare(`
+      SELECT u.id, u.username, u.display_name, u.avatar, bu.blocked_at
+      FROM blocked_users bu
+      JOIN users u ON bu.blocked_user_id = u.id
+      WHERE bu.user_id = ?
+      ORDER BY bu.blocked_at DESC
+    `).bind(t.id).all();return e.json({success:!0,blockedUsers:s.results||[]})}catch(r){return console.error("Get blocked users error:",r),e.json({error:"Failed to get blocked users"},500)}});f.get("/api/users/:userId",async e=>{try{const r=e.req.param("userId"),t=await e.env.DB.prepare(`
       SELECT id, username, public_key, created_at FROM users WHERE id = ?
     `).bind(r).first();return t?e.json({success:!0,user:t}):e.json({error:"User not found"},404)}catch{return e.json({error:"Failed to fetch user"},500)}});f.post("/api/users/update-avatar",async e=>{try{const{userId:r,avatar:t}=await e.req.json();return r?(await e.env.DB.prepare(`
       UPDATE users SET avatar = ? WHERE id = ?
@@ -113,16 +130,7 @@ var Ir=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
       JOIN room_members rm ON u.id = rm.user_id
       WHERE rm.room_id = ?
       ORDER BY rm.joined_at ASC
-    `).bind(r).all();return e.json({success:!0,members:t.results||[]})}catch{return e.json({error:"Failed to fetch members"},500)}});f.get("/api/users/search",async e=>{var r;try{const t=e.req.query("q"),s=e.req.header("X-User-Email");if(!t||t.length<2)return e.json({error:"Search query must be at least 2 characters"},400);let n="";if(s){const o=await e.env.DB.prepare(`
-        SELECT id FROM users WHERE email = ?
-      `).bind(s).first();n=(o==null?void 0:o.id)||""}const a=await e.env.DB.prepare(`
-      SELECT id, username, display_name, bio, email, avatar
-      FROM users
-      WHERE is_searchable = 1
-        AND id != ?
-        AND (username LIKE ? OR display_name LIKE ? OR email LIKE ?)
-      LIMIT 20
-    `).bind(n,`%${t}%`,`%${t}%`,`%${t}%`).all();return console.log(`[SEARCH] Query: "${t}", Found: ${((r=a.results)==null?void 0:r.length)||0} users`),e.json({success:!0,users:a.results||[]})}catch(t){return console.error("User search error:",t),e.json({error:"Search failed"},500)}});f.post("/api/users/privacy",async e=>{try{const r=e.req.header("X-User-Email"),{is_searchable:t,message_privacy:s,last_seen_privacy:n}=await e.req.json();if(!r)return e.json({error:"User email required"},400);const a=await e.env.DB.prepare(`
+    `).bind(r).all();return e.json({success:!0,members:t.results||[]})}catch{return e.json({error:"Failed to fetch members"},500)}});f.post("/api/users/privacy",async e=>{try{const r=e.req.header("X-User-Email"),{is_searchable:t,message_privacy:s,last_seen_privacy:n}=await e.req.json();if(!r)return e.json({error:"User email required"},400);const a=await e.env.DB.prepare(`
       SELECT id FROM users WHERE email = ?
     `).bind(r).first();return a?(await e.env.DB.prepare(`
       UPDATE users
@@ -1067,13 +1075,7 @@ var Ir=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
       DELETE FROM user_contacts WHERE user_id = ? AND contact_user_id = ?
     `).bind(t,n.id).run(),console.log(`[BLOCK] User ${n.id} blocked ${t}`),e.json({success:!0,message:"User blocked"})):e.json({error:"User not found"},404)}catch(r){return console.error("[BLOCK] Block error:",r),e.json({error:"Failed to block user"},500)}});f.delete("/api/users/block/:userId",async e=>{try{const r=e.req.header("X-User-Email"),t=e.req.param("userId");if(!r||!t)return e.json({error:"User email and blocked user ID required"},400);const s=await e.env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(r).first();return s?(await e.env.DB.prepare(`
       DELETE FROM blocked_users WHERE user_id = ? AND blocked_user_id = ?
-    `).bind(s.id,t).run(),console.log(`[BLOCK] User ${s.id} unblocked ${t}`),e.json({success:!0,message:"User unblocked"})):e.json({error:"User not found"},404)}catch(r){return console.error("[BLOCK] Unblock error:",r),e.json({error:"Failed to unblock user"},500)}});f.get("/api/users/blocked",async e=>{try{const r=e.req.header("X-User-Email");if(!r)return e.json({error:"User email required"},400);const t=await e.env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(r).first();if(!t)return e.json({error:"User not found"},404);const s=await e.env.DB.prepare(`
-      SELECT u.id, u.username, u.email, u.avatar, b.blocked_at, b.reason
-      FROM blocked_users b
-      JOIN users u ON b.blocked_user_id = u.id
-      WHERE b.user_id = ?
-      ORDER BY b.blocked_at DESC
-    `).bind(t.id).all();return e.json({blocked:s.results||[]})}catch(r){return console.error("[BLOCK] Get blocked error:",r),e.json({error:"Failed to get blocked users"},500)}});f.post("/api/users/status",async e=>{try{const r=e.req.header("X-User-Email"),{status:t}=await e.req.json();if(!r||!t)return e.json({error:"User email and status required"},400);const s=await e.env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(r).first();return s?(await e.env.DB.prepare(`
+    `).bind(s.id,t).run(),console.log(`[BLOCK] User ${s.id} unblocked ${t}`),e.json({success:!0,message:"User unblocked"})):e.json({error:"User not found"},404)}catch(r){return console.error("[BLOCK] Unblock error:",r),e.json({error:"Failed to unblock user"},500)}});f.post("/api/users/status",async e=>{try{const r=e.req.header("X-User-Email"),{status:t}=await e.req.json();if(!r||!t)return e.json({error:"User email and status required"},400);const s=await e.env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(r).first();return s?(await e.env.DB.prepare(`
       UPDATE users 
       SET online_status = ?, last_seen = datetime('now')
       WHERE id = ?
