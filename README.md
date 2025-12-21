@@ -8,6 +8,31 @@ A Progressive Web App (PWA) with military-grade encrypted messaging and payment 
 
 ## 🆕 Latest Updates (December 2025)
 
+### 🔧 CRITICAL BUG FIX - User Search Route Order (Dec 21, 2025)
+
+**✅ FIXED: User Search Now Working Perfectly!**
+
+**Issue:** User search was returning "404 Not Found" errors when searching for users like `amebo@oztec.cam` or `ads@oztec.cam`.
+
+**Root Cause:** Classic routing pattern issue in Hono backend. The parameterized route `/api/users/:userId` was defined BEFORE the specific route `/api/users/search`, causing Hono to incorrectly match `/api/users/search` as `/api/users/:userId` with `userId='search'`.
+
+**Fix:**
+- Moved all specific routes (`/api/users/search`, `/api/users/blocked`) BEFORE the parameterized `:userId` route
+- Ensured specific routes are matched first before falling back to catch-all patterns
+- Removed duplicate blocked users route
+- This follows the correct route precedence pattern for web frameworks
+
+**Testing Results:**
+- ✅ Search for 'amebo' from ads@oztec.cam - **SUCCESS**
+- ✅ Search for 'ads' from amebo@oztec.cam - **SUCCESS**
+- ✅ Both return correct user data with avatar, email, username
+- ✅ Privacy settings now persist correctly across sessions
+- ✅ All profile update functions verified working
+
+**Important Routing Rule:** In web frameworks like Hono, Express, etc., specific routes must always be defined BEFORE parameterized routes to avoid incorrect pattern matching.
+
+---
+
 ### 🚀 V4 COMPLETE SOCIAL SUITE - ALL 5 ENHANCED FEATURES!
 
 **✅ THE ULTIMATE CHAT APP - WHATSAPP + TELEGRAM COMBINED:**
