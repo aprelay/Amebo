@@ -1272,6 +1272,16 @@ class SecureChatApp {
                                         <i class="fas fa-toggle-${this.badgeNotificationsEnabled ? 'on text-green-600' : 'off text-gray-400'} text-2xl"></i>
                                     </div>
                                 </button>
+                                <button onclick="app.testBadgeNotification()" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition border-t border-gray-100">
+                                    <i class="fas fa-vial text-blue-600 text-xl w-6"></i>
+                                    <div class="flex-1 text-left">
+                                        <div class="font-medium">Test Badge</div>
+                                        <div class="text-xs text-gray-500 mt-1">
+                                            <i class="fas fa-check-circle"></i> Check if badge works on your device
+                                        </div>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-gray-400"></i>
+                                </button>
                             </div>
 
                             <!-- Privacy Section -->
@@ -6718,6 +6728,66 @@ class SecureChatApp {
             toast.style.opacity = '0';
             setTimeout(() => toast.remove(), 300);
         }, 3000);
+    }
+
+    async testBadgeNotification() {
+        console.log('[BADGE TEST] Starting badge diagnostic...');
+        
+        // Run diagnostic
+        this.checkBadgeSupport();
+        
+        // Create diagnostic results
+        const results = {
+            badgeAPI: 'setAppBadge' in navigator,
+            serviceWorker: 'serviceWorker' in navigator,
+            standalone: window.matchMedia('(display-mode: standalone)').matches,
+            iOS: /iPhone|iPad|iPod/.test(navigator.userAgent),
+            permission: 'Notification' in window ? Notification.permission : 'N/A'
+        };
+        
+        let message = '🔍 Badge Diagnostic Results:\n\n';
+        message += `Badge API: ${results.badgeAPI ? '✅ Supported' : '❌ Not Supported'}\n`;
+        message += `PWA Mode: ${results.standalone ? '✅ Yes' : '❌ No (open from home screen)'}\n`;
+        message += `iOS Device: ${results.iOS ? '✅ Yes' : '⚠️ No'}\n`;
+        message += `Service Worker: ${results.serviceWorker ? '✅ Yes' : '❌ No'}\n`;
+        message += `Notification Permission: ${results.permission}\n\n`;
+        
+        if (results.badgeAPI && results.standalone) {
+            message += '✅ Badge should work!\n\n';
+            message += '🧪 Testing badge now...\n';
+            message += 'Setting badge to 5.\n';
+            message += 'Go to home screen to check!';
+            
+            try {
+                await navigator.setAppBadge(5);
+                console.log('[BADGE TEST] ✅ Badge set to 5');
+                
+                alert(message);
+                
+                // Auto-clear after 10 seconds
+                setTimeout(async () => {
+                    await navigator.clearAppBadge();
+                    console.log('[BADGE TEST] ✅ Badge cleared');
+                }, 10000);
+            } catch (error) {
+                alert(message + '\n\n❌ Error: ' + error.message);
+            }
+        } else {
+            message += '❌ Badge won\'t work:\n';
+            if (!results.badgeAPI) message += '• Badge API not supported\n';
+            if (!results.standalone) message += '• Not in PWA mode\n';
+            message += '\n💡 Solution:\n';
+            if (!results.standalone) {
+                message += '1. Add app to home screen\n';
+                message += '2. Close Safari completely\n';
+                message += '3. Open from home screen icon';
+            } else if (!results.badgeAPI) {
+                message += '• Update to iOS 16.4 or higher\n';
+                message += '• Or use a supported device';
+            }
+            
+            alert(message);
+        }
     }
 
     showNotifications() {
