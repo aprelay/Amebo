@@ -1,0 +1,20 @@
+# Development environment variables
+# DO NOT commit this file to git!
+
+# Resend API for email verification
+RESEND_API_KEY=your_resend_api_key_here
+
+# App configuration
+APP_URL=http://localhost:3000
+FROM_EMAIL=noreply@yourdomain.com
+
+# VTPass API (Nigerian Data Bundles)
+# Sign up at: https://www.vtpass.com (live) or https://sandbox.vtpass.com (testing)
+# Get keys from: Profile > API Keys
+VTPASS_API_KEY=your_vtpass_api_key_here
+VTPASS_PUBLIC_KEY=PK_your_vtpass_public_key_here
+VTPASS_SECRET_KEY=SK_your_vtpass_secret_key_here
+VTPASS_BASE_URL=https://sandbox.vtpass.com/api
+
+# For production, use:
+# VTPASS_BASE_URL=https://vtpass.com/api

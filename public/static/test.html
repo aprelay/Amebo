@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Direct Test - SecureChat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
+        <h1 class="text-2xl font-bold mb-4">🔧 Direct App Test</h1>
+        
+        <div id="status" class="mb-4 p-4 bg-blue-50 rounded">
+            <p class="font-semibold">Testing...</p>
+        </div>
+
+        <div id="console-log" class="bg-black text-green-400 p-4 rounded font-mono text-sm h-96 overflow-auto">
+            <div>Console output will appear here...</div>
+        </div>
+
+        <div class="mt-4 space-y-2">
+            <button onclick="testLogin()" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
+                Test Login
+            </button>
+            <button onclick="testCreateRoom()" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">
+                Test Create Room
+            </button>
+            <button onclick="clearConsole()" class="w-full bg-gray-600 text-white py-2 rounded hover:bg-gray-700">
+                Clear Console
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const consoleDiv = document.getElementById('console-log');
+        const statusDiv = document.getElementById('status');
+
+        function log(msg, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? 'text-red-400' : type === 'success' ? 'text-green-400' : 'text-yellow-400';
+            consoleDiv.innerHTML += `<div class="${color}">[${timestamp}] ${msg}</div>`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+            console.log(msg);
+        }
+
+        function setStatus(msg, type = 'info') {
+            const bgColor = type === 'error' ? 'bg-red-50' : type === 'success' ? 'bg-green-50' : 'bg-blue-50';
+            statusDiv.innerHTML = `<p class="font-semibold">${msg}</p>`;
+            statusDiv.className = `mb-4 p-4 ${bgColor} rounded`;
+        }
+
+        function clearConsole() {
+            consoleDiv.innerHTML = '<div>Console cleared...</div>';
+        }
+
+        async function testLogin() {
+            log('===== TESTING LOGIN =====', 'info');
+            setStatus('Testing login...', 'info');
+            
+            const username = 'TestUser' + Math.floor(Math.random() * 1000);
+            log(`Username: ${username}`, 'info');
+
+            try {
+                // Test login (should fail - user doesn't exist)
+                log('POST /api/auth/login...', 'info');
+                let response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+                
+                let data = await response.json();
+                log(`Login response: ${JSON.stringify(data)}`, 'info');
+
+                if (!response.ok) {
+                    // Register new user
+                    log('User not found, registering...', 'info');
+                    log('Generating key pair...', 'info');
+                    
+                    // Simulate key generation (in real app this uses crypto)
+                    const publicKey = 'fake-public-key-' + Math.random();
+                    
+                    log('POST /api/auth/register...', 'info');
+                    response = await fetch('/api/auth/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, publicKey })
+                    });
+
+                    data = await response.json();
+                    log(`Register response: ${JSON.stringify(data)}`, response.ok ? 'success' : 'error');
+
+                    if (response.ok) {
+                        log(`✅ User registered! ID: ${data.userId}`, 'success');
+                        setStatus('✅ Login successful!', 'success');
+                        window.testUserId = data.userId;
+                        window.testUsername = username;
+                        return data;
+                    } else {
+                        throw new Error(data.error || 'Registration failed');
+                    }
+                } else {
+                    log('✅ User exists, logged in!', 'success');
+                    setStatus('✅ Login successful!', 'success');
+                    window.testUserId = data.user.id;
+                    window.testUsername = username;
+                    return data;
+                }
+            } catch (error) {
+                log(`❌ ERROR: ${error.message}`, 'error');
+                setStatus('❌ Login failed!', 'error');
+                throw error;
+            }
+        }
+
+        async function testCreateRoom() {
+            if (!window.testUserId) {
+                log('❌ Please test login first!', 'error');
+                setStatus('❌ Login first!', 'error');
+                return;
+            }
+
+            log('===== TESTING CREATE ROOM =====', 'info');
+            setStatus('Testing create room...', 'info');
+
+            const roomCode = 'test' + Math.floor(Math.random() * 1000);
+            log(`Room code: ${roomCode}`, 'info');
+
+            try {
+                log('POST /api/rooms/create...', 'info');
+                const response = await fetch('/api/rooms/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        roomCode: roomCode,
+                        roomName: `Test Room ${roomCode}`,
+                        userId: window.testUserId
+                    })
+                });
+
+                const data = await response.json();
+                log(`Create response: ${JSON.stringify(data)}`, response.ok ? 'success' : 'error');
+
+                if (response.ok) {
+                    log(`✅ Room created! ID: ${data.roomId}`, 'success');
+                    setStatus('✅ Room created successfully!', 'success');
+                    
+                    // Test loading rooms
+                    log('GET /api/rooms/user/...', 'info');
+                    const roomsResponse = await fetch(`/api/rooms/user/${window.testUserId}`);
+                    const roomsData = await roomsResponse.json();
+                    log(`Rooms: ${JSON.stringify(roomsData)}`, 'info');
+                    
+                    // Test loading messages
+                    log('GET /api/messages/...', 'info');
+                    const messagesResponse = await fetch(`/api/messages/${data.roomId}`);
+                    const messagesData = await messagesResponse.json();
+                    log(`Messages: ${JSON.stringify(messagesData)}`, 'success');
+                    
+                    log('✅ ALL TESTS PASSED!', 'success');
+                    setStatus('✅ All tests passed! API is working!', 'success');
+                } else {
+                    throw new Error(data.error || 'Failed to create room');
+                }
+            } catch (error) {
+                log(`❌ ERROR: ${error.message}`, 'error');
+                setStatus('❌ Create room failed!', 'error');
+                throw error;
+            }
+        }
+
+        // Auto-run on load
+        log('Test page loaded. Click buttons to test API endpoints.', 'info');
+        setStatus('Ready to test. Click "Test Login" to start.', 'info');
+    </script>
+</body>
+</html>

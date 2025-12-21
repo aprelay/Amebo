@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head><title>Icon Generator</title></head>
+<body>
+<canvas id="canvas192" width="192" height="192"></canvas>
+<canvas id="canvas512" width="512" height="512"></canvas>
+<script>
+function drawIcon(canvasId, size) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  
+  // Gradient background
+  const gradient = ctx.createLinearGradient(0, 0, size, size);
+  gradient.addColorStop(0, '#4F46E5');
+  gradient.addColorStop(1, '#7C3AED');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  
+  // Shield icon
+  ctx.fillStyle = 'white';
+  ctx.beginPath();
+  ctx.moveTo(size/2, size*0.2);
+  ctx.lineTo(size*0.3, size*0.3);
+  ctx.lineTo(size*0.3, size*0.6);
+  ctx.quadraticCurveTo(size*0.3, size*0.8, size/2, size*0.85);
+  ctx.quadraticCurveTo(size*0.7, size*0.8, size*0.7, size*0.6);
+  ctx.lineTo(size*0.7, size*0.3);
+  ctx.closePath();
+  ctx.fill();
+}
+
+drawIcon('canvas192', 192);
+drawIcon('canvas512', 512);
+
+// Download links
+setTimeout(() => {
+  ['canvas192', 'canvas512'].forEach(id => {
+    const canvas = document.getElementById(id);
+    const link = document.createElement('a');
+    link.download = id === 'canvas192' ? 'icon-192.png' : 'icon-512.png';
+    link.href = canvas.toDataURL();
+    document.body.appendChild(link);
+  });
+  document.body.innerHTML += '<p>Right-click canvases and save as icon-192.png and icon-512.png</p>';
+}, 100);
+</script>
+</body>
+</html>
