@@ -1099,7 +1099,7 @@ app.post('/api/messages/send', async (c) => {
       for (const member of members || []) {
         const notifId = crypto.randomUUID()
         await c.env.DB.prepare(`
-          INSERT INTO notifications (id, user_id, type, title, message, data, is_read)
+          INSERT INTO notifications (id, user_id, type, title, message, data, read)
           VALUES (?, ?, ?, ?, ?, ?, 0)
         `).bind(
           notifId,
@@ -2094,7 +2094,7 @@ app.get('/', (c) => {
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
         <script src="/static/crypto-v2.js?v=20251221-fresh"></script>
-        <script src="/static/app-v3.js?v=FINAL-20251221-1920"></script>
+        <script src="/static/app-v3.js?v=FIXED-READ-COLUMN-1925"></script>
         
         <script>
           // Register service worker for PWA
@@ -3373,7 +3373,7 @@ app.post('/api/notifications/:notificationId/read', async (c) => {
     const notificationId = c.req.param('notificationId')
     
     await c.env.DB.prepare(`
-      UPDATE notifications SET is_read = 1 WHERE id = ?
+      UPDATE notifications SET read = 1 WHERE id = ?
     `).bind(notificationId).run()
     
     return c.json({ success: true })
@@ -3407,7 +3407,7 @@ app.get('/api/notifications/:userId/unread', async (c) => {
     
     const { results } = await c.env.DB.prepare(`
       SELECT * FROM notifications
-      WHERE user_id = ? AND is_read = 0
+      WHERE user_id = ? AND read = 0
       ORDER BY created_at DESC
       LIMIT 10
     `).bind(userId).all()

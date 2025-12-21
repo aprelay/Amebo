@@ -2291,7 +2291,7 @@ class SecureChatApp {
                 setTimeout(() => this.scrollToBottom(), 100);
                 
                 // Poll typing indicators
-                await this.pollTypingIndicators(this.currentRoom);
+                await this.pollTypingIndicators(this.currentRoom.id);
             }
         }, 3000);
     }
@@ -7876,7 +7876,7 @@ class SecureChatApp {
                     ` : `
                         <div class="space-y-3">
                             ${notifications.map(notif => `
-                                <div class="bg-white rounded-lg shadow-md p-4 ${notif.is_read ? 'opacity-60' : 'border-l-4 border-purple-600'} hover:shadow-lg transition">
+                                <div class="bg-white rounded-lg shadow-md p-4 ${notif.read ? 'opacity-60' : 'border-l-4 border-purple-600'} hover:shadow-lg transition">
                                     <div class="flex items-start gap-3">
                                         <div class="flex-shrink-0">
                                             <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
@@ -7888,7 +7888,7 @@ class SecureChatApp {
                                             <p class="text-gray-600 text-sm mt-1">${this.escapeHtml(notif.message)}</p>
                                             <p class="text-xs text-gray-400 mt-2">${this.formatTimeAgo(notif.created_at)}</p>
                                             
-                                            ${notif.type === 'contact_request' && notif.data && !notif.is_read ? (() => {
+                                            ${notif.type === 'contact_request' && notif.data && !notif.read ? (() => {
                                                 try {
                                                     const data = JSON.parse(notif.data);
                                                     return `
@@ -7914,7 +7914,7 @@ class SecureChatApp {
                                                 }
                                             })() : ''}
                                         </div>
-                                        ${!notif.is_read ? `
+                                        ${!notif.read ? `
                                             <button 
                                                 onclick="app.markNotificationRead('${notif.id}')"
                                                 class="flex-shrink-0 text-gray-400 hover:text-purple-600 transition"
@@ -7970,7 +7970,7 @@ class SecureChatApp {
             
             // Mark all unread as read
             for (const notif of notifications) {
-                if (!notif.is_read) {
+                if (!notif.read) {
                     await fetch(`/api/notifications/${notif.id}/read`, {
                         method: 'POST',
                         headers: { 'X-User-Email': this.currentUser.email }

@@ -180,7 +180,7 @@ var Ir=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
       `).bind(r).first(),{results:d}=await e.env.DB.prepare(`
         SELECT user_id FROM room_members WHERE room_id = ? AND user_id != ?
       `).bind(r,t).all(),u=(c==null?void 0:c.room_name)||(c==null?void 0:c.room_code)||"Unknown Room",p=(i==null?void 0:i.username)||"Someone";for(const m of d||[]){const h=crypto.randomUUID();await e.env.DB.prepare(`
-          INSERT INTO notifications (id, user_id, type, title, message, data, is_read)
+          INSERT INTO notifications (id, user_id, type, title, message, data, read)
           VALUES (?, ?, ?, ?, ?, ?, 0)
         `).bind(h,m.user_id,"new_message",`New message in ${u}`,`${p} sent a message`,JSON.stringify({roomId:r,messageId:o,senderId:t,roomName:u})).run(),console.log(`[NOTIFICATION] Created for user ${m.user_id} in room ${u}`)}}catch(i){console.error("[NOTIFICATION] Error creating notifications:",i)}return e.json({success:!0,messageId:o,message:"Message sent successfully"})}catch{return e.json({error:"Failed to send message"},500)}});f.get("/api/messages/:roomId",async e=>{try{const r=e.req.param("roomId"),t=parseInt(e.req.query("limit")||"50"),s=parseInt(e.req.query("offset")||"0"),n=await e.env.DB.prepare(`
       SELECT m.id, m.room_id, m.sender_id, m.encrypted_content, m.iv, m.created_at,
@@ -656,7 +656,7 @@ var Ir=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
         <script src="/static/crypto-v2.js?v=20251221-fresh"><\/script>
-        <script src="/static/app-v3.js?v=FINAL-20251221-1920"><\/script>
+        <script src="/static/app-v3.js?v=FIXED-READ-COLUMN-1925"><\/script>
         
         <script>
           // Register service worker for PWA
@@ -873,13 +873,13 @@ var Ir=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
       ORDER BY created_at DESC
       LIMIT 20
     `).bind(r).all();return e.json({success:!0,notifications:t||[]})}catch(r){return console.error("Get notifications error:",r),e.json({error:"Failed to get notifications"},500)}});f.post("/api/notifications/:notificationId/read",async e=>{try{const r=e.req.param("notificationId");return await e.env.DB.prepare(`
-      UPDATE notifications SET is_read = 1 WHERE id = ?
+      UPDATE notifications SET read = 1 WHERE id = ?
     `).bind(r).run(),e.json({success:!0})}catch(r){return console.error("Mark notification read error:",r),e.json({error:"Failed to mark notification as read"},500)}});f.get("/api/notifications/:userId/unread-count",async e=>{try{const r=e.req.param("userId"),t=await e.env.DB.prepare(`
       SELECT COUNT(*) as count FROM notifications
       WHERE user_id = ? AND read = 0
     `).bind(r).first();return e.json({success:!0,count:(t==null?void 0:t.count)||0})}catch(r){return console.error("Get unread count error:",r),e.json({error:"Failed to get unread count"},500)}});f.get("/api/notifications/:userId/unread",async e=>{try{const r=e.req.param("userId"),{results:t}=await e.env.DB.prepare(`
       SELECT * FROM notifications
-      WHERE user_id = ? AND is_read = 0
+      WHERE user_id = ? AND read = 0
       ORDER BY created_at DESC
       LIMIT 10
     `).bind(r).all();return e.json({success:!0,notifications:t||[]})}catch(r){return console.error("Get unread notifications error:",r),e.json({error:"Failed to get unread notifications"},500)}});f.get("/api/data/plans",async e=>{try{const r=e.req.query("network");let t="SELECT * FROM data_plans WHERE active = 1";const s=[];r&&(t+=" AND network = ?",s.push(r)),t+=" ORDER BY token_cost ASC";const n=await e.env.DB.prepare(t).bind(...s).all();return e.json({success:!0,data:n.results||[]})}catch(r){return console.error("Get data plans error:",r),e.json({error:"Failed to get data plans"},500)}});f.post("/api/data/redeem",async e=>{var r,t,s,n,a,o,i;try{const{userId:c,planCode:d,phoneNumber:u}=await e.req.json();if(!c||!d||!u)return e.json({error:"User ID, plan code, and phone number required"},400);if(!/^0[789][01]\d{8}$/.test(u))return e.json({error:"Invalid Nigerian phone number format"},400);const m=await e.env.DB.prepare(`
