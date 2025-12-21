@@ -2097,9 +2097,9 @@ app.get('/', (c) => {
     <body class="bg-gray-50">
         <div id="app"></div>
         
-        <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System -->
-        <script src="/static/crypto-v2.js?v=20251221-user-search"></script>
-        <script src="/static/app-v3.js?v=20251221-user-search"></script>
+        <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
+        <script src="/static/crypto-v2.js?v=20251221-enhanced"></script>
+        <script src="/static/app-v3.js?v=20251221-enhanced"></script>
         
         <script>
           // Register service worker for PWA
@@ -4254,6 +4254,477 @@ app.get('/api/ads/advertiser/:advertiserId/campaigns', async (c) => {
   } catch (error: any) {
     console.error('[ADS] Get campaigns error:', error)
     return c.json({ error: 'Failed to get campaigns' }, 500)
+  }
+})
+
+// ============================================
+// ENHANCED FEATURES APIs
+// ============================================
+
+// Contact Request - Send
+app.post('/api/contacts/request', async (c) => {
+  try {
+    const userEmail = c.req.header('X-User-Email')
+    const { contact_id } = await c.req.json()
+    
+    if (!userEmail || !contact_id) {
+      return c.json({ error: 'User email and contact ID required' }, 400)
+    }
+    
+    // Get requesting user
+    const user = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(userEmail).first()
+    if (!user) {
+      return c.json({ error: 'User not found' }, 404)
+    }
+    
+    // Check if already connected
+    const existing = await c.env.DB.prepare(`
+      SELECT status FROM user_contacts 
+      WHERE user_id = ? AND contact_user_id = ?
+    `).bind(user.id, contact_id).first()
+    
+    if (existing) {
+      if (existing.status === 'accepted') {
+        return c.json({ error: 'Already contacts' }, 400)
+      } else if (existing.status === 'pending') {
+        return c.json({ error: 'Contact request already sent' }, 400)
+      } else if (existing.status === 'blocked') {
+        return c.json({ error: 'Cannot send contact request' }, 403)
+      }
+    }
+    
+    // Insert contact request
+    await c.env.DB.prepare(`
+      INSERT INTO user_contacts (user_id, contact_user_id, status, created_at)
+      VALUES (?, ?, 'pending', datetime('now'))
+    `).bind(user.id, contact_id).run()
+    
+    console.log(`[CONTACTS] Request sent from ${user.id} to ${contact_id}`)
+    return c.json({ success: true, message: 'Contact request sent' })
+  } catch (error) {
+    console.error('[CONTACTS] Request error:', error)
+    return c.json({ error: 'Failed to send contact request' }, 500)
+  }
+})
+
+// Contact Request - Accept
+app.post('/api/contacts/accept', async (c) => {
+  try {
+    const userEmail = c.req.header('X-User-Email')
+    const { requester_id } = await c.req.json()
+    
+    if (!userEmail || !requester_id) {
+      return c.json({ error: 'User email and requester ID required' }, 400)
+    }
+    
+    // Get accepting user
+    const user = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(userEmail).first()
+    if (!user) {
+      return c.json({ error: 'User not found' }, 404)
+    }
+    
+    // Update status to accepted
+    await c.env.DB.prepare(`
+      UPDATE user_contacts SET status = 'accepted', created_at = datetime('now')
+      WHERE user_id = ? AND contact_user_id = ?
+    `).bind(requester_id, user.id).run()
+    
+    // Add reciprocal contact
+    await c.env.DB.prepare(`
+      INSERT OR REPLACE INTO user_contacts (user_id, contact_user_id, status, created_at)
+      VALUES (?, ?, 'accepted', datetime('now'))
+    `).bind(user.id, requester_id).run()
+    
+    console.log(`[CONTACTS] Request accepted: ${requester_id} <-> ${user.id}`)
+    return c.json({ success: true, message: 'Contact request accepted' })
+  } catch (error) {
+    console.error('[CONTACTS] Accept error:', error)
+    return c.json({ error: 'Failed to accept contact request' }, 500)
+  }
+})
+
+// Contact Request - Reject
+app.post('/api/contacts/reject', async (c) => {
+  try {
+    const userEmail = c.req.header('X-User-Email')
+    const { requester_id } = await c.req.json()
+    
+    if (!userEmail || !requester_id) {
+      return c.json({ error: 'User email and requester ID required' }, 400)
+    }
+    
+    // Get rejecting user
+    const user = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(userEmail).first()
+    if (!user) {
+      return c.json({ error: 'User not found' }, 404)
+    }
+    
+    // Delete the contact request
+    await c.env.DB.prepare(`
+      DELETE FROM user_contacts WHERE user_id = ? AND contact_user_id = ?
+    `).bind(requester_id, user.id).run()
+    
+    console.log(`[CONTACTS] Request rejected: ${requester_id} -> ${user.id}`)
+    return c.json({ success: true, message: 'Contact request rejected' })
+  } catch (error) {
+    console.error('[CONTACTS] Reject error:', error)
+    return c.json({ error: 'Failed to reject contact request' }, 500)
+  }
+})
+
+// Get Contact Requests
+app.get('/api/contacts/requests', async (c) => {
+  try {
+    const userEmail = c.req.header('X-User-Email')
+    if (!userEmail) {
+      return c.json({ error: 'User email required' }, 400)
+    }
+    
+    const user = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(userEmail).first()
+    if (!user) {
+      return c.json({ error: 'User not found' }, 404)
+    }
+    
+    // Get pending requests (people who want to connect with me)
+    const requests = await c.env.DB.prepare(`
+      SELECT u.id, u.username, u.email, u.avatar, uc.created_at
+      FROM user_contacts uc
+      JOIN users u ON uc.user_id = u.id
+      WHERE uc.contact_user_id = ? AND uc.status = 'pending'
+      ORDER BY uc.created_at DESC
+    `).bind(user.id).all()
+    
+    return c.json({ requests: requests.results || [] })
+  } catch (error) {
+    console.error('[CONTACTS] Get requests error:', error)
+    return c.json({ error: 'Failed to get contact requests' }, 500)
+  }
+})
+
+// Get My Contacts
+app.get('/api/contacts', async (c) => {
+  try {
+    const userEmail = c.req.header('X-User-Email')
+    if (!userEmail) {
+      return c.json({ error: 'User email required' }, 400)
+    }
+    
+    const user = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(userEmail).first()
+    if (!user) {
+      return c.json({ error: 'User not found' }, 404)
+    }
+    
+    // Get accepted contacts
+    const contacts = await c.env.DB.prepare(`
+      SELECT u.id, u.username, u.email, u.avatar, u.online_status, u.last_seen
+      FROM user_contacts uc
+      JOIN users u ON uc.contact_user_id = u.id
+      WHERE uc.user_id = ? AND uc.status = 'accepted'
+      ORDER BY u.username ASC
+    `).bind(user.id).all()
+    
+    return c.json({ contacts: contacts.results || [] })
+  } catch (error) {
+    console.error('[CONTACTS] Get contacts error:', error)
+    return c.json({ error: 'Failed to get contacts' }, 500)
+  }
+})
+
+// Remove Contact
+app.delete('/api/contacts/:contactId', async (c) => {
+  try {
+    const userEmail = c.req.header('X-User-Email')
+    const contactId = c.req.param('contactId')
+    
+    if (!userEmail || !contactId) {
+      return c.json({ error: 'User email and contact ID required' }, 400)
+    }
+    
+    const user = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(userEmail).first()
+    if (!user) {
+      return c.json({ error: 'User not found' }, 404)
+    }
+    
+    // Delete both directions
+    await c.env.DB.prepare(`
+      DELETE FROM user_contacts WHERE user_id = ? AND contact_user_id = ?
+    `).bind(user.id, contactId).run()
+    
+    await c.env.DB.prepare(`
+      DELETE FROM user_contacts WHERE user_id = ? AND contact_user_id = ?
+    `).bind(contactId, user.id).run()
+    
+    console.log(`[CONTACTS] Removed contact: ${user.id} <-> ${contactId}`)
+    return c.json({ success: true, message: 'Contact removed' })
+  } catch (error) {
+    console.error('[CONTACTS] Remove error:', error)
+    return c.json({ error: 'Failed to remove contact' }, 500)
+  }
+})
+
+// Block User
+app.post('/api/users/block', async (c) => {
+  try {
+    const userEmail = c.req.header('X-User-Email')
+    const { user_id, reason } = await c.req.json()
+    
+    if (!userEmail || !user_id) {
+      return c.json({ error: 'User email and target user ID required' }, 400)
+    }
+    
+    const user = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(userEmail).first()
+    if (!user) {
+      return c.json({ error: 'User not found' }, 404)
+    }
+    
+    // Insert into blocked_users table
+    await c.env.DB.prepare(`
+      INSERT OR REPLACE INTO blocked_users (user_id, blocked_user_id, blocked_at, reason)
+      VALUES (?, ?, datetime('now'), ?)
+    `).bind(user.id, user_id, reason || null).run()
+    
+    // Remove from contacts if exists
+    await c.env.DB.prepare(`
+      DELETE FROM user_contacts WHERE user_id = ? AND contact_user_id = ?
+    `).bind(user.id, user_id).run()
+    
+    await c.env.DB.prepare(`
+      DELETE FROM user_contacts WHERE user_id = ? AND contact_user_id = ?
+    `).bind(user_id, user.id).run()
+    
+    console.log(`[BLOCK] User ${user.id} blocked ${user_id}`)
+    return c.json({ success: true, message: 'User blocked' })
+  } catch (error) {
+    console.error('[BLOCK] Block error:', error)
+    return c.json({ error: 'Failed to block user' }, 500)
+  }
+})
+
+// Unblock User
+app.delete('/api/users/block/:userId', async (c) => {
+  try {
+    const userEmail = c.req.header('X-User-Email')
+    const blockedUserId = c.req.param('userId')
+    
+    if (!userEmail || !blockedUserId) {
+      return c.json({ error: 'User email and blocked user ID required' }, 400)
+    }
+    
+    const user = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(userEmail).first()
+    if (!user) {
+      return c.json({ error: 'User not found' }, 404)
+    }
+    
+    await c.env.DB.prepare(`
+      DELETE FROM blocked_users WHERE user_id = ? AND blocked_user_id = ?
+    `).bind(user.id, blockedUserId).run()
+    
+    console.log(`[BLOCK] User ${user.id} unblocked ${blockedUserId}`)
+    return c.json({ success: true, message: 'User unblocked' })
+  } catch (error) {
+    console.error('[BLOCK] Unblock error:', error)
+    return c.json({ error: 'Failed to unblock user' }, 500)
+  }
+})
+
+// Get Blocked Users
+app.get('/api/users/blocked', async (c) => {
+  try {
+    const userEmail = c.req.header('X-User-Email')
+    if (!userEmail) {
+      return c.json({ error: 'User email required' }, 400)
+    }
+    
+    const user = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(userEmail).first()
+    if (!user) {
+      return c.json({ error: 'User not found' }, 404)
+    }
+    
+    const blocked = await c.env.DB.prepare(`
+      SELECT u.id, u.username, u.email, u.avatar, b.blocked_at, b.reason
+      FROM blocked_users b
+      JOIN users u ON b.blocked_user_id = u.id
+      WHERE b.user_id = ?
+      ORDER BY b.blocked_at DESC
+    `).bind(user.id).all()
+    
+    return c.json({ blocked: blocked.results || [] })
+  } catch (error) {
+    console.error('[BLOCK] Get blocked error:', error)
+    return c.json({ error: 'Failed to get blocked users' }, 500)
+  }
+})
+
+// Update Online Status
+app.post('/api/users/status', async (c) => {
+  try {
+    const userEmail = c.req.header('X-User-Email')
+    const { status } = await c.req.json() // 'online', 'offline', 'away'
+    
+    if (!userEmail || !status) {
+      return c.json({ error: 'User email and status required' }, 400)
+    }
+    
+    const user = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(userEmail).first()
+    if (!user) {
+      return c.json({ error: 'User not found' }, 404)
+    }
+    
+    await c.env.DB.prepare(`
+      UPDATE users 
+      SET online_status = ?, last_seen = datetime('now')
+      WHERE id = ?
+    `).bind(status, user.id).run()
+    
+    return c.json({ success: true })
+  } catch (error) {
+    console.error('[STATUS] Update error:', error)
+    return c.json({ error: 'Failed to update status' }, 500)
+  }
+})
+
+// Get Room Online Users
+app.get('/api/rooms/:roomId/online', async (c) => {
+  try {
+    const roomId = c.req.param('roomId')
+    
+    // Get online users in room (updated in last 2 minutes)
+    const onlineUsers = await c.env.DB.prepare(`
+      SELECT u.id, u.username, u.avatar, u.online_status
+      FROM room_members rm
+      JOIN users u ON rm.user_id = u.id
+      WHERE rm.room_id = ? 
+        AND u.online_status = 'online'
+        AND u.last_seen >= datetime('now', '-2 minutes')
+      ORDER BY u.username
+    `).bind(roomId).all()
+    
+    return c.json({ online: onlineUsers.results || [] })
+  } catch (error) {
+    console.error('[STATUS] Get online error:', error)
+    return c.json({ error: 'Failed to get online users' }, 500)
+  }
+})
+
+// Typing Indicator - Start
+app.post('/api/typing/start', async (c) => {
+  try {
+    const userEmail = c.req.header('X-User-Email')
+    const { room_id } = await c.req.json()
+    
+    if (!userEmail || !room_id) {
+      return c.json({ error: 'User email and room ID required' }, 400)
+    }
+    
+    const user = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(userEmail).first()
+    if (!user) {
+      return c.json({ error: 'User not found' }, 404)
+    }
+    
+    // Insert or update typing status
+    await c.env.DB.prepare(`
+      INSERT OR REPLACE INTO typing_status (room_id, user_id, started_at)
+      VALUES (?, ?, datetime('now'))
+    `).bind(room_id, user.id).run()
+    
+    return c.json({ success: true })
+  } catch (error) {
+    console.error('[TYPING] Start error:', error)
+    return c.json({ error: 'Failed to start typing' }, 500)
+  }
+})
+
+// Typing Indicator - Stop
+app.post('/api/typing/stop', async (c) => {
+  try {
+    const userEmail = c.req.header('X-User-Email')
+    const { room_id } = await c.req.json()
+    
+    if (!userEmail || !room_id) {
+      return c.json({ error: 'User email and room ID required' }, 400)
+    }
+    
+    const user = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(userEmail).first()
+    if (!user) {
+      return c.json({ error: 'User not found' }, 404)
+    }
+    
+    await c.env.DB.prepare(`
+      DELETE FROM typing_status WHERE room_id = ? AND user_id = ?
+    `).bind(room_id, user.id).run()
+    
+    return c.json({ success: true })
+  } catch (error) {
+    console.error('[TYPING] Stop error:', error)
+    return c.json({ error: 'Failed to stop typing' }, 500)
+  }
+})
+
+// Get Typing Users
+app.get('/api/typing/:roomId', async (c) => {
+  try {
+    const roomId = c.req.param('roomId')
+    
+    // Get users typing in last 5 seconds
+    const typingUsers = await c.env.DB.prepare(`
+      SELECT u.id, u.username, u.avatar
+      FROM typing_status ts
+      JOIN users u ON ts.user_id = u.id
+      WHERE ts.room_id = ? AND ts.started_at >= datetime('now', '-5 seconds')
+    `).bind(roomId).all()
+    
+    return c.json({ typing: typingUsers.results || [] })
+  } catch (error) {
+    console.error('[TYPING] Get error:', error)
+    return c.json({ error: 'Failed to get typing users' }, 500)
+  }
+})
+
+// Mark Message as Read
+app.post('/api/messages/:messageId/read', async (c) => {
+  try {
+    const userEmail = c.req.header('X-User-Email')
+    const messageId = c.req.param('messageId')
+    
+    if (!userEmail || !messageId) {
+      return c.json({ error: 'User email and message ID required' }, 400)
+    }
+    
+    const user = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(userEmail).first()
+    if (!user) {
+      return c.json({ error: 'User not found' }, 404)
+    }
+    
+    // Insert read receipt
+    await c.env.DB.prepare(`
+      INSERT OR REPLACE INTO message_receipts (message_id, user_id, read_at)
+      VALUES (?, ?, datetime('now'))
+    `).bind(messageId, user.id).run()
+    
+    return c.json({ success: true })
+  } catch (error) {
+    console.error('[RECEIPTS] Mark read error:', error)
+    return c.json({ error: 'Failed to mark message as read' }, 500)
+  }
+})
+
+// Get Message Read Receipts
+app.get('/api/messages/:messageId/receipts', async (c) => {
+  try {
+    const messageId = c.req.param('messageId')
+    
+    const receipts = await c.env.DB.prepare(`
+      SELECT u.id, u.username, u.avatar, mr.read_at
+      FROM message_receipts mr
+      JOIN users u ON mr.user_id = u.id
+      WHERE mr.message_id = ?
+      ORDER BY mr.read_at ASC
+    `).bind(messageId).all()
+    
+    return c.json({ receipts: receipts.results || [] })
+  } catch (error) {
+    console.error('[RECEIPTS] Get receipts error:', error)
+    return c.json({ error: 'Failed to get read receipts' }, 500)
   }
 })
 

@@ -646,6 +646,10 @@ class SecureChatApp {
             this.startNotificationPolling();
             console.log('[NOTIFICATIONS] ✅ Notification polling started (auto-login)');
             
+            // Start online status updates
+            this.startOnlineStatusUpdates();
+            console.log('[STATUS] ✅ Online status tracking started');
+            
             // Check badge API support
             this.checkBadgeSupport();
             
@@ -1273,6 +1277,26 @@ class SecureChatApp {
                                 </button>
                             </div>
 
+                            <!-- Contacts Section -->
+                            <div class="border-b">
+                                <div class="px-4 py-2 bg-gray-50 text-xs font-semibold text-gray-500 uppercase">Contacts</div>
+                                <button onclick="app.showContactRequests()" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
+                                    <i class="fas fa-user-plus text-green-600 text-xl w-6"></i>
+                                    <span class="flex-1 text-left">Contact Requests</span>
+                                    <i class="fas fa-chevron-right text-gray-400"></i>
+                                </button>
+                                <button onclick="app.showMyContacts()" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
+                                    <i class="fas fa-users text-blue-600 text-xl w-6"></i>
+                                    <span class="flex-1 text-left">My Contacts</span>
+                                    <i class="fas fa-chevron-right text-gray-400"></i>
+                                </button>
+                                <button onclick="app.showBlockedUsers()" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
+                                    <i class="fas fa-ban text-red-600 text-xl w-6"></i>
+                                    <span class="flex-1 text-left">Blocked Users</span>
+                                    <i class="fas fa-chevron-right text-gray-400"></i>
+                                </button>
+                            </div>
+
                             <!-- Privacy Section -->
                             <div class="border-b">
                                 <div class="px-4 py-2 bg-gray-50 text-xs font-semibold text-gray-500 uppercase">Privacy</div>
@@ -1668,6 +1692,8 @@ class SecureChatApp {
                             <div style="font-size: 14px;">Loading encrypted messages...</div>
                         </div>
                     </div>
+                    <!-- Typing Indicator -->
+                    <div id="typing-indicator" class="hidden" style="max-width: 800px; margin: 0 auto; padding: 0 16px 10px;"></div>
                 </div>
 
                 <!-- WhatsApp-style Input Bar -->
@@ -1693,6 +1719,7 @@ class SecureChatApp {
                                 id="messageInput" 
                                 placeholder="Type a message"
                                 style="flex: 1; padding: 10px 16px; border: none; border-radius: 24px; background: white; font-size: 15px; outline: none;"
+                                oninput="app.handleMessageInput()"
                                 onkeypress="if(event.key==='Enter') app.sendMessage()"
                             />
                             <button onclick="app.sendMessage()" style="background: #25d366; border: none; color: white; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.4);">
@@ -2254,6 +2281,9 @@ class SecureChatApp {
                 await this.loadMessages();
                 // Auto-scroll to bottom when new messages arrive
                 setTimeout(() => this.scrollToBottom(), 100);
+                
+                // Poll typing indicators
+                await this.pollTypingIndicators(this.currentRoom);
             }
         }, 3000);
     }
@@ -6720,13 +6750,29 @@ class SecureChatApp {
                                 <h3 class="font-semibold text-gray-800">${this.escapeHtml(user.username)}</h3>
                                 <p class="text-sm text-gray-500">${this.escapeHtml(user.email)}</p>
                             </div>
-                            <button 
-                                onclick="app.startDirectMessage(${user.id}, '${this.escapeHtml(user.username)}')"
-                                class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center gap-2"
-                            >
-                                <i class="fas fa-comment"></i>
-                                Message
-                            </button>
+                            <div class="flex gap-2">
+                                <button 
+                                    onclick="app.startDirectMessage(${user.id}, '${this.escapeHtml(user.username)}')"
+                                    class="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition text-sm"
+                                    title="Message"
+                                >
+                                    <i class="fas fa-comment"></i>
+                                </button>
+                                <button 
+                                    onclick="app.sendContactRequest(${user.id})"
+                                    class="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition text-sm"
+                                    title="Add Contact"
+                                >
+                                    <i class="fas fa-user-plus"></i>
+                                </button>
+                                <button 
+                                    onclick="if(confirm('Block this user?')) app.blockUser(${user.id})"
+                                    class="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition text-sm"
+                                    title="Block User"
+                                >
+                                    <i class="fas fa-ban"></i>
+                                </button>
+                            </div>
                         </div>
                     `;
                 }).join('');
@@ -6746,6 +6792,38 @@ class SecureChatApp {
                     <p>Error searching users</p>
                 </div>
             `;
+        }
+    }
+    
+    // Handle message input for typing indicator
+    handleMessageInput() {
+        const input = document.getElementById('messageInput');
+        if (input && input.value.trim().length > 0 && this.currentRoom) {
+            this.startTyping(this.currentRoom);
+        }
+    }
+    
+    async sendContactRequest(contactId) {
+        try {
+            const response = await fetch('/api/contacts/request', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-Email': this.currentUser.email
+                },
+                body: JSON.stringify({ contact_id: contactId })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                this.showToast('Contact request sent!', 'success');
+            } else {
+                this.showToast(data.error || 'Failed to send request', 'error');
+            }
+        } catch (error) {
+            console.error('[CONTACTS] Send request error:', error);
+            this.showToast('Error sending contact request', 'error');
         }
     }
     
@@ -6773,6 +6851,552 @@ class SecureChatApp {
             console.error('[DM] Error starting direct message:', error);
             this.showMessage('search-message', 'Error starting direct message', 'error');
         }
+    }
+
+    // ============================================
+    // ENHANCED FEATURES
+    // ============================================
+    
+    // Show Contact Requests
+    async showContactRequests() {
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100 p-4">
+                <div class="max-w-md mx-auto">
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h1 class="text-2xl font-bold text-gray-800">
+                                <i class="fas fa-user-plus text-purple-600 mr-2"></i>
+                                Contact Requests
+                            </h1>
+                            <button onclick="app.showRoomList()" class="text-gray-600 hover:text-gray-800">
+                                <i class="fas fa-times text-2xl"></i>
+                            </button>
+                        </div>
+
+                        <div id="requests-list" class="space-y-3">
+                            <div class="text-gray-500 text-center py-8">
+                                <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                                <p>Loading requests...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        await this.loadContactRequests();
+    }
+    
+    async loadContactRequests() {
+        try {
+            const response = await fetch('/api/contacts/requests', {
+                headers: { 'X-User-Email': this.currentUser.email }
+            });
+            
+            if (response.ok) {
+                const { requests } = await response.json();
+                const listDiv = document.getElementById('requests-list');
+                
+                if (requests.length === 0) {
+                    listDiv.innerHTML = `
+                        <div class="text-gray-500 text-center py-8">
+                            <i class="fas fa-inbox text-4xl mb-3 text-gray-300"></i>
+                            <p>No pending requests</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                listDiv.innerHTML = requests.map(req => {
+                    const avatarHtml = req.avatar
+                        ? `<img src="${req.avatar}" class="w-12 h-12 rounded-full object-cover" alt="Avatar">`
+                        : `<div class="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center text-white font-bold text-lg">${req.username.charAt(0).toUpperCase()}</div>`;
+                    
+                    return `
+                        <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                            ${avatarHtml}
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-gray-800">${this.escapeHtml(req.username)}</h3>
+                                <p class="text-sm text-gray-500">${this.escapeHtml(req.email)}</p>
+                                <p class="text-xs text-gray-400 mt-1">
+                                    <i class="fas fa-clock mr-1"></i>
+                                    ${new Date(req.created_at).toLocaleDateString()}
+                                </p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button 
+                                    onclick="app.acceptContactRequest('${req.id}')"
+                                    class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition text-sm"
+                                >
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button 
+                                    onclick="app.rejectContactRequest('${req.id}')"
+                                    class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition text-sm"
+                                >
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        } catch (error) {
+            console.error('[CONTACTS] Error loading requests:', error);
+        }
+    }
+    
+    async acceptContactRequest(requesterId) {
+        try {
+            const response = await fetch('/api/contacts/accept', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-Email': this.currentUser.email
+                },
+                body: JSON.stringify({ requester_id: requesterId })
+            });
+            
+            if (response.ok) {
+                await this.loadContactRequests();
+                this.showToast('Contact request accepted!', 'success');
+            }
+        } catch (error) {
+            console.error('[CONTACTS] Accept error:', error);
+            this.showToast('Failed to accept request', 'error');
+        }
+    }
+    
+    async rejectContactRequest(requesterId) {
+        try {
+            const response = await fetch('/api/contacts/reject', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-Email': this.currentUser.email
+                },
+                body: JSON.stringify({ requester_id: requesterId })
+            });
+            
+            if (response.ok) {
+                await this.loadContactRequests();
+                this.showToast('Contact request rejected', 'info');
+            }
+        } catch (error) {
+            console.error('[CONTACTS] Reject error:', error);
+            this.showToast('Failed to reject request', 'error');
+        }
+    }
+    
+    // Show My Contacts
+    async showMyContacts() {
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100 p-4">
+                <div class="max-w-md mx-auto">
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h1 class="text-2xl font-bold text-gray-800">
+                                <i class="fas fa-users text-purple-600 mr-2"></i>
+                                My Contacts
+                            </h1>
+                            <button onclick="app.showRoomList()" class="text-gray-600 hover:text-gray-800">
+                                <i class="fas fa-times text-2xl"></i>
+                            </button>
+                        </div>
+
+                        <div id="contacts-list" class="space-y-3">
+                            <div class="text-gray-500 text-center py-8">
+                                <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                                <p>Loading contacts...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        await this.loadMyContacts();
+    }
+    
+    async loadMyContacts() {
+        try {
+            const response = await fetch('/api/contacts', {
+                headers: { 'X-User-Email': this.currentUser.email }
+            });
+            
+            if (response.ok) {
+                const { contacts } = await response.json();
+                const listDiv = document.getElementById('contacts-list');
+                
+                if (contacts.length === 0) {
+                    listDiv.innerHTML = `
+                        <div class="text-gray-500 text-center py-8">
+                            <i class="fas fa-user-friends text-4xl mb-3 text-gray-300"></i>
+                            <p>No contacts yet</p>
+                            <button 
+                                onclick="app.showUserSearch()"
+                                class="mt-4 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
+                            >
+                                Find People
+                            </button>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                listDiv.innerHTML = contacts.map(contact => {
+                    const avatarHtml = contact.avatar
+                        ? `<img src="${contact.avatar}" class="w-12 h-12 rounded-full object-cover" alt="Avatar">`
+                        : `<div class="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center text-white font-bold text-lg">${contact.username.charAt(0).toUpperCase()}</div>`;
+                    
+                    const onlineStatus = contact.online_status === 'online' 
+                        ? '<span class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>'
+                        : '';
+                    
+                    return `
+                        <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                            <div class="relative">
+                                ${avatarHtml}
+                                ${onlineStatus}
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-gray-800">${this.escapeHtml(contact.username)}</h3>
+                                <p class="text-sm text-gray-500">${this.escapeHtml(contact.email)}</p>
+                                ${contact.online_status === 'online' 
+                                    ? '<p class="text-xs text-green-600 mt-1"><i class="fas fa-circle mr-1"></i>Online</p>'
+                                    : `<p class="text-xs text-gray-400 mt-1">Last seen ${this.formatLastSeen(contact.last_seen)}</p>`
+                                }
+                            </div>
+                            <div class="flex gap-2">
+                                <button 
+                                    onclick="app.startDirectMessage('${contact.id}', '${this.escapeHtml(contact.username)}')"
+                                    class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 transition text-sm"
+                                >
+                                    <i class="fas fa-comment"></i>
+                                </button>
+                                <button 
+                                    onclick="app.removeContact('${contact.id}')"
+                                    class="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 transition text-sm"
+                                >
+                                    <i class="fas fa-user-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        } catch (error) {
+            console.error('[CONTACTS] Error loading contacts:', error);
+        }
+    }
+    
+    async removeContact(contactId) {
+        if (!confirm('Remove this contact?')) return;
+        
+        try {
+            const response = await fetch(`/api/contacts/${contactId}`, {
+                method: 'DELETE',
+                headers: { 'X-User-Email': this.currentUser.email }
+            });
+            
+            if (response.ok) {
+                await this.loadMyContacts();
+                this.showToast('Contact removed', 'success');
+            }
+        } catch (error) {
+            console.error('[CONTACTS] Remove error:', error);
+            this.showToast('Failed to remove contact', 'error');
+        }
+    }
+    
+    // Block/Unblock User
+    async blockUser(userId, reason = '') {
+        try {
+            const response = await fetch('/api/users/block', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-Email': this.currentUser.email
+                },
+                body: JSON.stringify({ user_id: userId, reason })
+            });
+            
+            if (response.ok) {
+                this.showToast('User blocked', 'success');
+                return true;
+            }
+        } catch (error) {
+            console.error('[BLOCK] Error:', error);
+            this.showToast('Failed to block user', 'error');
+        }
+        return false;
+    }
+    
+    // Show Blocked Users
+    async showBlockedUsers() {
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100 p-4">
+                <div class="max-w-md mx-auto">
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h1 class="text-2xl font-bold text-gray-800">
+                                <i class="fas fa-ban text-red-600 mr-2"></i>
+                                Blocked Users
+                            </h1>
+                            <button onclick="app.showRoomList()" class="text-gray-600 hover:text-gray-800">
+                                <i class="fas fa-times text-2xl"></i>
+                            </button>
+                        </div>
+
+                        <div id="blocked-list" class="space-y-3">
+                            <div class="text-gray-500 text-center py-8">
+                                <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                                <p>Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        await this.loadBlockedUsers();
+    }
+    
+    async loadBlockedUsers() {
+        try {
+            const response = await fetch('/api/users/blocked', {
+                headers: { 'X-User-Email': this.currentUser.email }
+            });
+            
+            if (response.ok) {
+                const { blocked } = await response.json();
+                const listDiv = document.getElementById('blocked-list');
+                
+                if (blocked.length === 0) {
+                    listDiv.innerHTML = `
+                        <div class="text-gray-500 text-center py-8">
+                            <i class="fas fa-check-circle text-4xl mb-3 text-green-300"></i>
+                            <p>No blocked users</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                listDiv.innerHTML = blocked.map(user => {
+                    const avatarHtml = user.avatar
+                        ? `<img src="${user.avatar}" class="w-12 h-12 rounded-full object-cover" alt="Avatar">`
+                        : `<div class="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center text-white font-bold text-lg">${user.username.charAt(0).toUpperCase()}</div>`;
+                    
+                    return `
+                        <div class="flex items-center gap-3 p-4 bg-red-50 rounded-lg">
+                            ${avatarHtml}
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-gray-800">${this.escapeHtml(user.username)}</h3>
+                                <p class="text-sm text-gray-500">${this.escapeHtml(user.email)}</p>
+                                ${user.reason ? `<p class="text-xs text-gray-400 mt-1">Reason: ${this.escapeHtml(user.reason)}</p>` : ''}
+                                <p class="text-xs text-gray-400 mt-1">
+                                    Blocked ${new Date(user.blocked_at).toLocaleDateString()}
+                                </p>
+                            </div>
+                            <button 
+                                onclick="app.unblockUser('${user.id}')"
+                                class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 transition text-sm"
+                            >
+                                <i class="fas fa-unlock mr-1"></i>
+                                Unblock
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            }
+        } catch (error) {
+            console.error('[BLOCK] Error loading blocked users:', error);
+        }
+    }
+    
+    async unblockUser(userId) {
+        try {
+            const response = await fetch(`/api/users/block/${userId}`, {
+                method: 'DELETE',
+                headers: { 'X-User-Email': this.currentUser.email }
+            });
+            
+            if (response.ok) {
+                await this.loadBlockedUsers();
+                this.showToast('User unblocked', 'success');
+            }
+        } catch (error) {
+            console.error('[BLOCK] Unblock error:', error);
+            this.showToast('Failed to unblock user', 'error');
+        }
+    }
+    
+    // Online Status Management
+    async updateOnlineStatus(status = 'online') {
+        try {
+            await fetch('/api/users/status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-Email': this.currentUser.email
+                },
+                body: JSON.stringify({ status })
+            });
+            console.log(`[STATUS] Updated to: ${status}`);
+        } catch (error) {
+            console.error('[STATUS] Update error:', error);
+        }
+    }
+    
+    // Start pinging online status every 60 seconds
+    startOnlineStatusUpdates() {
+        this.updateOnlineStatus('online');
+        this.onlineStatusInterval = setInterval(() => {
+            this.updateOnlineStatus('online');
+        }, 60000); // Update every minute
+        
+        // Set to offline on page unload
+        window.addEventListener('beforeunload', () => {
+            this.updateOnlineStatus('offline');
+        });
+    }
+    
+    // Typing Indicators
+    async startTyping(roomId) {
+        if (this.typingTimeout) clearTimeout(this.typingTimeout);
+        
+        try {
+            await fetch('/api/typing/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-Email': this.currentUser.email
+                },
+                body: JSON.stringify({ room_id: roomId })
+            });
+            
+            // Auto-stop after 5 seconds
+            this.typingTimeout = setTimeout(() => this.stopTyping(roomId), 5000);
+        } catch (error) {
+            console.error('[TYPING] Start error:', error);
+        }
+    }
+    
+    async stopTyping(roomId) {
+        if (this.typingTimeout) {
+            clearTimeout(this.typingTimeout);
+            this.typingTimeout = null;
+        }
+        
+        try {
+            await fetch('/api/typing/stop', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-Email': this.currentUser.email
+                },
+                body: JSON.stringify({ room_id: roomId })
+            });
+        } catch (error) {
+            console.error('[TYPING] Stop error:', error);
+        }
+    }
+    
+    async pollTypingIndicators(roomId) {
+        if (!this.currentRoom) return;
+        
+        try {
+            const response = await fetch(`/api/typing/${roomId}`);
+            if (response.ok) {
+                const { typing } = await response.json();
+                this.updateTypingIndicator(typing);
+            }
+        } catch (error) {
+            console.error('[TYPING] Poll error:', error);
+        }
+    }
+    
+    updateTypingIndicator(typingUsers) {
+        const indicator = document.getElementById('typing-indicator');
+        if (!indicator) return;
+        
+        // Filter out current user
+        const others = typingUsers.filter(u => u.id !== this.currentUser.id);
+        
+        if (others.length === 0) {
+            indicator.classList.add('hidden');
+        } else {
+            indicator.classList.remove('hidden');
+            const names = others.map(u => u.username).join(', ');
+            indicator.innerHTML = `
+                <div class="flex items-center gap-2 text-sm text-gray-600 px-4 py-2">
+                    <div class="flex gap-1">
+                        <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0s"></span>
+                        <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+                        <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></span>
+                    </div>
+                    <span>${names} ${others.length === 1 ? 'is' : 'are'} typing...</span>
+                </div>
+            `;
+        }
+    }
+    
+    // Read Receipts
+    async markMessageAsRead(messageId) {
+        try {
+            await fetch(`/api/messages/${messageId}/read`, {
+                method: 'POST',
+                headers: { 'X-User-Email': this.currentUser.email }
+            });
+        } catch (error) {
+            console.error('[RECEIPTS] Mark read error:', error);
+        }
+    }
+    
+    async markAllMessagesAsRead(messages) {
+        for (const msg of messages) {
+            if (msg.sender_id !== this.currentUser.id) {
+                await this.markMessageAsRead(msg.id);
+            }
+        }
+    }
+    
+    // Helper: Format last seen time
+    formatLastSeen(lastSeen) {
+        if (!lastSeen) return 'never';
+        
+        const now = new Date();
+        const then = new Date(lastSeen);
+        const diffMs = now - then;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+        
+        if (diffMins < 1) return 'just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        return then.toLocaleDateString();
+    }
+    
+    // Toast notification helper
+    showToast(message, type = 'info') {
+        const colors = {
+            success: 'bg-green-500',
+            error: 'bg-red-500',
+            info: 'bg-blue-500',
+            warning: 'bg-yellow-500'
+        };
+        
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
     }
 
     async showClearChatHistory() {
