@@ -267,15 +267,31 @@ class SecureChatApp {
     }
 
     // Scroll chat to bottom (auto-scroll on new messages)
-    scrollToBottom() {
+    scrollToBottom(force = false) {
         try {
             const container = document.getElementById('messages');
             if (container) {
-                // Use setTimeout to ensure DOM is fully rendered
+                // Method 1: Immediate scroll
+                container.scrollTop = container.scrollHeight;
+                
+                // Method 2: requestAnimationFrame (smoother)
+                requestAnimationFrame(() => {
+                    container.scrollTop = container.scrollHeight;
+                });
+                
+                // Method 3: Small delay for content loading
                 setTimeout(() => {
                     container.scrollTop = container.scrollHeight;
-                    console.log('[CHAT] 📜 Scrolled to bottom');
+                    console.log('[CHAT] 📜 Scrolled to bottom (height:', container.scrollHeight, 'scrollTop:', container.scrollTop + ')');
                 }, 100);
+                
+                // Method 4: Longer delay for images/media
+                setTimeout(() => {
+                    container.scrollTop = container.scrollHeight;
+                    console.log('[CHAT] 📜 Final scroll complete');
+                }, 400);
+            } else {
+                console.warn('[CHAT] ⚠️ Messages container not found');
             }
         } catch (error) {
             console.error('[CHAT] Scroll error:', error);
@@ -1704,6 +1720,11 @@ class SecureChatApp {
 
         await this.loadMessages();
         this.startPolling();
+        
+        // Ensure scroll to bottom after room is fully loaded
+        setTimeout(() => {
+            this.scrollToBottom();
+        }, 200);
     }
 
     toggleEmojiPicker() {
@@ -2217,6 +2238,11 @@ class SecureChatApp {
             if (data.success) {
                 input.value = '';
                 await this.loadMessages();
+                
+                // Ensure scroll to bottom after sending
+                setTimeout(() => {
+                    this.scrollToBottom();
+                }, 100);
                 
                 // Award tokens for messaging
                 await this.awardTokens(1, 'message');
