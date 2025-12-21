@@ -6554,13 +6554,27 @@ class SecureChatApp {
         this.notificationsEnabled = !this.notificationsEnabled;
         localStorage.setItem('notificationsEnabled', this.notificationsEnabled);
         
+        console.log('[NOTIFICATIONS] Toggle:', this.notificationsEnabled ? 'ON' : 'OFF');
+        
         if (this.notificationsEnabled && 'Notification' in window && Notification.permission === 'default') {
             await this.requestNotificationPermission();
         }
         
-        // Refresh the drawer to show updated toggle state
-        this.closeProfileDrawer();
-        setTimeout(() => this.openProfileDrawer(), 300);
+        // Update the toggle UI directly without refreshing drawer
+        const toggleButton = document.querySelector('button[onclick="app.toggleNotifications()"]');
+        if (toggleButton) {
+            const statusSpan = toggleButton.querySelector('.text-sm');
+            const toggleIcon = toggleButton.querySelector('.fa-toggle-on, .fa-toggle-off');
+            
+            if (statusSpan) {
+                statusSpan.textContent = this.notificationsEnabled ? 'ON' : 'OFF';
+                statusSpan.className = `text-sm ${this.notificationsEnabled ? 'text-green-600' : 'text-gray-400'}`;
+            }
+            
+            if (toggleIcon) {
+                toggleIcon.className = `fas fa-toggle-${this.notificationsEnabled ? 'on text-green-600' : 'off text-gray-400'} text-2xl`;
+            }
+        }
         
         // Show feedback
         const message = this.notificationsEnabled 
@@ -6569,7 +6583,7 @@ class SecureChatApp {
         
         // Create a temporary toast notification
         const toast = document.createElement('div');
-        toast.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg z-[100] transition-opacity duration-300';
+        toast.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg z-[100] transition-opacity duration-300 text-center whitespace-pre-line';
         toast.textContent = message;
         document.body.appendChild(toast);
         
@@ -6583,14 +6597,28 @@ class SecureChatApp {
         this.badgeNotificationsEnabled = !this.badgeNotificationsEnabled;
         localStorage.setItem('badgeNotificationsEnabled', this.badgeNotificationsEnabled);
         
+        console.log('[BADGE] Toggle:', this.badgeNotificationsEnabled ? 'ON' : 'OFF');
+        
         // If disabling, clear the badge immediately
         if (!this.badgeNotificationsEnabled) {
             await this.updateAppBadge(0);
         }
         
-        // Refresh the drawer to show updated toggle state
-        this.closeProfileDrawer();
-        setTimeout(() => this.openProfileDrawer(), 300);
+        // Update the toggle UI directly without refreshing drawer
+        const toggleButton = document.querySelector('button[onclick="app.toggleBadgeNotifications()"]');
+        if (toggleButton) {
+            const statusSpan = toggleButton.querySelector('.text-sm');
+            const toggleIcon = toggleButton.querySelector('.fa-toggle-on, .fa-toggle-off');
+            
+            if (statusSpan) {
+                statusSpan.textContent = this.badgeNotificationsEnabled ? 'ON' : 'OFF';
+                statusSpan.className = `text-sm ${this.badgeNotificationsEnabled ? 'text-green-600' : 'text-gray-400'}`;
+            }
+            
+            if (toggleIcon) {
+                toggleIcon.className = `fas fa-toggle-${this.badgeNotificationsEnabled ? 'on text-green-600' : 'off text-gray-400'} text-2xl`;
+            }
+        }
         
         // Show feedback
         const message = this.badgeNotificationsEnabled 
@@ -6599,7 +6627,7 @@ class SecureChatApp {
         
         // Create a temporary toast notification
         const toast = document.createElement('div');
-        toast.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg z-[100] transition-opacity duration-300 text-center';
+        toast.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg z-[100] transition-opacity duration-300 text-center whitespace-pre-line';
         toast.textContent = message;
         document.body.appendChild(toast);
         
