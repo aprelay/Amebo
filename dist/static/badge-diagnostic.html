@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Badge Diagnostic - Amebo</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .log-entry { 
+            padding: 8px; 
+            margin: 4px 0; 
+            border-radius: 4px; 
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-success { background: #d1fae5; color: #065f46; }
+        .log-warning { background: #fef3c7; color: #92400e; }
+        .log-error { background: #fee2e2; color: #991b1b; }
+        .log-info { background: #dbeafe; color: #1e40af; }
+    </style>
+</head>
+<body class="bg-gray-50 p-4">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
+        <h1 class="text-3xl font-bold mb-2">🔍 Badge Notification Diagnostic</h1>
+        <p class="text-gray-600 mb-6">This tool will help diagnose why badge notifications aren't working on your device.</p>
+        
+        <!-- Status Summary -->
+        <div id="statusSummary" class="mb-6 p-4 bg-gray-100 rounded-lg">
+            <h2 class="font-bold mb-2">Status: <span id="overallStatus">Checking...</span></h2>
+            <div id="statusDetails"></div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="grid grid-cols-2 gap-3 mb-6">
+            <button onclick="runFullDiagnostic()" class="bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700">
+                🔍 Run Full Diagnostic
+            </button>
+            <button onclick="testBadge()" class="bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700">
+                🧪 Test Badge (Set to 5)
+            </button>
+            <button onclick="clearBadge()" class="bg-yellow-600 text-white py-3 px-4 rounded-lg hover:bg-yellow-700">
+                🧹 Clear Badge
+            </button>
+            <button onclick="checkNotifications()" class="bg-purple-600 text-white py-3 px-4 rounded-lg hover:bg-purple-700">
+                📬 Check Unread Count
+            </button>
+        </div>
+        
+        <!-- Logs -->
+        <div class="mb-6">
+            <h3 class="font-bold mb-2">Diagnostic Logs:</h3>
+            <div id="logs" class="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto"></div>
+        </div>
+        
+        <!-- Requirements Checklist -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <h3 class="font-bold text-blue-900 mb-3">✅ iOS Badge Requirements:</h3>
+            <div id="requirements" class="space-y-2 text-sm"></div>
+        </div>
+        
+        <!-- Setup Instructions -->
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <h3 class="font-bold text-yellow-900 mb-2">📋 Setup Instructions:</h3>
+            <ol class="text-sm text-yellow-800 space-y-2 list-decimal list-inside">
+                <li><strong>Check iOS Version:</strong> Settings → General → About → Software Version (Need 16.4+)</li>
+                <li><strong>Add to Home Screen:</strong> Safari → Share (box icon) → "Add to Home Screen"</li>
+                <li><strong>Open from Home Screen:</strong> Tap the Amebo icon on your home screen (NOT Safari!)</li>
+                <li><strong>Run Diagnostic:</strong> Click "Run Full Diagnostic" button above</li>
+                <li><strong>Test Badge:</strong> Click "Test Badge" → Go to home screen → Check icon for red badge</li>
+            </ol>
+        </div>
+    </div>
+    
+    <script>
+        let logCount = 0;
+        
+        function log(message, type = 'info') {
+            logCount++;
+            const logs = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `[${timestamp}] ${message}`;
+            logs.appendChild(entry);
+            logs.scrollTop = logs.scrollHeight;
+            console.log(`[DIAGNOSTIC] ${message}`);
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+            logCount = 0;
+        }
+        
+        function updateStatus(status, color) {
+            const statusEl = document.getElementById('overallStatus');
+            statusEl.textContent = status;
+            statusEl.style.color = color;
+        }
+        
+        async function runFullDiagnostic() {
+            clearLogs();
+            log('🔍 Starting full diagnostic...', 'info');
+            
+            const results = {
+                badgeAPI: false,
+                serviceWorker: false,
+                standalone: false,
+                iOS: false,
+                iOSVersion: 'Unknown',
+                permissions: 'Unknown'
+            };
+            
+            // Check 1: Badge API
+            log('1️⃣ Checking Badge API support...', 'info');
+            if ('setAppBadge' in navigator) {
+                results.badgeAPI = true;
+                log('✅ Badge API is supported!', 'success');
+            } else {
+                results.badgeAPI = false;
+                log('❌ Badge API NOT supported', 'error');
+                log('   This means badge notifications will NOT work', 'error');
+            }
+            
+            // Check 2: Service Worker
+            log('2️⃣ Checking Service Worker...', 'info');
+            if ('serviceWorker' in navigator) {
+                results.serviceWorker = true;
+                log('✅ Service Worker API available', 'success');
+                
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    if (registration.active) {
+                        log('✅ Service Worker is active', 'success');
+                    } else {
+                        log('⚠️ Service Worker registered but not active', 'warning');
+                    }
+                } catch (e) {
+                    log('⚠️ Service Worker not registered yet', 'warning');
+                }
+            } else {
+                results.serviceWorker = false;
+                log('❌ Service Worker NOT supported', 'error');
+            }
+            
+            // Check 3: Display Mode (PWA)
+            log('3️⃣ Checking Display Mode (PWA)...', 'info');
+            results.standalone = window.matchMedia('(display-mode: standalone)').matches;
+            if (results.standalone) {
+                log('✅ Running in Standalone mode (PWA) ✓', 'success');
+                log('   App opened from home screen icon', 'success');
+            } else {
+                log('❌ NOT in Standalone mode (Browser)', 'error');
+                log('   ⚠️ Badge notifications require PWA mode', 'error');
+                log('   💡 Add to home screen and open from there', 'warning');
+            }
+            
+            // Check 4: iOS Detection
+            log('4️⃣ Checking Device Type...', 'info');
+            const ua = navigator.userAgent;
+            results.iOS = /iPhone|iPad|iPod/.test(ua);
+            if (results.iOS) {
+                log('✅ iOS device detected', 'success');
+                
+                // Try to extract iOS version
+                const match = ua.match(/OS (\d+)_(\d+)/);
+                if (match) {
+                    const major = parseInt(match[1]);
+                    const minor = parseInt(match[2]);
+                    results.iOSVersion = `${major}.${minor}`;
+                    log(`   iOS Version: ${results.iOSVersion}`, 'info');
+                    
+                    if (major >= 16 && (major > 16 || minor >= 4)) {
+                        log('✅ iOS version supports Badge API (16.4+)', 'success');
+                    } else {
+                        log('❌ iOS version too old (need 16.4+)', 'error');
+                        log(`   Your version: ${results.iOSVersion}, Required: 16.4+`, 'error');
+                    }
+                }
+            } else {
+                log('⚠️ Non-iOS device detected', 'warning');
+                log('   Device: ' + (ua.includes('Android') ? 'Android' : 'Desktop/Other'), 'info');
+            }
+            
+            // Check 5: Notification Permission
+            log('5️⃣ Checking Notification Permission...', 'info');
+            if ('Notification' in window) {
+                results.permissions = Notification.permission;
+                log(`   Permission: ${Notification.permission}`, 'info');
+                
+                if (Notification.permission === 'granted') {
+                    log('✅ Notification permission granted', 'success');
+                } else if (Notification.permission === 'denied') {
+                    log('❌ Notification permission DENIED', 'error');
+                    log('   Go to Settings → Safari → Notifications to enable', 'warning');
+                } else {
+                    log('⚠️ Notification permission not requested yet', 'warning');
+                }
+            }
+            
+            // Check 6: LocalStorage Settings
+            log('6️⃣ Checking App Settings...', 'info');
+            const badgeEnabled = localStorage.getItem('badgeNotificationsEnabled');
+            const notifsEnabled = localStorage.getItem('notificationsEnabled');
+            log(`   Badge Notifications: ${badgeEnabled !== 'false' ? 'Enabled' : 'Disabled'}`, 'info');
+            log(`   Message Notifications: ${notifsEnabled !== 'false' ? 'Enabled' : 'Disabled'}`, 'info');
+            
+            // Overall Assessment
+            log('', 'info');
+            log('═══════════════════════════════════', 'info');
+            log('📊 DIAGNOSTIC SUMMARY:', 'info');
+            log('═══════════════════════════════════', 'info');
+            
+            const allGood = results.badgeAPI && results.standalone && results.iOS;
+            
+            if (allGood) {
+                log('🎉 Badge notifications SHOULD WORK!', 'success');
+                log('   All requirements met ✓', 'success');
+                updateStatus('✅ All Requirements Met', 'green');
+                updateRequirements(results, true);
+            } else {
+                log('⚠️ Badge notifications will NOT work', 'error');
+                log('   Missing requirements:', 'error');
+                
+                if (!results.badgeAPI) log('   ❌ Badge API not supported', 'error');
+                if (!results.standalone) log('   ❌ Not in PWA mode (not added to home screen)', 'error');
+                if (!results.iOS) log('   ⚠️ Not iOS device', 'warning');
+                
+                updateStatus('❌ Missing Requirements', 'red');
+                updateRequirements(results, false);
+            }
+            
+            return results;
+        }
+        
+        function updateRequirements(results, allMet) {
+            const reqDiv = document.getElementById('requirements');
+            reqDiv.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <span class="${results.iOS ? 'text-green-600' : 'text-red-600'}">${results.iOS ? '✅' : '❌'}</span>
+                    <span>iOS Device (Detected: ${results.iOS ? 'Yes' : 'No'})</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="${results.iOSVersion >= '16.4' ? 'text-green-600' : 'text-red-600'}">${results.iOSVersion >= '16.4' ? '✅' : '❌'}</span>
+                    <span>iOS 16.4+ (Detected: ${results.iOSVersion})</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="${results.standalone ? 'text-green-600' : 'text-red-600'}">${results.standalone ? '✅' : '❌'}</span>
+                    <span>PWA Mode - Added to Home Screen (Status: ${results.standalone ? 'Yes' : 'No'})</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="${results.badgeAPI ? 'text-green-600' : 'text-red-600'}">${results.badgeAPI ? '✅' : '❌'}</span>
+                    <span>Badge API Support (Status: ${results.badgeAPI ? 'Yes' : 'No'})</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="${results.serviceWorker ? 'text-green-600' : 'text-yellow-600'}">${results.serviceWorker ? '✅' : '⚠️'}</span>
+                    <span>Service Worker (Status: ${results.serviceWorker ? 'Yes' : 'No'})</span>
+                </div>
+            `;
+        }
+        
+        async function testBadge() {
+            log('🧪 Testing badge...', 'info');
+            
+            if (!('setAppBadge' in navigator)) {
+                log('❌ Cannot test: Badge API not supported', 'error');
+                log('   Run diagnostic to see why', 'warning');
+                return;
+            }
+            
+            try {
+                await navigator.setAppBadge(5);
+                log('✅ Badge set to 5 successfully!', 'success');
+                log('📱 Go to home screen to see the badge', 'info');
+                log('   Look for a red circle with "5" on the app icon', 'info');
+            } catch (error) {
+                log(`❌ Error setting badge: ${error.message}`, 'error');
+            }
+        }
+        
+        async function clearBadge() {
+            log('🧹 Clearing badge...', 'info');
+            
+            if (!('clearAppBadge' in navigator)) {
+                log('❌ Cannot clear: Badge API not supported', 'error');
+                return;
+            }
+            
+            try {
+                await navigator.clearAppBadge();
+                log('✅ Badge cleared!', 'success');
+            } catch (error) {
+                log(`❌ Error clearing badge: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkNotifications() {
+            log('📬 Checking for unread notifications...', 'info');
+            
+            const userId = localStorage.getItem('currentUser');
+            if (!userId) {
+                log('⚠️ Not logged in - cannot check notifications', 'warning');
+                return;
+            }
+            
+            try {
+                const user = JSON.parse(userId);
+                log(`   User ID: ${user.id}`, 'info');
+                
+                const response = await fetch(`/api/notifications/${user.id}/unread`);
+                const data = await response.json();
+                
+                log(`   Unread count: ${data.notifications?.length || 0}`, 'info');
+                
+                if (data.notifications && data.notifications.length > 0) {
+                    log('✅ Found unread notifications:', 'success');
+                    data.notifications.forEach((n, i) => {
+                        log(`   ${i + 1}. ${n.title}: ${n.message}`, 'info');
+                    });
+                } else {
+                    log('   No unread notifications', 'info');
+                }
+            } catch (error) {
+                log(`❌ Error checking notifications: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-run on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                runFullDiagnostic();
+            }, 500);
+        });
+    </script>
+</body>
+</html>
