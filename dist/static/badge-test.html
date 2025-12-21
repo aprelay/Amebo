@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iOS Badge Test - Amebo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .result { padding: 12px; margin: 8px 0; border-radius: 8px; }
+        .success { background: #d1fae5; color: #065f46; }
+        .warning { background: #fef3c7; color: #92400e; }
+        .error { background: #fee2e2; color: #991b1b; }
+        .info { background: #dbeafe; color: #1e40af; }
+    </style>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
+        <h1 class="text-2xl font-bold mb-4">🧪 iOS Badge API Test</h1>
+        
+        <div class="mb-6">
+            <p class="text-gray-600 mb-2">This page tests Badge API support on your device.</p>
+            <p class="text-sm text-gray-500">For iOS: Make sure app is saved to home screen and opened from there.</p>
+        </div>
+        
+        <div id="results" class="space-y-2"></div>
+        
+        <div class="mt-6 space-y-3">
+            <button onclick="setBadge(1)" class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700">
+                Set Badge to 1
+            </button>
+            <button onclick="setBadge(5)" class="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg hover:bg-indigo-700">
+                Set Badge to 5
+            </button>
+            <button onclick="clearBadge()" class="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700">
+                Clear Badge
+            </button>
+            <button onclick="runDiagnostics()" class="w-full bg-purple-600 text-white py-3 px-4 rounded-lg hover:bg-purple-700">
+                Run Diagnostics
+            </button>
+        </div>
+        
+        <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+            <h3 class="font-semibold mb-2">📋 Test Steps:</h3>
+            <ol class="text-sm text-gray-700 space-y-1 list-decimal list-inside">
+                <li>Click "Run Diagnostics" to check support</li>
+                <li>Click "Set Badge to 5"</li>
+                <li>Go to home screen (background this page)</li>
+                <li>Check app icon for red badge with "5"</li>
+                <li>Come back and click "Clear Badge"</li>
+                <li>Go to home screen again - badge should be gone</li>
+            </ol>
+        </div>
+        
+        <div class="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+            <h3 class="font-semibold text-yellow-800 mb-2">⚠️ iOS Requirements:</h3>
+            <ul class="text-sm text-yellow-700 space-y-1 list-disc list-inside">
+                <li>iOS 16.4 or higher</li>
+                <li>App saved to home screen (Safari → Share → Add to Home Screen)</li>
+                <li>Open from home screen icon (not from Safari)</li>
+                <li>Check Settings → General → About → Software Version</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        const resultsDiv = document.getElementById('results');
+        
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = message;
+            resultsDiv.appendChild(div);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+        
+        function clearResults() {
+            resultsDiv.innerHTML = '';
+        }
+        
+        async function setBadge(count) {
+            clearResults();
+            addResult(`🔵 Setting badge to ${count}...`, 'info');
+            
+            if (!('setAppBadge' in navigator)) {
+                addResult('❌ Badge API not supported on this device', 'error');
+                addResult('💡 Make sure you\'re on iOS 16.4+ and opened from home screen', 'warning');
+                return;
+            }
+            
+            try {
+                await navigator.setAppBadge(count);
+                addResult(`✅ Successfully set badge to ${count}`, 'success');
+                addResult('📱 Go to home screen to see the badge on the app icon!', 'info');
+            } catch (error) {
+                addResult(`❌ Error setting badge: ${error.message}`, 'error');
+            }
+        }
+        
+        async function clearBadge() {
+            clearResults();
+            addResult('🔵 Clearing badge...', 'info');
+            
+            if (!('clearAppBadge' in navigator)) {
+                addResult('❌ Badge API not supported on this device', 'error');
+                return;
+            }
+            
+            try {
+                await navigator.clearAppBadge();
+                addResult('✅ Successfully cleared badge', 'success');
+                addResult('📱 Badge should be removed from app icon', 'info');
+            } catch (error) {
+                addResult(`❌ Error clearing badge: ${error.message}`, 'error');
+            }
+        }
+        
+        function runDiagnostics() {
+            clearResults();
+            addResult('🔍 Running diagnostics...', 'info');
+            
+            // Check Badge API
+            const hasBadgeAPI = 'setAppBadge' in navigator;
+            addResult(`Badge API: ${hasBadgeAPI ? '✅ Supported' : '❌ Not supported'}`, 
+                     hasBadgeAPI ? 'success' : 'error');
+            
+            // Check Service Worker
+            const hasSW = 'serviceWorker' in navigator;
+            addResult(`Service Worker: ${hasSW ? '✅ Supported' : '❌ Not supported'}`, 
+                     hasSW ? 'success' : 'warning');
+            
+            // Check display mode
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+            addResult(`Display Mode: ${isStandalone ? '✅ Standalone (PWA)' : '⚠️ Browser (not PWA)'}`, 
+                     isStandalone ? 'success' : 'warning');
+            
+            if (!isStandalone) {
+                addResult('💡 Not in PWA mode. Add to home screen and open from there.', 'warning');
+            }
+            
+            // Check user agent
+            const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+            addResult(`Device: ${isIOS ? '📱 iOS detected' : '🖥️ Non-iOS device'}`, 
+                     isIOS ? 'info' : 'warning');
+            
+            // Check permissions
+            if ('Notification' in window) {
+                addResult(`Notification Permission: ${Notification.permission}`, 'info');
+            }
+            
+            // Overall assessment
+            if (hasBadgeAPI && isStandalone) {
+                addResult('🎉 Badge notifications should work! Try the buttons above.', 'success');
+            } else if (hasBadgeAPI && !isStandalone) {
+                addResult('⚠️ Badge API available but not in PWA mode. Install to home screen.', 'warning');
+            } else {
+                addResult('❌ Badge API not available. Check iOS version (need 16.4+) or device compatibility.', 'error');
+            }
+        }
+        
+        // Auto-run diagnostics on load
+        window.addEventListener('load', () => {
+            setTimeout(runDiagnostics, 500);
+        });
+    </script>
+</body>
+</html>
