@@ -1824,15 +1824,17 @@ class SecureChatApp {
                         <button onclick="app.showRoomList()" style="background: none; border: none; color: white; padding: 8px; cursor: pointer; font-size: 20px;">
                             <i class="fas fa-arrow-left"></i>
                         </button>
-                        <div style="width: 40px; height: 40px; border-radius: 50%; background: #25d366; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">
-                            ${this.currentRoom?.room_name?.charAt(0)?.toUpperCase() || 'C'}
-                        </div>
-                        <div style="flex: 1;">
-                            <div style="font-size: 16px; font-weight: 600;">${this.currentRoom?.room_name || 'Chat Room'}</div>
-                            <div style="font-size: 12px; opacity: 0.8;">
-                                <i class="fas fa-lock" style="font-size: 10px;"></i> Encrypted • ${this.currentRoom?.room_code || roomId}
+                        <button onclick="app.showRoomProfile('${this.currentRoom?.id}', '${this.currentRoom?.room_code}')" style="background: none; border: none; padding: 0; cursor: pointer; display: flex; align-items: center; gap: 12px; flex: 1; text-align: left; color: white;">
+                            <div style="width: 40px; height: 40px; border-radius: 50%; background: #25d366; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; flex-shrink: 0;">
+                                ${this.currentRoom?.room_name?.charAt(0)?.toUpperCase() || 'C'}
                             </div>
-                        </div>
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.currentRoom?.room_name || 'Chat Room'}</div>
+                                <div style="font-size: 12px; opacity: 0.8;">
+                                    <i class="fas fa-lock" style="font-size: 10px;"></i> Encrypted • ${this.currentRoom?.room_code || roomId}
+                                </div>
+                            </div>
+                        </button>
                         <button onclick="app.showTokenGiftModal()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 10px; border-radius: 20px; cursor: pointer; font-size: 12px; margin-right: 8px;">
                             <i class="fas fa-gift"></i>
                         </button>
@@ -7986,6 +7988,1066 @@ class SecureChatApp {
             toast.style.opacity = '0';
             setTimeout(() => toast.remove(), 300);
         }, 2000);
+
+    showRoomProfile(roomId, roomCode) {
+        const room = this.rooms.find(r => r.id === roomId);
+        if (!room) {
+            alert('Room not found');
+            return;
+        }
+
+        const isDirect = room.room_code && room.room_code.startsWith('dm-');
+        const isGroup = !isDirect;
+
+        if (isDirect) {
+            this.showUserProfile(roomId, roomCode);
+        } else {
+            this.showGroupProfile(roomId, roomCode);
+        }
+    }
+
+    async showUserProfile(roomId, roomCode) {
+        const room = this.rooms.find(r => r.id === roomId);
+        const roomName = room?.room_name || 'User';
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.openRoom('${roomId}', '${roomCode}')" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Profile</h1>
+                    </div>
+                </div>
+
+                <div class="max-w-4xl mx-auto p-4 space-y-4">
+                    <!-- Profile Header -->
+                    <div class="bg-white rounded-2xl shadow-lg p-6 text-center">
+                        <div class="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold">
+                            ${roomName.charAt(0).toUpperCase()}
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-800">${roomName}</h2>
+                        <p class="text-gray-500">@${roomName.toLowerCase()}</p>
+                        <div class="flex items-center justify-center gap-2 mt-2">
+                            <i class="fas fa-circle text-green-500 text-xs"></i>
+                            <span class="text-sm text-gray-600">Online</span>
+                        </div>
+                        <p class="text-gray-600 mt-3">Hey there! I'm using Amebo.</p>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="grid grid-cols-4 divide-x">
+                            <button onclick="app.openRoom('${roomId}', '${roomCode}')" class="p-4 text-center hover:bg-gray-50 transition">
+                                <i class="fas fa-comment text-2xl text-purple-600 mb-2"></i>
+                                <div class="text-xs text-gray-600">Message</div>
+                            </button>
+                            <button onclick="alert('Voice call feature coming soon!')" class="p-4 text-center hover:bg-gray-50 transition">
+                                <i class="fas fa-phone text-2xl text-green-600 mb-2"></i>
+                                <div class="text-xs text-gray-600">Call</div>
+                            </button>
+                            <button onclick="alert('Video call feature coming soon!')" class="p-4 text-center hover:bg-gray-50 transition">
+                                <i class="fas fa-video text-2xl text-blue-600 mb-2"></i>
+                                <div class="text-xs text-gray-600">Video</div>
+                            </button>
+                            <button onclick="alert('Share contact feature coming soon!')" class="p-4 text-center hover:bg-gray-50 transition">
+                                <i class="fas fa-share-alt text-2xl text-orange-600 mb-2"></i>
+                                <div class="text-xs text-gray-600">Share</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Relationship -->
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="px-4 py-2 bg-gray-50 font-semibold text-gray-700">
+                            <i class="fas fa-users mr-2"></i>Relationship
+                        </div>
+                        <button onclick="alert('Add to contacts')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
+                            <i class="fas fa-user-plus text-green-600 w-5"></i>
+                            <span>Add to Contacts</span>
+                        </button>
+                        <button onclick="alert('View shared groups')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
+                            <i class="fas fa-users text-blue-600 w-5"></i>
+                            <span>View Shared Groups</span>
+                        </button>
+                        <button onclick="alert('Create group with user')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition">
+                            <i class="fas fa-plus-circle text-purple-600 w-5"></i>
+                            <span>Create Group with ${roomName}</span>
+                        </button>
+                    </div>
+
+                    <!-- Media & Content -->
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="px-4 py-2 bg-gray-50 font-semibold text-gray-700">
+                            <i class="fas fa-photo-video mr-2"></i>Media & Content
+                        </div>
+                        <button onclick="app.showSharedMedia('${roomId}')" class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-images text-pink-600 w-5"></i>
+                                <span>Shared Media</span>
+                            </div>
+                            <span class="text-sm text-gray-500">0 items</span>
+                        </button>
+                        <button onclick="app.searchInChat('${roomId}')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
+                            <i class="fas fa-search text-blue-600 w-5"></i>
+                            <span>Search in Chat</span>
+                        </button>
+                        <button onclick="alert('Export chat')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition">
+                            <i class="fas fa-download text-teal-600 w-5"></i>
+                            <span>Export Chat</span>
+                        </button>
+                    </div>
+
+                    <!-- Customization -->
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="px-4 py-2 bg-gray-50 font-semibold text-gray-700">
+                            <i class="fas fa-palette mr-2"></i>Customization
+                        </div>
+                        <button onclick="app.setCustomNickname('${roomId}')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
+                            <i class="fas fa-tag text-orange-600 w-5"></i>
+                            <span>Set Custom Nickname</span>
+                        </button>
+                        <button onclick="alert('Change wallpaper')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
+                            <i class="fas fa-image text-purple-600 w-5"></i>
+                            <span>Change Chat Wallpaper</span>
+                        </button>
+                        <button onclick="alert('Custom notification sound')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition">
+                            <i class="fas fa-bell text-yellow-600 w-5"></i>
+                            <span>Custom Notification Sound</span>
+                        </button>
+                    </div>
+
+                    <!-- Privacy & Security -->
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="px-4 py-2 bg-gray-50 font-semibold text-gray-700">
+                            <i class="fas fa-shield-alt mr-2"></i>Privacy & Security
+                        </div>
+                        <button onclick="app.toggleMuteChat('${roomId}')" class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-bell-slash text-gray-600 w-5"></i>
+                                <span>Mute Notifications</span>
+                            </div>
+                            <i class="fas fa-toggle-off text-gray-400 text-2xl"></i>
+                        </button>
+                        <button onclick="confirm('Block ${roomName}?') && alert('User blocked')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
+                            <i class="fas fa-ban text-red-600 w-5"></i>
+                            <span class="text-red-600">Block User</span>
+                        </button>
+                        <button onclick="alert('Report user')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
+                            <i class="fas fa-flag text-red-600 w-5"></i>
+                            <span class="text-red-600">Report User</span>
+                        </button>
+                        <button onclick="confirm('Clear all chat history with ${roomName}?') && alert('Chat history cleared')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition">
+                            <i class="fas fa-trash-alt text-red-600 w-5"></i>
+                            <span class="text-red-600">Clear Chat History</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    async showGroupProfile(roomId, roomCode) {
+        const room = this.rooms.find(r => r.id === roomId);
+        const groupName = room?.room_name || 'Group';
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.openRoom('${roomId}', '${roomCode}')" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Group Info</h1>
+                    </div>
+                </div>
+
+                <div class="max-w-4xl mx-auto p-4 space-y-4">
+                    <!-- Group Header -->
+                    <div class="bg-white rounded-2xl shadow-lg p-6 text-center">
+                        <div class="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-3xl font-bold">
+                            ${groupName.charAt(0).toUpperCase()}
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-800">${groupName}</h2>
+                        <p class="text-gray-500 mt-2">Created by You • Dec 21, 2025</p>
+                        <div class="flex items-center justify-center gap-2 mt-3">
+                            <i class="fas fa-users text-gray-600"></i>
+                            <span class="text-sm text-gray-600">0 members</span>
+                        </div>
+                        <button onclick="app.editGroupInfo('${roomId}')" class="mt-4 text-purple-600 hover:text-purple-700 text-sm font-medium">
+                            <i class="fas fa-edit mr-1"></i>Edit Group Info
+                        </button>
+                    </div>
+
+                    <!-- Group Description -->
+                    <div class="bg-white rounded-2xl shadow-lg p-4">
+                        <div class="font-semibold text-gray-700 mb-2">Description</div>
+                        <p class="text-gray-600 text-sm">Add group description...</p>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="grid grid-cols-3 divide-x">
+                            <button onclick="app.shareGroup('${roomId}')" class="p-4 text-center hover:bg-gray-50 transition">
+                                <i class="fas fa-share-alt text-2xl text-blue-600 mb-2"></i>
+                                <div class="text-xs text-gray-600">Share</div>
+                            </button>
+                            <button onclick="app.showGroupQR('${roomId}')" class="p-4 text-center hover:bg-gray-50 transition">
+                                <i class="fas fa-qrcode text-2xl text-purple-600 mb-2"></i>
+                                <div class="text-xs text-gray-600">QR Code</div>
+                            </button>
+                            <button onclick="app.copyGroupLink('${roomId}')" class="p-4 text-center hover:bg-gray-50 transition">
+                                <i class="fas fa-link text-2xl text-green-600 mb-2"></i>
+                                <div class="text-xs text-gray-600">Copy Link</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Members -->
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="px-4 py-3 bg-gray-50 font-semibold text-gray-700 flex items-center justify-between">
+                            <span><i class="fas fa-users mr-2"></i>0 Members</span>
+                            <button onclick="app.searchMembers('${roomId}')" class="text-purple-600 hover:text-purple-700">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        <button onclick="app.addMembers('${roomId}')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
+                            <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                                <i class="fas fa-plus text-purple-600"></i>
+                            </div>
+                            <span class="font-medium text-purple-600">Add Members</span>
+                        </button>
+                        <div class="px-4 py-8 text-center text-gray-500">
+                            <i class="fas fa-user-friends text-4xl mb-2 opacity-50"></i>
+                            <p>No members yet</p>
+                        </div>
+                    </div>
+
+                    <!-- Group Settings (Admin) -->
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="px-4 py-2 bg-gray-50 font-semibold text-gray-700">
+                            <i class="fas fa-cog mr-2"></i>Group Settings
+                        </div>
+                        <button onclick="app.groupMessagePermissions('${roomId}')" class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-comment text-blue-600 w-5"></i>
+                                <div class="text-left">
+                                    <div>Send Messages</div>
+                                    <div class="text-xs text-gray-500">Everyone</div>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                        <button onclick="app.groupAddPermissions('${roomId}')" class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-user-plus text-green-600 w-5"></i>
+                                <div class="text-left">
+                                    <div>Add Members</div>
+                                    <div class="text-xs text-gray-500">Admins Only</div>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                        <button onclick="app.groupEditPermissions('${roomId}')" class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-edit text-purple-600 w-5"></i>
+                                <div class="text-left">
+                                    <div>Edit Group Info</div>
+                                    <div class="text-xs text-gray-500">Admins Only</div>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                        <button onclick="app.groupPrivacySettings('${roomId}')" class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-lock text-orange-600 w-5"></i>
+                                <div class="text-left">
+                                    <div>Group Privacy</div>
+                                    <div class="text-xs text-gray-500">Private</div>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                    </div>
+
+                    <!-- Media & Content -->
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="px-4 py-2 bg-gray-50 font-semibold text-gray-700">
+                            <i class="fas fa-photo-video mr-2"></i>Media & Content
+                        </div>
+                        <button onclick="app.showSharedMedia('${roomId}')" class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-images text-pink-600 w-5"></i>
+                                <span>Shared Media</span>
+                            </div>
+                            <span class="text-sm text-gray-500">0 items</span>
+                        </button>
+                        <button onclick="app.searchInChat('${roomId}')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition">
+                            <i class="fas fa-search text-blue-600 w-5"></i>
+                            <span>Search in Group</span>
+                        </button>
+                    </div>
+
+                    <!-- Notifications -->
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="px-4 py-2 bg-gray-50 font-semibold text-gray-700">
+                            <i class="fas fa-bell mr-2"></i>Notifications
+                        </div>
+                        <button onclick="app.muteGroupNotifications('${roomId}')" class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-bell-slash text-gray-600 w-5"></i>
+                                <span>Mute Notifications</span>
+                            </div>
+                            <i class="fas fa-toggle-off text-gray-400 text-2xl"></i>
+                        </button>
+                        <button onclick="alert('Custom sound')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition">
+                            <i class="fas fa-volume-up text-purple-600 w-5"></i>
+                            <span>Custom Sound</span>
+                        </button>
+                    </div>
+
+                    <!-- Group Actions -->
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <button onclick="confirm('Leave group?') && alert('Left group')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-50 transition border-b">
+                            <i class="fas fa-sign-out-alt text-red-600 w-5"></i>
+                            <span class="text-red-600">Leave Group</span>
+                        </button>
+                        <button onclick="app.reportGroup('${roomId}')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-50 transition border-b">
+                            <i class="fas fa-flag text-red-600 w-5"></i>
+                            <span class="text-red-600">Report Group</span>
+                        </button>
+                        <button onclick="confirm('Delete group permanently? This cannot be undone!') && alert('Group deleted')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-50 transition">
+                            <i class="fas fa-trash-alt text-red-600 w-5"></i>
+                            <span class="text-red-600 font-semibold">Delete Group</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Profile action functions with full modals
+    showSharedMedia(roomId) {
+        const room = this.rooms.find(r => r.id === roomId);
+        const roomName = room?.room_name || 'Chat';
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.showRoomProfile('${roomId}', '${room?.room_code || ''}')" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Shared Media</h1>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="max-w-4xl mx-auto">
+                    <div class="bg-white shadow-sm flex">
+                        <button onclick="app.filterMedia('photos')" id="tab-photos" class="flex-1 py-3 font-medium border-b-2 border-purple-600 text-purple-600">
+                            <i class="fas fa-image mr-2"></i>Photos
+                        </button>
+                        <button onclick="app.filterMedia('videos')" id="tab-videos" class="flex-1 py-3 font-medium border-b-2 border-transparent text-gray-500 hover:text-purple-600">
+                            <i class="fas fa-video mr-2"></i>Videos
+                        </button>
+                        <button onclick="app.filterMedia('files')" id="tab-files" class="flex-1 py-3 font-medium border-b-2 border-transparent text-gray-500 hover:text-purple-600">
+                            <i class="fas fa-file mr-2"></i>Files
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Media Grid -->
+                <div class="max-w-4xl mx-auto p-4">
+                    <div id="media-container" class="grid grid-cols-3 gap-2">
+                        <!-- Sample media items -->
+                        <div class="aspect-square bg-gray-300 rounded-lg overflow-hidden relative">
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <i class="fas fa-camera text-gray-400 text-4xl"></i>
+                            </div>
+                        </div>
+                        <div class="aspect-square bg-gray-300 rounded-lg overflow-hidden relative">
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <i class="fas fa-camera text-gray-400 text-4xl"></i>
+                            </div>
+                        </div>
+                        <div class="aspect-square bg-gray-300 rounded-lg overflow-hidden relative">
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <i class="fas fa-camera text-gray-400 text-4xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-photo-video text-5xl mb-3 opacity-50"></i>
+                        <p class="font-medium">No shared media yet</p>
+                        <p class="text-sm mt-1">Photos, videos and files you share will appear here</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    filterMedia(type) {
+        // Update tab UI
+        document.querySelectorAll('[id^="tab-"]').forEach(tab => {
+            tab.className = 'flex-1 py-3 font-medium border-b-2 border-transparent text-gray-500 hover:text-purple-600';
+        });
+        document.getElementById('tab-' + type).className = 'flex-1 py-3 font-medium border-b-2 border-purple-600 text-purple-600';
+        
+        // Update media display
+        console.log('[MEDIA] Filtering:', type);
+    }
+
+    searchInChat(roomId) {
+        const room = this.rooms.find(r => r.id === roomId);
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.showRoomProfile('${roomId}', '${room?.room_code || ''}')" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <div class="flex-1">
+                            <input type="text" id="search-input" placeholder="Search messages..." 
+                                class="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-white/70 focus:bg-white focus:text-gray-900 focus:placeholder-gray-500 focus:outline-none"
+                                oninput="app.performChatSearch(this.value)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search Results -->
+                <div class="max-w-4xl mx-auto p-4">
+                    <div id="search-results" class="space-y-2">
+                        <div class="text-center py-12 text-gray-500">
+                            <i class="fas fa-search text-5xl mb-3 opacity-50"></i>
+                            <p class="font-medium">Start typing to search</p>
+                            <p class="text-sm mt-1">Search for messages, dates, or keywords</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Auto-focus search input
+        setTimeout(() => document.getElementById('search-input').focus(), 100);
+    }
+
+    performChatSearch(query) {
+        if (!query.trim()) {
+            document.getElementById('search-results').innerHTML = `
+                <div class="text-center py-12 text-gray-500">
+                    <i class="fas fa-search text-5xl mb-3 opacity-50"></i>
+                    <p class="font-medium">Start typing to search</p>
+                    <p class="text-sm mt-1">Search for messages, dates, or keywords</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Simulate search results
+        document.getElementById('search-results').innerHTML = `
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-inbox text-5xl mb-3 opacity-50"></i>
+                <p class="font-medium">No results found for "${query}"</p>
+                <p class="text-sm mt-1">Try different keywords</p>
+            </div>
+        `;
+    }
+
+    setCustomNickname(roomId) {
+        const room = this.rooms.find(r => r.id === roomId);
+        const currentNickname = room?.room_name || '';
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.showRoomProfile('${roomId}', '${room?.room_code || ''}')" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Custom Nickname</h1>
+                    </div>
+                </div>
+
+                <!-- Form -->
+                <div class="max-w-4xl mx-auto p-4">
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-tag text-purple-600 mr-2"></i>Nickname
+                            </label>
+                            <input type="text" id="nickname-input" value="${currentNickname}" 
+                                placeholder="Enter custom nickname..."
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                maxlength="50">
+                            <p class="text-xs text-gray-500 mt-1">This nickname is only visible to you</p>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button onclick="app.saveCustomNickname('${roomId}')" 
+                                class="flex-1 bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 transition">
+                                <i class="fas fa-save mr-2"></i>Save
+                            </button>
+                            <button onclick="app.showRoomProfile('${roomId}', '${room?.room_code || ''}')" 
+                                class="px-6 py-3 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Info Card -->
+                    <div class="bg-blue-50 rounded-2xl p-4 mt-4 flex gap-3">
+                        <i class="fas fa-info-circle text-blue-600 text-xl flex-shrink-0 mt-1"></i>
+                        <div class="text-sm text-blue-800">
+                            <p class="font-medium mb-1">About Custom Nicknames</p>
+                            <p>Custom nicknames help you identify contacts easily. They're private and won't be visible to other users.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        setTimeout(() => document.getElementById('nickname-input').focus(), 100);
+    }
+
+    saveCustomNickname(roomId) {
+        const nickname = document.getElementById('nickname-input').value.trim();
+        if (!nickname) {
+            alert('Please enter a nickname');
+            return;
+        }
+
+        // Save nickname (would update backend in production)
+        console.log('[NICKNAME] Saved:', nickname);
+        
+        this.showToast(`Nickname set to "${nickname}"`, 'success');
+        
+        // Return to profile
+        setTimeout(() => {
+            const room = this.rooms.find(r => r.id === roomId);
+            this.showRoomProfile(roomId, room?.room_code || '');
+        }, 1000);
+    }
+
+    toggleMuteChat(roomId) {
+        const room = this.rooms.find(r => r.id === roomId);
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.showRoomProfile('${roomId}', '${room?.room_code || ''}')" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Mute Notifications</h1>
+                    </div>
+                </div>
+
+                <!-- Mute Options -->
+                <div class="max-w-4xl mx-auto p-4">
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <button onclick="app.muteFor('${roomId}', 3600)" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-clock text-blue-600"></i>
+                                <span class="font-medium">1 Hour</span>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                        <button onclick="app.muteFor('${roomId}', 28800)" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-clock text-purple-600"></i>
+                                <span class="font-medium">8 Hours</span>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                        <button onclick="app.muteFor('${roomId}', 86400)" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-calendar-day text-green-600"></i>
+                                <span class="font-medium">1 Day</span>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                        <button onclick="app.muteFor('${roomId}', 604800)" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-calendar-week text-orange-600"></i>
+                                <span class="font-medium">1 Week</span>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                        <button onclick="app.muteFor('${roomId}', -1)" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-infinity text-red-600"></i>
+                                <span class="font-medium">Forever</span>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                    </div>
+
+                    <!-- Info Card -->
+                    <div class="bg-yellow-50 rounded-2xl p-4 mt-4 flex gap-3">
+                        <i class="fas fa-bell-slash text-yellow-600 text-xl flex-shrink-0 mt-1"></i>
+                        <div class="text-sm text-yellow-800">
+                            <p class="font-medium mb-1">Muted Chats</p>
+                            <p>You'll still receive messages, but won't get notifications. You can unmute anytime from chat settings.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    muteFor(roomId, seconds) {
+        let duration = '';
+        if (seconds === 3600) duration = '1 hour';
+        else if (seconds === 28800) duration = '8 hours';
+        else if (seconds === 86400) duration = '1 day';
+        else if (seconds === 604800) duration = '1 week';
+        else if (seconds === -1) duration = 'forever';
+
+        console.log('[MUTE] Chat muted for:', duration);
+        this.showToast(`Chat muted for ${duration}`, 'success');
+
+        setTimeout(() => {
+            const room = this.rooms.find(r => r.id === roomId);
+            this.showRoomProfile(roomId, room?.room_code || '');
+        }, 1000);
+    }
+
+    editGroupInfo(roomId) {
+        const room = this.rooms.find(r => r.id === roomId);
+        const groupName = room?.room_name || 'Group';
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.showGroupProfile('${roomId}', '${room?.room_code || ''}')" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Edit Group Info</h1>
+                    </div>
+                </div>
+
+                <!-- Form -->
+                <div class="max-w-4xl mx-auto p-4 space-y-4">
+                    <!-- Avatar -->
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-3">
+                            <i class="fas fa-camera text-purple-600 mr-2"></i>Group Avatar
+                        </label>
+                        <div class="flex items-center gap-4">
+                            <div class="w-20 h-20 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-3xl font-bold">
+                                ${groupName.charAt(0).toUpperCase()}
+                            </div>
+                            <button onclick="alert('Change avatar')" class="px-4 py-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition font-medium">
+                                <i class="fas fa-upload mr-2"></i>Change Photo
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Group Name -->
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-users text-purple-600 mr-2"></i>Group Name
+                        </label>
+                        <input type="text" id="group-name-input" value="${groupName}" 
+                            placeholder="Enter group name..."
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            maxlength="50">
+                    </div>
+
+                    <!-- Description -->
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-align-left text-purple-600 mr-2"></i>Description (Optional)
+                        </label>
+                        <textarea id="group-desc-input" 
+                            placeholder="Add a group description..."
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                            rows="4"
+                            maxlength="500"></textarea>
+                        <p class="text-xs text-gray-500 mt-1">0 / 500 characters</p>
+                    </div>
+
+                    <!-- Save Button -->
+                    <div class="flex gap-3">
+                        <button onclick="app.saveGroupInfo('${roomId}')" 
+                            class="flex-1 bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 transition">
+                            <i class="fas fa-save mr-2"></i>Save Changes
+                        </button>
+                        <button onclick="app.showGroupProfile('${roomId}', '${room?.room_code || ''}')" 
+                            class="px-6 py-3 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    saveGroupInfo(roomId) {
+        const name = document.getElementById('group-name-input').value.trim();
+        const desc = document.getElementById('group-desc-input').value.trim();
+        
+        if (!name) {
+            alert('Please enter a group name');
+            return;
+        }
+
+        console.log('[GROUP] Info updated:', { name, desc });
+        this.showToast('Group info updated successfully', 'success');
+
+        setTimeout(() => {
+            const room = this.rooms.find(r => r.id === roomId);
+            this.showGroupProfile(roomId, room?.room_code || '');
+        }, 1000);
+    }
+
+    shareGroup(roomId) {
+        const room = this.rooms.find(r => r.id === roomId);
+        const groupName = room?.room_name || 'Group';
+        const inviteLink = `https://amebo.app/join/${roomId}`;
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.showGroupProfile('${roomId}', '${room?.room_code || ''}')" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Share Group</h1>
+                    </div>
+                </div>
+
+                <div class="max-w-4xl mx-auto p-4 space-y-4">
+                    <!-- Share Options -->
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <button onclick="navigator.clipboard.writeText('${inviteLink}'); app.showToast('Invite link copied!', 'success')" 
+                            class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition border-b">
+                            <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                                <i class="fas fa-copy text-blue-600 text-xl"></i>
+                            </div>
+                            <div class="flex-1 text-left">
+                                <div class="font-medium">Copy Invite Link</div>
+                                <div class="text-sm text-gray-500">${inviteLink}</div>
+                            </div>
+                        </button>
+                        <button onclick="alert('Share via WhatsApp')" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition border-b">
+                            <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                                <i class="fab fa-whatsapp text-green-600 text-xl"></i>
+                            </div>
+                            <div class="flex-1 text-left">
+                                <div class="font-medium">Share via WhatsApp</div>
+                                <div class="text-sm text-gray-500">Send invite to contacts</div>
+                            </div>
+                        </button>
+                        <button onclick="app.showGroupQR('${roomId}')" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
+                            <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
+                                <i class="fas fa-qrcode text-purple-600 text-xl"></i>
+                            </div>
+                            <div class="flex-1 text-left">
+                                <div class="font-medium">Show QR Code</div>
+                                <div class="text-sm text-gray-500">Let others scan to join</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    showGroupQR(roomId) {
+        const room = this.rooms.find(r => r.id === roomId);
+        const groupName = room?.room_name || 'Group';
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.shareGroup('${roomId}')" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Group QR Code</h1>
+                    </div>
+                </div>
+
+                <div class="max-w-4xl mx-auto p-4">
+                    <div class="bg-white rounded-2xl shadow-lg p-8 text-center">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-2">${groupName}</h2>
+                        <p class="text-gray-600 mb-6">Scan to join group</p>
+                        
+                        <!-- QR Code Placeholder -->
+                        <div class="w-64 h-64 mx-auto bg-white border-4 border-purple-600 rounded-2xl flex items-center justify-center mb-6">
+                            <div class="text-center">
+                                <i class="fas fa-qrcode text-8xl text-purple-600 mb-4"></i>
+                                <p class="text-sm text-gray-500">QR Code</p>
+                            </div>
+                        </div>
+
+                        <button onclick="alert('QR Code downloaded!')" 
+                            class="bg-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-700 transition">
+                            <i class="fas fa-download mr-2"></i>Download QR Code
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    copyGroupLink(roomId) {
+        const inviteLink = `https://amebo.app/join/${roomId}`;
+        navigator.clipboard.writeText(inviteLink);
+        this.showToast('Group link copied to clipboard!', 'success');
+    }
+
+    addMembers(roomId) {
+        const room = this.rooms.find(r => r.id === roomId);
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.showGroupProfile('${roomId}', '${room?.room_code || ''}')" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Add Members</h1>
+                    </div>
+                </div>
+
+                <div class="max-w-4xl mx-auto p-4">
+                    <!-- Search Box -->
+                    <div class="bg-white rounded-2xl shadow-lg p-4 mb-4">
+                        <input type="text" placeholder="Search contacts..." 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            oninput="app.searchContactsToAdd(this.value)">
+                    </div>
+
+                    <!-- Contacts List -->
+                    <div id="contacts-list" class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="text-center py-12 text-gray-500">
+                            <i class="fas fa-user-friends text-5xl mb-3 opacity-50"></i>
+                            <p class="font-medium">No contacts found</p>
+                            <p class="text-sm mt-1">Add contacts to invite them to groups</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    searchContactsToAdd(query) {
+        console.log('[SEARCH] Contacts:', query);
+    }
+
+    searchMembers(roomId) {
+        const room = this.rooms.find(r => r.id === roomId);
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.showGroupProfile('${roomId}', '${room?.room_code || ''}')" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <div class="flex-1">
+                            <input type="text" placeholder="Search members..." 
+                                class="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-white/70 focus:bg-white focus:text-gray-900 focus:placeholder-gray-500 focus:outline-none"
+                                oninput="app.performMemberSearch(this.value)">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="max-w-4xl mx-auto p-4">
+                    <div id="member-results" class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="text-center py-12 text-gray-500">
+                            <i class="fas fa-search text-5xl mb-3 opacity-50"></i>
+                            <p class="font-medium">Start typing to search members</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    performMemberSearch(query) {
+        console.log('[SEARCH] Members:', query);
+    }
+
+    groupMessagePermissions(roomId) {
+        const room = this.rooms.find(r => r.id === roomId);
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.showGroupProfile('${roomId}', '${room?.room_code || ''}')" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Send Messages</h1>
+                    </div>
+                </div>
+
+                <div class="max-w-4xl mx-auto p-4">
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <button onclick="app.setPermission('${roomId}', 'messages', 'everyone')" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <span class="font-medium">Everyone</span>
+                            <i class="fas fa-check-circle text-purple-600 text-xl"></i>
+                        </button>
+                        <button onclick="app.setPermission('${roomId}', 'messages', 'admins')" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition">
+                            <span class="font-medium">Admins Only</span>
+                            <i class="far fa-circle text-gray-300 text-xl"></i>
+                        </button>
+                    </div>
+
+                    <div class="bg-blue-50 rounded-2xl p-4 mt-4 flex gap-3">
+                        <i class="fas fa-info-circle text-blue-600 text-xl flex-shrink-0 mt-1"></i>
+                        <div class="text-sm text-blue-800">
+                            <p>This setting controls who can send messages in the group. Admins can always send messages.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    groupAddPermissions(roomId) {
+        const room = this.rooms.find(r => r.id === roomId);
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.showGroupProfile('${roomId}', '${room?.room_code || ''}')" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Add Members</h1>
+                    </div>
+                </div>
+
+                <div class="max-w-4xl mx-auto p-4">
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <button onclick="app.setPermission('${roomId}', 'add', 'everyone')" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <span class="font-medium">Everyone</span>
+                            <i class="far fa-circle text-gray-300 text-xl"></i>
+                        </button>
+                        <button onclick="app.setPermission('${roomId}', 'add', 'admins')" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition">
+                            <span class="font-medium">Admins Only</span>
+                            <i class="fas fa-check-circle text-purple-600 text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    groupEditPermissions(roomId) {
+        const room = this.rooms.find(r => r.id === roomId);
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.showGroupProfile('${roomId}', '${room?.room_code || ''}')" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Edit Group Info</h1>
+                    </div>
+                </div>
+
+                <div class="max-w-4xl mx-auto p-4">
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <button onclick="app.setPermission('${roomId}', 'edit', 'everyone')" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <span class="font-medium">Everyone</span>
+                            <i class="far fa-circle text-gray-300 text-xl"></i>
+                        </button>
+                        <button onclick="app.setPermission('${roomId}', 'edit', 'admins')" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition">
+                            <span class="font-medium">Admins Only</span>
+                            <i class="fas fa-check-circle text-purple-600 text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    groupPrivacySettings(roomId) {
+        const room = this.rooms.find(r => r.id === roomId);
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.showGroupProfile('${roomId}', '${room?.room_code || ''}')" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Group Privacy</h1>
+                    </div>
+                </div>
+
+                <div class="max-w-4xl mx-auto p-4">
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <button onclick="app.setPrivacy('${roomId}', 'public')" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <div class="text-left">
+                                <div class="font-medium">Public</div>
+                                <div class="text-sm text-gray-500">Anyone can find and join</div>
+                            </div>
+                            <i class="far fa-circle text-gray-300 text-xl"></i>
+                        </button>
+                        <button onclick="app.setPrivacy('${roomId}', 'private')" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <div class="text-left">
+                                <div class="font-medium">Private</div>
+                                <div class="text-sm text-gray-500">Only members can see group</div>
+                            </div>
+                            <i class="fas fa-check-circle text-purple-600 text-xl"></i>
+                        </button>
+                        <button onclick="app.setPrivacy('${roomId}', 'secret')" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition">
+                            <div class="text-left">
+                                <div class="font-medium">Secret</div>
+                                <div class="text-sm text-gray-500">Completely hidden and unlisted</div>
+                            </div>
+                            <i class="far fa-circle text-gray-300 text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    setPermission(roomId, type, value) {
+        console.log('[PERMISSION]', type, ':', value);
+        this.showToast('Permission updated', 'success');
+        setTimeout(() => {
+            const room = this.rooms.find(r => r.id === roomId);
+            this.showGroupProfile(roomId, room?.room_code || '');
+        }, 1000);
+    }
+
+    setPrivacy(roomId, level) {
+        console.log('[PRIVACY]', level);
+        this.showToast('Privacy setting updated', 'success');
+        setTimeout(() => {
+            const room = this.rooms.find(r => r.id === roomId);
+            this.showGroupProfile(roomId, room?.room_code || '');
+        }, 1000);
+    }
+
+    muteGroupNotifications(roomId) {
+        this.toggleMuteChat(roomId); // Reuse the same mute UI
+    }
+
+    reportGroup(roomId) {
+        if (confirm('Report this group for spam, abuse, or inappropriate content?')) {
+            alert('Group reported. Thank you for keeping Amebo safe!');
+        }
     }
 
     async toggleBadgeNotifications() {
