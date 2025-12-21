@@ -3044,18 +3044,38 @@ class SecureChatApp {
                 // Filter unread notifications
                 const unread = data.notifications.filter(n => n.read === 0);
                 
+                // Track shown notifications to prevent duplicates
+                if (!this.shownNotifications) {
+                    this.shownNotifications = new Set();
+                }
+                
                 if (unread.length > this.unreadNotifications) {
-                    // New notification!
-                    const newest = unread[0];
-                    this.showInAppNotification(newest);
+                    // Find truly new notifications (not shown before)
+                    const newNotifs = unread.filter(n => !this.shownNotifications.has(n.id));
                     
-                    // Update token balance if it's a gift notification
-                    if (newest.type === 'token_gift') {
-                        await this.syncTokenBalance();
+                    if (newNotifs.length > 0) {
+                        const newest = newNotifs[0];
+                        this.showInAppNotification(newest);
+                        this.shownNotifications.add(newest.id);
+                        
+                        // Update token balance if it's a gift notification
+                        if (newest.type === 'token_gift') {
+                            await this.syncTokenBalance();
+                        }
                     }
                 }
                 
+                // Update badge count
+                const previousCount = this.unreadNotifications;
                 this.unreadNotifications = unread.length;
+                
+                // Only update badge if count changed
+                if (previousCount !== this.unreadNotifications) {
+                    this.updateNotificationBadge();
+                }
+            } else {
+                // No notifications - clear badge
+                this.unreadNotifications = 0;
                 this.updateNotificationBadge();
             }
         } catch (error) {
@@ -7843,24 +7863,31 @@ class SecureChatApp {
                                             <p class="text-gray-600 text-sm mt-1">${this.escapeHtml(notif.message)}</p>
                                             <p class="text-xs text-gray-400 mt-2">${this.formatTimeAgo(notif.created_at)}</p>
                                             
-                                            ${notif.type === 'contact_request' && notif.data ? `
-                                                <div class="flex gap-2 mt-3">
-                                                    <button 
-                                                        onclick="app.acceptContactRequestFromNotification('${notif.id}', '${JSON.parse(notif.data).requester_id}')"
-                                                        class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition"
-                                                    >
-                                                        <i class="fas fa-check mr-1"></i>
-                                                        Accept
-                                                    </button>
-                                                    <button 
-                                                        onclick="app.rejectContactRequestFromNotification('${notif.id}', '${JSON.parse(notif.data).requester_id}')"
-                                                        class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition"
-                                                    >
-                                                        <i class="fas fa-times mr-1"></i>
-                                                        Reject
-                                                    </button>
-                                                </div>
-                                            ` : ''}
+                                            ${notif.type === 'contact_request' && notif.data && !notif.is_read ? (() => {
+                                                try {
+                                                    const data = JSON.parse(notif.data);
+                                                    return `
+                                                        <div class="flex gap-2 mt-3">
+                                                            <button 
+                                                                onclick="app.acceptContactRequestFromNotification('${notif.id}', '${data.requester_id}')"
+                                                                class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition"
+                                                            >
+                                                                <i class="fas fa-check mr-1"></i>
+                                                                Accept
+                                                            </button>
+                                                            <button 
+                                                                onclick="app.rejectContactRequestFromNotification('${notif.id}', '${data.requester_id}')"
+                                                                class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition"
+                                                            >
+                                                                <i class="fas fa-times mr-1"></i>
+                                                                Reject
+                                                            </button>
+                                                        </div>
+                                                    `;
+                                                } catch (e) {
+                                                    return '';
+                                                }
+                                            })() : ''}
                                         </div>
                                         ${!notif.is_read ? `
                                             <button 
@@ -7925,6 +7952,10 @@ class SecureChatApp {
                     });
                 }
             }
+            
+            // Update unread count to 0
+            this.unreadNotifications = 0;
+            this.updateNotificationBadge();
             
             this.showToast('All notifications marked as read', 'success');
             // Don't auto-redirect - just close notification center

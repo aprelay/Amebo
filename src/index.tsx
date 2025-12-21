@@ -923,7 +923,31 @@ app.get('/api/users/:userId/privacy', async (c) => {
 // Create or get direct message room
 app.post('/api/rooms/direct', async (c) => {
   try {
-    const { user1Id, user2Id } = await c.req.json()
+    const userEmail = c.req.header('X-User-Email')
+    const body = await c.req.json()
+    
+    // Support both old format (user1Id, user2Id) and new format (recipient_id)
+    let user1Id, user2Id
+    
+    if (body.recipient_id && userEmail) {
+      // New format: get user1Id from email
+      const user1 = await c.env.DB.prepare(`
+        SELECT id FROM users WHERE email = ?
+      `).bind(userEmail).first()
+      
+      if (!user1) {
+        return c.json({ error: 'User not found' }, 404)
+      }
+      
+      user1Id = user1.id
+      user2Id = body.recipient_id
+    } else if (body.user1Id && body.user2Id) {
+      // Old format
+      user1Id = body.user1Id
+      user2Id = body.user2Id
+    } else {
+      return c.json({ error: 'Both user IDs required' }, 400)
+    }
     
     if (!user1Id || !user2Id) {
       return c.json({ error: 'Both user IDs required' }, 400)
@@ -2070,7 +2094,7 @@ app.get('/', (c) => {
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
         <script src="/static/crypto-v2.js?v=20251221-fresh"></script>
-        <script src="/static/app-v3.js?v=20251221-accept-buttons"></script>
+        <script src="/static/app-v3.js?v=20251221-all-fixed"></script>
         
         <script>
           // Register service worker for PWA
