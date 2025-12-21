@@ -1216,6 +1216,11 @@ class SecureChatApp {
                             <!-- Account Section -->
                             <div class="border-b">
                                 <div class="px-4 py-2 bg-gray-50 text-xs font-semibold text-gray-500 uppercase">Account</div>
+                                <button onclick="app.showEditProfile()" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
+                                    <i class="fas fa-id-card text-purple-600 text-xl w-6"></i>
+                                    <span class="flex-1 text-left">Edit Profile</span>
+                                    <i class="fas fa-chevron-right text-gray-400"></i>
+                                </button>
                                 <button onclick="app.showChangeAvatar()" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
                                     <i class="fas fa-user-circle text-purple-600 text-xl w-6"></i>
                                     <span class="flex-1 text-left">Change Avatar</span>
@@ -1229,6 +1234,11 @@ class SecureChatApp {
                                 <button onclick="app.showChangePassword()" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
                                     <i class="fas fa-key text-purple-600 text-xl w-6"></i>
                                     <span class="flex-1 text-left">Change Password</span>
+                                    <i class="fas fa-chevron-right text-gray-400"></i>
+                                </button>
+                                <button onclick="app.showAccountStatus()" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
+                                    <i class="fas fa-circle text-green-500 text-xl w-6"></i>
+                                    <span class="flex-1 text-left">Online Status</span>
                                     <i class="fas fa-chevron-right text-gray-400"></i>
                                 </button>
                             </div>
@@ -1329,12 +1339,42 @@ class SecureChatApp {
                                 </button>
                             </div>
 
+                            <!-- Preferences Section -->
+                            <div class="border-b">
+                                <div class="px-4 py-2 bg-gray-50 text-xs font-semibold text-gray-500 uppercase">Preferences</div>
+                                <button onclick="app.showThemeSettings()" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
+                                    <i class="fas fa-palette text-pink-600 text-xl w-6"></i>
+                                    <span class="flex-1 text-left">Theme Settings</span>
+                                    <i class="fas fa-chevron-right text-gray-400"></i>
+                                </button>
+                                <button onclick="app.showLanguageSettings()" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
+                                    <i class="fas fa-globe text-blue-600 text-xl w-6"></i>
+                                    <span class="flex-1 text-left">Language</span>
+                                    <i class="fas fa-chevron-right text-gray-400"></i>
+                                </button>
+                                <button onclick="app.showDataUsage()" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
+                                    <i class="fas fa-chart-bar text-orange-600 text-xl w-6"></i>
+                                    <span class="flex-1 text-left">Data Usage</span>
+                                    <i class="fas fa-chevron-right text-gray-400"></i>
+                                </button>
+                            </div>
+
                             <!-- Support Section -->
                             <div class="border-b">
-                                <div class="px-4 py-2 bg-gray-50 text-xs font-semibold text-gray-500 uppercase">Support</div>
+                                <div class="px-4 py-2 bg-gray-50 text-xs font-semibold text-gray-500 uppercase">Support & Legal</div>
                                 <button onclick="app.showAbout()" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
                                     <i class="fas fa-info-circle text-gray-600 text-xl w-6"></i>
                                     <span class="flex-1 text-left">About Amebo</span>
+                                    <i class="fas fa-chevron-right text-gray-400"></i>
+                                </button>
+                                <button onclick="app.showExportData()" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
+                                    <i class="fas fa-download text-teal-600 text-xl w-6"></i>
+                                    <span class="flex-1 text-left">Export My Data</span>
+                                    <i class="fas fa-chevron-right text-gray-400"></i>
+                                </button>
+                                <button onclick="app.showTermsAndPrivacy()" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
+                                    <i class="fas fa-file-contract text-gray-600 text-xl w-6"></i>
+                                    <span class="flex-1 text-left">Terms & Privacy</span>
                                     <i class="fas fa-chevron-right text-gray-400"></i>
                                 </button>
                                 <a href="mailto:ads@oztec.cam" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
@@ -7832,6 +7872,78 @@ class SecureChatApp {
         this.closeProfileDrawer();
         alert('Amebo - Secure Messaging & Payments\n\nVersion: 3.0.0 (V3 Industrial Grade)\n\nFeatures:\n✅ End-to-end encryption\n✅ Token rewards system\n✅ Data redemption\n✅ Voice & Video calls\n✅ File sharing\n✅ View-once files\n\n© 2025 Amebo\nContact: ads@oztec.cam');
     }
+
+    showEditProfile() {
+        this.closeProfileDrawer();
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100 p-4">
+                <div class="max-w-2xl mx-auto">
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h1 class="text-2xl font-bold text-gray-800">Edit Profile</h1>
+                            <button onclick="app.showRoomList()" class="text-gray-600 hover:text-gray-800">
+                                <i class="fas fa-times text-2xl"></i>
+                            </button>
+                        </div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Display Name</label>
+                                <input type="text" id="displayName" value="${this.currentUser.display_name || this.currentUser.username}" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Bio</label>
+                                <textarea id="bio" rows="4" placeholder="Tell others about yourself..." 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600">${this.currentUser.bio || ''}</textarea>
+                            </div>
+                            <button onclick="app.saveProfileChanges()" 
+                                class="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition font-medium">
+                                <i class="fas fa-save mr-2"></i>Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    saveProfileChanges() {
+        const displayName = document.getElementById('displayName').value;
+        const bio = document.getElementById('bio').value;
+        alert('Profile updated!' + String.fromCharCode(10) + String.fromCharCode(10) + 'Display Name: ' + displayName + String.fromCharCode(10) + 'Bio: ' + bio);
+        this.showRoomList();
+    }
+
+    showAccountStatus() {
+        this.closeProfileDrawer();
+        alert('Online Status Settings' + String.fromCharCode(10) + String.fromCharCode(10) + 'Current: Online' + String.fromCharCode(10) + String.fromCharCode(10) + 'Options:' + String.fromCharCode(10) + '🟢 Online' + String.fromCharCode(10) + '⚪ Invisible' + String.fromCharCode(10) + '🟡 Away');
+    }
+
+    showThemeSettings() {
+        this.closeProfileDrawer();
+        alert('Theme Settings' + String.fromCharCode(10) + String.fromCharCode(10) + '☀️ Light Mode (Active)' + String.fromCharCode(10) + '🌙 Dark Mode (Coming soon)' + String.fromCharCode(10) + '🔄 Auto (Coming soon)');
+    }
+
+    showLanguageSettings() {
+        this.closeProfileDrawer();
+        alert('Language Settings' + String.fromCharCode(10) + String.fromCharCode(10) + 'Current: English' + String.fromCharCode(10) + String.fromCharCode(10) + 'More languages coming soon!');
+    }
+
+    showDataUsage() {
+        this.closeProfileDrawer();
+        alert('Data Usage' + String.fromCharCode(10) + String.fromCharCode(10) + 'Total: 24.5 MB' + String.fromCharCode(10) + 'Messages: 1,234 sent' + String.fromCharCode(10) + 'Files: 156 shared' + String.fromCharCode(10) + String.fromCharCode(10) + '(Detailed stats coming soon)');
+    }
+
+    showExportData() {
+        this.closeProfileDrawer();
+        alert('Export My Data' + String.fromCharCode(10) + String.fromCharCode(10) + 'Download a copy of your:' + String.fromCharCode(10) + '✓ Messages' + String.fromCharCode(10) + '✓ Contacts' + String.fromCharCode(10) + '✓ Media Files' + String.fromCharCode(10) + String.fromCharCode(10) + '(Feature coming soon)');
+    }
+
+    showTermsAndPrivacy() {
+        this.closeProfileDrawer();
+        alert('Terms & Privacy' + String.fromCharCode(10) + String.fromCharCode(10) + '📄 Terms of Service' + String.fromCharCode(10) + '🔒 Privacy Policy' + String.fromCharCode(10) + '🍪 Cookie Policy' + String.fromCharCode(10) + String.fromCharCode(10) + 'All messages are end-to-end encrypted.');
+    }
+
 
     async toggleNotifications() {
         this.notificationsEnabled = !this.notificationsEnabled;

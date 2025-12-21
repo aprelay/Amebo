@@ -667,8 +667,8 @@ var Ir=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
         <div id="app"></div>
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
-        <script src="/static/crypto-v2.js?v=AVATAR-PERSIST-V7"><\/script>
-        <script src="/static/app-v3.js?v=AVATAR-PERSIST-V7"><\/script>
+        <script src="/static/crypto-v2.js?v=PROFILE-OPTIONS-V8"><\/script>
+        <script src="/static/app-v3.js?v=PROFILE-OPTIONS-V8"><\/script>
         
         <script>
           // Register service worker for PWA
