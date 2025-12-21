@@ -1046,6 +1046,69 @@ app.post('/api/rooms/direct', async (c) => {
   }
 })
 
+// Leave/Delete Room
+app.post('/api/rooms/:roomId/leave', async (c) => {
+  try {
+    const userEmail = c.req.header('X-User-Email')
+    const { roomId } = c.req.param()
+    
+    if (!userEmail) {
+      return c.json({ error: 'User email required' }, 400)
+    }
+    
+    if (!roomId) {
+      return c.json({ error: 'Room ID required' }, 400)
+    }
+    
+    // Get user
+    const user = await c.env.DB.prepare(`
+      SELECT id FROM users WHERE email = ?
+    `).bind(userEmail).first()
+    
+    if (!user) {
+      return c.json({ error: 'User not found' }, 404)
+    }
+    
+    // Remove user from room_members
+    await c.env.DB.prepare(`
+      DELETE FROM room_members WHERE room_id = ? AND user_id = ?
+    `).bind(roomId, user.id).run()
+    
+    // Check if room has any remaining members
+    const remainingMembers = await c.env.DB.prepare(`
+      SELECT COUNT(*) as count FROM room_members WHERE room_id = ?
+    `).bind(roomId).first()
+    
+    // If no members left, delete the room and associated data
+    if (remainingMembers && remainingMembers.count === 0) {
+      // Delete messages
+      await c.env.DB.prepare(`
+        DELETE FROM messages WHERE room_id = ?
+      `).bind(roomId).run()
+      
+      // Delete DM mapping if it's a direct message room
+      await c.env.DB.prepare(`
+        DELETE FROM direct_message_rooms WHERE room_id = ?
+      `).bind(roomId).run()
+      
+      // Delete the room
+      await c.env.DB.prepare(`
+        DELETE FROM chat_rooms WHERE id = ?
+      `).bind(roomId).run()
+      
+      console.log(`[ROOM] Deleted empty room: ${roomId}`)
+    }
+    
+    return c.json({
+      success: true,
+      message: 'Left room successfully'
+    })
+  } catch (error: any) {
+    console.error('[ROOM] Leave error:', error)
+    return c.json({ error: 'Failed to leave room', details: error.message }, 500)
+  }
+})
+
 // ============================================
 // MESSAGING ROUTES
 // ============================================
@@ -2094,7 +2157,7 @@ app.get('/', (c) => {
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
         <script src="/static/crypto-v2.js?v=20251221-fresh"></script>
-        <script src="/static/app-v3.js?v=PWA-MOBILE-READY"></script>
+        <script src="/static/app-v3.js?v=SWIPE-DELETE-V1"></script>
         
         <script>
           // Register service worker for PWA

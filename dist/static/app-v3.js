@@ -1437,7 +1437,7 @@ class SecureChatApp {
                             <i class="fas fa-comments text-indigo-600"></i>
                             My Rooms
                         </h2>
-                        <div id="roomList" class="space-y-2">
+                        <div id="roomList" class="space-y-2" style="overflow: hidden;">
                             <div class="text-gray-500 text-center py-8">
                                 <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
                                 <p>Loading rooms...</p>
@@ -1510,26 +1510,139 @@ class SecureChatApp {
                     `;
                 } else {
                     listEl.innerHTML = this.rooms.map(room => `
-                        <div 
-                            onclick="app.openRoom('${room.id}', '${room.room_code}')"
-                            class="p-4 border border-gray-200 rounded-lg hover:bg-purple-50 cursor-pointer transition"
-                        >
-                            <div class="flex justify-between items-center">
-                                <div>
-                                    <h3 class="font-semibold flex items-center gap-2">
-                                        <i class="fas fa-lock text-purple-600"></i>
-                                        ${room.room_name || room.room_code}
-                                    </h3>
-                                    <p class="text-sm text-gray-600">Code: ${room.room_code}</p>
+                        <div class="room-item-wrapper relative overflow-hidden" data-room-id="${room.id}">
+                            <div 
+                                class="room-item p-4 border border-gray-200 rounded-lg bg-white cursor-pointer transition-transform relative z-10"
+                                data-room-id="${room.id}"
+                                data-room-code="${room.room_code}"
+                            >
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <h3 class="font-semibold flex items-center gap-2">
+                                            <i class="fas fa-lock text-purple-600"></i>
+                                            ${room.room_name || room.room_code}
+                                        </h3>
+                                        <p class="text-sm text-gray-600">Code: ${room.room_code}</p>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-gray-400"></i>
                                 </div>
-                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </div>
+                            <div class="delete-button absolute right-0 top-0 h-full bg-red-600 text-white flex items-center justify-center rounded-r-lg z-0" style="width: 80px;">
+                                <i class="fas fa-trash text-xl"></i>
                             </div>
                         </div>
                     `).join('');
+                    
+                    // Add swipe gesture handlers to each room item
+                    this.initRoomSwipeHandlers();
                 }
             }
         } catch (error) {
             console.error('[V3] Error loading rooms:', error);
+        }
+    }
+    
+    initRoomSwipeHandlers() {
+        const roomItems = document.querySelectorAll('.room-item');
+        
+        roomItems.forEach(item => {
+            let startX = 0;
+            let currentX = 0;
+            let isSwiping = false;
+            let isDeleting = false;
+            const wrapper = item.closest('.room-item-wrapper');
+            const deleteButton = wrapper.querySelector('.delete-button');
+            
+            item.addEventListener('touchstart', (e) => {
+                if (isDeleting) return;
+                startX = e.touches[0].clientX;
+                isSwiping = true;
+                item.style.transition = 'none';
+            });
+            
+            item.addEventListener('touchmove', (e) => {
+                if (!isSwiping || isDeleting) return;
+                
+                currentX = e.touches[0].clientX;
+                const diff = startX - currentX;
+                
+                // Only allow swipe left (positive diff)
+                if (diff > 0 && diff <= 80) {
+                    e.preventDefault();
+                    item.style.transform = `translateX(-${diff}px)`;
+                }
+            });
+            
+            item.addEventListener('touchend', (e) => {
+                if (!isSwiping || isDeleting) return;
+                
+                const diff = startX - currentX;
+                item.style.transition = 'transform 0.3s ease';
+                
+                // If swiped more than 40px, show delete button
+                if (diff > 40) {
+                    item.style.transform = 'translateX(-80px)';
+                    
+                    // Add click handler to delete button
+                    deleteButton.onclick = (e) => {
+                        e.stopPropagation();
+                        this.confirmDeleteRoom(item.dataset.roomId, item.dataset.roomCode);
+                    };
+                } else {
+                    // Snap back
+                    item.style.transform = 'translateX(0)';
+                }
+                
+                isSwiping = false;
+            });
+            
+            // Click to open room (when not swiped)
+            item.addEventListener('click', (e) => {
+                const transform = item.style.transform;
+                if (!transform || transform === 'translateX(0px)' || transform === '') {
+                    this.openRoom(item.dataset.roomId, item.dataset.roomCode);
+                } else {
+                    // If already swiped, snap back on click
+                    item.style.transform = 'translateX(0)';
+                }
+            });
+        });
+    }
+    
+    async confirmDeleteRoom(roomId, roomCode) {
+        const room = this.rooms.find(r => r.id === roomId);
+        const roomName = room?.room_name || roomCode;
+        
+        const confirmed = confirm(`Delete "${roomName}"?\n\nThis will:\n• Remove the chat from your list\n• You can rejoin with the room code later\n• Messages will remain for other members`);
+        
+        if (confirmed) {
+            await this.deleteRoom(roomId);
+        }
+    }
+    
+    async deleteRoom(roomId) {
+        try {
+            this.showToast('Deleting chat...', 'info');
+            
+            const response = await fetch(`/api/rooms/${roomId}/leave`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-Email': this.currentUser.email
+                }
+            });
+            
+            if (response.ok) {
+                this.showToast('Chat deleted!', 'success');
+                // Reload rooms
+                await this.loadRooms();
+            } else {
+                const data = await response.json();
+                this.showToast(data.error || 'Failed to delete chat', 'error');
+            }
+        } catch (error) {
+            console.error('[DELETE] Error deleting room:', error);
+            this.showToast('Error deleting chat', 'error');
         }
     }
 
