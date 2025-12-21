@@ -6525,7 +6525,16 @@ class SecureChatApp {
             });
             
             if (response.ok) {
-                privacySettings = await response.json();
+                const data = await response.json();
+                if (data.success && data.privacy) {
+                    // Backend returns camelCase, convert to snake_case
+                    privacySettings = {
+                        is_searchable: data.privacy.isSearchable,
+                        message_privacy: data.privacy.messagePrivacy,
+                        last_seen_privacy: data.privacy.lastSeenPrivacy
+                    };
+                    console.log('[PRIVACY] Loaded settings:', privacySettings);
+                }
             }
         } catch (error) {
             console.error('[PRIVACY] Error loading settings:', error);
