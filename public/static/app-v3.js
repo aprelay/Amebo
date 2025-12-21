@@ -266,6 +266,22 @@ class SecureChatApp {
         }
     }
 
+    // Scroll chat to bottom (auto-scroll on new messages)
+    scrollToBottom() {
+        try {
+            const container = document.getElementById('messages');
+            if (container) {
+                // Use setTimeout to ensure DOM is fully rendered
+                setTimeout(() => {
+                    container.scrollTop = container.scrollHeight;
+                    console.log('[CHAT] 📜 Scrolled to bottom');
+                }, 100);
+            }
+        } catch (error) {
+            console.error('[CHAT] Scroll error:', error);
+        }
+    }
+
     // Queue-based notification system for reliability
     queueNotification(message, roomName) {
         if (!this.notificationsEnabled) return;
@@ -1871,7 +1887,9 @@ class SecureChatApp {
 
                 this.messages = decryptedMessages; // Store decrypted messages
                 container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('');
-                container.scrollTop = container.scrollHeight;
+                
+                // Scroll to bottom after rendering
+                this.scrollToBottom();
             }
         } catch (error) {
             console.error('[V3] Error loading messages:', error);
