@@ -25,7 +25,15 @@ class SecureChatApp {
         this.notificationSound = null;
         this.notificationsEnabled = true;
         
-        console.log('[V3] App initialized - Industrial Grade Security + Tokens');
+        // Enhanced notification queue system
+        this.notificationQueue = [];
+        this.isProcessingNotifications = false;
+        this.lastNotificationTime = 0;
+        this.notificationMinDelay = 500; // Minimum 500ms between notifications
+        this.notificationPermissionChecked = false;
+        this.pendingNotifications = []; // Backup queue for retry
+        
+        console.log('[V3] App initialized - Industrial Grade Security + Tokens + Enhanced Notifications');
         
         // Initialize swipe gesture handling
         this.initSwipeGestures();
@@ -71,6 +79,87 @@ class SecureChatApp {
         }
     }
 
+    // Queue-based notification system for reliability
+    queueNotification(message, roomName) {
+        if (!this.notificationsEnabled) return;
+        if (message.sender_id === this.currentUser.id) return;
+        
+        const notification = {
+            id: `notif-${Date.now()}-${Math.random()}`,
+            message,
+            roomName,
+            timestamp: Date.now(),
+            retryCount: 0,
+            maxRetries: 3
+        };
+        
+        this.notificationQueue.push(notification);
+        console.log('[NOTIFICATIONS] ✓ Queued notification:', notification.id, 'Queue size:', this.notificationQueue.length);
+        
+        // Start processing if not already processing
+        if (!this.isProcessingNotifications) {
+            this.processNotificationQueue();
+        }
+    }
+
+    async processNotificationQueue() {
+        if (this.isProcessingNotifications || this.notificationQueue.length === 0) {
+            return;
+        }
+        
+        this.isProcessingNotifications = true;
+        console.log('[NOTIFICATIONS] 🔄 Processing notification queue, size:', this.notificationQueue.length);
+        
+        while (this.notificationQueue.length > 0) {
+            const notif = this.notificationQueue.shift();
+            
+            // Enforce minimum delay between notifications
+            const timeSinceLastNotification = Date.now() - this.lastNotificationTime;
+            if (timeSinceLastNotification < this.notificationMinDelay) {
+                const waitTime = this.notificationMinDelay - timeSinceLastNotification;
+                console.log('[NOTIFICATIONS] ⏱️ Waiting', waitTime, 'ms before next notification');
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+            
+            // Check if app is hidden/backgrounded
+            const isHidden = document.hidden || !document.hasFocus();
+            if (!isHidden) {
+                console.log('[NOTIFICATIONS] ⏭️ Skipping notification - app is visible');
+                continue;
+            }
+            
+            try {
+                await this.showMessageNotification(notif.message, notif.roomName);
+                console.log('[NOTIFICATIONS] ✅ Successfully processed notification:', notif.id);
+                this.lastNotificationTime = Date.now();
+            } catch (error) {
+                console.error('[NOTIFICATIONS] ❌ Error processing notification:', notif.id, error);
+                
+                // Retry logic
+                if (notif.retryCount < notif.maxRetries) {
+                    notif.retryCount++;
+                    this.pendingNotifications.push(notif);
+                    console.log('[NOTIFICATIONS] 🔄 Queued for retry (attempt', notif.retryCount, '/', notif.maxRetries, ')');
+                } else {
+                    console.error('[NOTIFICATIONS] ❌ Max retries reached for:', notif.id);
+                }
+            }
+            
+            // Small delay between notifications to avoid overwhelming the system
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        // Process retry queue
+        if (this.pendingNotifications.length > 0) {
+            console.log('[NOTIFICATIONS] 🔄 Processing', this.pendingNotifications.length, 'pending retries');
+            this.notificationQueue.push(...this.pendingNotifications);
+            this.pendingNotifications = [];
+        }
+        
+        this.isProcessingNotifications = false;
+        console.log('[NOTIFICATIONS] ✓ Queue processing complete');
+    }
+
     showMessageNotification(message, roomName) {
         if (!this.notificationsEnabled) return;
         
@@ -111,7 +200,8 @@ class SecureChatApp {
                     data: {
                         roomId: this.currentRoom?.id,
                         messageId: message.id,
-                        senderId: message.sender_id
+                        senderId: message.sender_id,
+                        notificationId: `notif-${Date.now()}`
                     }
                 };
 
@@ -128,15 +218,35 @@ class SecureChatApp {
                     }
                 };
 
+                notification.onerror = (error) => {
+                    console.error('[NOTIFICATIONS] Notification error:', error);
+                };
+
                 // Auto-close after 6 seconds (slightly longer for mobile)
-                setTimeout(() => notification.close(), 6000);
+                setTimeout(() => {
+                    try {
+                        notification.close();
+                    } catch (e) {
+                        // Notification already closed
+                    }
+                }, 6000);
                 
                 console.log('[NOTIFICATIONS] ✓ Browser notification shown');
             } catch (error) {
                 console.error('[NOTIFICATIONS] Show notification error:', error);
+                throw error; // Rethrow to trigger retry logic
             }
         } else {
-            console.log('[NOTIFICATIONS] Browser notifications not available or permission denied');
+            const permissionStatus = Notification.permission;
+            console.log('[NOTIFICATIONS] Browser notifications not available. Permission:', permissionStatus);
+            
+            if (permissionStatus === 'denied') {
+                console.warn('[NOTIFICATIONS] ⚠️ User has denied notification permission');
+            } else if (permissionStatus === 'default') {
+                console.log('[NOTIFICATIONS] ℹ️ Notification permission not yet requested');
+                // Automatically request permission
+                this.requestNotificationPermission();
+            }
         }
         
         // Mobile-specific: Wake lock to ensure notification is seen
@@ -157,6 +267,10 @@ class SecureChatApp {
                 console.log('[NOTIFICATIONS] Wake lock not supported:', error);
             }
         }
+        
+        // Increment unread counter
+        this.unreadNotifications++;
+        console.log('[NOTIFICATIONS] ✓ Unread count:', this.unreadNotifications);
     }
 
     initSwipeGestures() {
@@ -1482,11 +1596,13 @@ class SecureChatApp {
                         const newMessagesOnly = decryptedMessages.slice(lastIndex + 1);
                         console.log('[NOTIFICATIONS] New messages detected:', newMessagesOnly.length);
                         
-                        // Notify for each new message (but not if window is focused on this room)
+                        // Queue notifications for each new message (but not if window is focused on this room)
                         if (document.hidden || !document.hasFocus()) {
                             newMessagesOnly.forEach(msg => {
-                                this.showMessageNotification(msg, this.currentRoom.room_name || this.currentRoom.room_code);
+                                this.queueNotification(msg, this.currentRoom.room_name || this.currentRoom.room_code);
                             });
+                        } else {
+                            console.log('[NOTIFICATIONS] ⏭️ Skipping notifications - app is visible and focused');
                         }
                     }
                 }

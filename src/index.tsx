@@ -2737,7 +2737,7 @@ app.post('/api/users/pin/reset', async (c) => {
   }
 })
 
-// Gift tokens to another user
+// Gift tokens to another user (WITH WEEKLY 150 TOKEN LIMIT)
 app.post('/api/tokens/gift', async (c) => {
   try {
     const { fromUserId, toUserId, amount, roomId, message, pin } = await c.req.json()
@@ -2752,6 +2752,57 @@ app.post('/api/tokens/gift', async (c) => {
     
     if (fromUserId === toUserId) {
       return c.json({ error: 'Cannot send tokens to yourself' }, 400)
+    }
+    
+    // Calculate current week (ISO week format: YYYY-WW)
+    const now = new Date()
+    const startOfYear = new Date(now.getFullYear(), 0, 1)
+    const days = Math.floor((now.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000))
+    const weekNumber = Math.ceil((days + startOfYear.getDay() + 1) / 7)
+    const yearWeek = `${now.getFullYear()}-${String(weekNumber).padStart(2, '0')}`
+    
+    // Get weekly gift limit configuration (HARD LIMIT: 150 tokens per week)
+    const limitConfig = await c.env.DB.prepare(`
+      SELECT config_value FROM weekly_gift_config WHERE config_name = 'weekly_gift_limit' AND is_active = 1
+    `).bind().first()
+    
+    const WEEKLY_GIFT_LIMIT = limitConfig?.config_value || 150  // HARD LIMIT - cannot be exceeded
+    
+    // Get or create weekly gift tracking record
+    let weeklyTracking = await c.env.DB.prepare(`
+      SELECT * FROM weekly_gift_tracking WHERE user_id = ? AND year_week = ?
+    `).bind(fromUserId, yearWeek).first()
+    
+    if (!weeklyTracking) {
+      // Create new weekly tracking record
+      await c.env.DB.prepare(`
+        INSERT INTO weekly_gift_tracking (user_id, year_week, total_gifted, gift_count)
+        VALUES (?, ?, 0, 0)
+      `).bind(fromUserId, yearWeek).run()
+      
+      weeklyTracking = { user_id: fromUserId, year_week: yearWeek, total_gifted: 0, gift_count: 0 }
+    }
+    
+    const currentWeeklyGifted = weeklyTracking.total_gifted || 0
+    const remainingWeekly = WEEKLY_GIFT_LIMIT - currentWeeklyGifted
+    
+    // Check if this gift would exceed weekly limit (HARD LIMIT - NO EXCEPTIONS)
+    if (currentWeeklyGifted + amount > WEEKLY_GIFT_LIMIT) {
+      console.log(`[WEEKLY GIFT LIMIT] User ${fromUserId} exceeded weekly limit. Current: ${currentWeeklyGifted}, Attempting: ${amount}, Limit: ${WEEKLY_GIFT_LIMIT}`)
+      
+      // Record the blocked attempt
+      await c.env.DB.prepare(`
+        INSERT INTO weekly_gift_history (user_id, year_week, amount, recipient_id, total_gifted_after, limit_value, exceeded)
+        VALUES (?, ?, ?, ?, ?, ?, 1)
+      `).bind(fromUserId, yearWeek, amount, toUserId, currentWeeklyGifted, WEEKLY_GIFT_LIMIT).run()
+      
+      return c.json({ 
+        error: `Weekly gift limit reached! You can only gift ${WEEKLY_GIFT_LIMIT} tokens per week. You have gifted ${currentWeeklyGifted} tokens this week. Remaining: ${remainingWeekly} tokens`,
+        weeklyLimit: WEEKLY_GIFT_LIMIT,
+        weeklyGifted: currentWeeklyGifted,
+        weeklyRemaining: remainingWeekly,
+        limitExceeded: true
+      }, 400)
     }
     
     // Verify PIN
@@ -2793,7 +2844,7 @@ app.post('/api/tokens/gift', async (c) => {
       return c.json({ error: 'Recipient not found' }, 404)
     }
     
-    console.log(`[TOKEN GIFT] ${userResult.username} sending ${amount} tokens to ${receiverResult.username}`)
+    console.log(`[TOKEN GIFT] ${userResult.username} sending ${amount} tokens to ${receiverResult.username} (Weekly: ${currentWeeklyGifted + amount}/${WEEKLY_GIFT_LIMIT})`)
     
     // Deduct from sender
     const deductResult = await c.env.DB.prepare(`
@@ -2834,17 +2885,45 @@ app.post('/api/tokens/gift', async (c) => {
     
     console.log(`[TOKEN GIFT] Notification created for receiver`)
     
+    // Update weekly gift tracking
+    const newWeeklyTotal = currentWeeklyGifted + amount
+    await c.env.DB.prepare(`
+      UPDATE weekly_gift_tracking 
+      SET total_gifted = ?, gift_count = gift_count + 1, last_gift_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = ? AND year_week = ?
+    `).bind(newWeeklyTotal, fromUserId, yearWeek).run()
+    
+    console.log(`[WEEKLY GIFT TRACKING] Updated: ${newWeeklyTotal}/${WEEKLY_GIFT_LIMIT} tokens gifted this week`)
+    
+    // Record successful gift in history
+    await c.env.DB.prepare(`
+      INSERT INTO weekly_gift_history (user_id, year_week, amount, recipient_id, total_gifted_after, limit_value, exceeded)
+      VALUES (?, ?, ?, ?, ?, ?, 0)
+    `).bind(fromUserId, yearWeek, amount, toUserId, newWeeklyTotal, WEEKLY_GIFT_LIMIT).run()
+    
     const newSenderBalance = currentTokens - amount
     const newReceiverBalance = (receiverResult.tokens || 0) + amount
+    const weeklyRemaining = WEEKLY_GIFT_LIMIT - newWeeklyTotal
+    
+    // Add warning if approaching weekly limit
+    let warningMessage = ''
+    if (weeklyRemaining <= 30 && weeklyRemaining > 0) {
+      warningMessage = ` ⚠️ Only ${weeklyRemaining} tokens remaining this week!`
+    } else if (weeklyRemaining === 0) {
+      warningMessage = ` 🚫 Weekly gift limit reached!`
+    }
     
     return c.json({ 
       success: true, 
-      message: `Successfully sent ${amount} tokens to ${receiverResult.username}`,
+      message: `Successfully sent ${amount} tokens to ${receiverResult.username}${warningMessage}`,
       transactionId,
       newBalance: newSenderBalance,
       receiverUsername: receiverResult.username,
       receiverBalance: newReceiverBalance,
-      fromUsername: userResult.username
+      fromUsername: userResult.username,
+      weeklyGifted: newWeeklyTotal,
+      weeklyLimit: WEEKLY_GIFT_LIMIT,
+      weeklyRemaining: weeklyRemaining
     })
   } catch (error: any) {
     console.error('Gift tokens error:', error)
@@ -2852,6 +2931,51 @@ app.post('/api/tokens/gift', async (c) => {
       error: 'Failed to gift tokens',
       details: error.message 
     }, 500)
+  }
+})
+
+// Get weekly gift status for a user
+app.get('/api/tokens/weekly-gift-status/:userId', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    
+    // Calculate current week
+    const now = new Date()
+    const startOfYear = new Date(now.getFullYear(), 0, 1)
+    const days = Math.floor((now.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000))
+    const weekNumber = Math.ceil((days + startOfYear.getDay() + 1) / 7)
+    const yearWeek = `${now.getFullYear()}-${String(weekNumber).padStart(2, '0')}`
+    
+    // Get weekly gift limit
+    const limitConfig = await c.env.DB.prepare(`
+      SELECT config_value FROM weekly_gift_config WHERE config_name = 'weekly_gift_limit' AND is_active = 1
+    `).bind().first()
+    
+    const WEEKLY_GIFT_LIMIT = limitConfig?.config_value || 150
+    
+    // Get current week's gifting data
+    const weeklyTracking = await c.env.DB.prepare(`
+      SELECT * FROM weekly_gift_tracking WHERE user_id = ? AND year_week = ?
+    `).bind(userId, yearWeek).first()
+    
+    const totalGifted = weeklyTracking?.total_gifted || 0
+    const giftCount = weeklyTracking?.gift_count || 0
+    const remaining = WEEKLY_GIFT_LIMIT - totalGifted
+    
+    return c.json({
+      success: true,
+      yearWeek,
+      weeklyLimit: WEEKLY_GIFT_LIMIT,
+      totalGifted,
+      remaining,
+      giftCount,
+      lastGiftAt: weeklyTracking?.last_gift_at || null,
+      limitReached: totalGifted >= WEEKLY_GIFT_LIMIT,
+      percentageUsed: Math.round((totalGifted / WEEKLY_GIFT_LIMIT) * 100)
+    })
+  } catch (error: any) {
+    console.error('Get weekly gift status error:', error)
+    return c.json({ error: 'Failed to get weekly gift status' }, 500)
   }
 })
 
