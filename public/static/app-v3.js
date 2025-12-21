@@ -2332,6 +2332,18 @@ class SecureChatApp {
         div.textContent = text;
         return div.innerHTML;
     }
+    
+    formatTimeAgo(timestamp) {
+        const now = new Date();
+        const then = new Date(timestamp);
+        const seconds = Math.floor((now - then) / 1000);
+        
+        if (seconds < 60) return 'Just now';
+        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+        if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+        if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+        return then.toLocaleDateString();
+    }
 
     // ============================================
     // TOKEN GIFTING FEATURES
@@ -7708,12 +7720,128 @@ class SecureChatApp {
         }
     }
 
-    showNotifications() {
-        // This is called from the bell icon in header
-        alert('Notifications:\n\n' + (this.unreadNotifications > 0 
-            ? `You have ${this.unreadNotifications} unread notification(s)` 
-            : 'No new notifications'));
+    async showNotifications() {
+        const content = document.getElementById('content');
+        
+        // Fetch notifications
+        let notifications = [];
+        try {
+            const response = await fetch(`/api/notifications/${this.currentUser.id}`);
+            const data = await response.json();
+            notifications = data.notifications || [];
+        } catch (error) {
+            console.error('[NOTIFICATIONS] Fetch error:', error);
+        }
+        
+        content.innerHTML = `
+            <div class="min-h-screen bg-gray-50 pb-20">
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-purple-600 to-purple-800 text-white p-4 sticky top-0 z-10 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-4">
+                        <button onclick="app.showRoomList()" class="p-2 hover:bg-white/20 rounded-lg transition">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <div class="flex-1">
+                            <h1 class="text-xl font-bold">Notifications</h1>
+                            <p class="text-sm text-purple-200">${notifications.length} notification(s)</p>
+                        </div>
+                        <button onclick="app.markAllNotificationsRead()" class="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-sm transition">
+                            Mark all read
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Notifications List -->
+                <div class="max-w-4xl mx-auto p-4">
+                    ${notifications.length === 0 ? `
+                        <div class="bg-white rounded-lg shadow-md p-8 text-center">
+                            <i class="fas fa-bell-slash text-6xl text-gray-300 mb-4"></i>
+                            <h3 class="text-xl font-semibold text-gray-700 mb-2">No Notifications</h3>
+                            <p class="text-gray-500">You're all caught up!</p>
+                        </div>
+                    ` : `
+                        <div class="space-y-3">
+                            ${notifications.map(notif => `
+                                <div class="bg-white rounded-lg shadow-md p-4 ${notif.is_read ? 'opacity-60' : 'border-l-4 border-purple-600'} hover:shadow-lg transition">
+                                    <div class="flex items-start gap-3">
+                                        <div class="flex-shrink-0">
+                                            <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                                                <i class="fas ${this.getNotificationIcon(notif.type)} text-purple-600"></i>
+                                            </div>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <h4 class="font-semibold text-gray-900">${this.escapeHtml(notif.title)}</h4>
+                                            <p class="text-gray-600 text-sm mt-1">${this.escapeHtml(notif.message)}</p>
+                                            <p class="text-xs text-gray-400 mt-2">${this.formatTimeAgo(notif.created_at)}</p>
+                                        </div>
+                                        ${!notif.is_read ? `
+                                            <button 
+                                                onclick="app.markNotificationRead('${notif.id}')"
+                                                class="flex-shrink-0 text-gray-400 hover:text-purple-600 transition"
+                                                title="Mark as read"
+                                            >
+                                                <i class="fas fa-check-circle"></i>
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `}
+                </div>
+            </div>
+        `;
+        
+        // Reset unread count
         this.unreadNotifications = 0;
+    }
+    
+    getNotificationIcon(type) {
+        const icons = {
+            'contact_request': 'fa-user-plus',
+            'contact_accepted': 'fa-user-check',
+            'message': 'fa-comment',
+            'room_invite': 'fa-door-open',
+            'system': 'fa-info-circle'
+        };
+        return icons[type] || 'fa-bell';
+    }
+    
+    async markNotificationRead(notificationId) {
+        try {
+            await fetch(`/api/notifications/${notificationId}/read`, {
+                method: 'POST',
+                headers: { 'X-User-Email': this.currentUser.email }
+            });
+            
+            // Refresh notifications
+            this.showNotifications();
+        } catch (error) {
+            console.error('[NOTIFICATIONS] Mark read error:', error);
+        }
+    }
+    
+    async markAllNotificationsRead() {
+        try {
+            const response = await fetch(`/api/notifications/${this.currentUser.id}`);
+            const data = await response.json();
+            const notifications = data.notifications || [];
+            
+            // Mark all unread as read
+            for (const notif of notifications) {
+                if (!notif.is_read) {
+                    await fetch(`/api/notifications/${notif.id}/read`, {
+                        method: 'POST',
+                        headers: { 'X-User-Email': this.currentUser.email }
+                    });
+                }
+            }
+            
+            this.showToast('All notifications marked as read', 'success');
+            this.showNotifications();
+        } catch (error) {
+            console.error('[NOTIFICATIONS] Mark all read error:', error);
+        }
     }
 }
 
