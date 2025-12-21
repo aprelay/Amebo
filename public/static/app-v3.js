@@ -1508,8 +1508,11 @@ class SecureChatApp {
         
         roomItems.forEach(item => {
             let startX = 0;
+            let startY = 0;
             let currentX = 0;
+            let currentY = 0;
             let isSwiping = false;
+            let hasMoved = false;
             let isDeleting = false;
             const wrapper = item.closest('.room-item-wrapper');
             const deleteButton = wrapper.querySelector('.delete-button');
@@ -1517,56 +1520,71 @@ class SecureChatApp {
             item.addEventListener('touchstart', (e) => {
                 if (isDeleting) return;
                 startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                currentX = startX;
+                currentY = startY;
                 isSwiping = true;
+                hasMoved = false;
                 item.style.transition = 'none';
-            });
+            }, { passive: true });
             
             item.addEventListener('touchmove', (e) => {
                 if (!isSwiping || isDeleting) return;
                 
                 currentX = e.touches[0].clientX;
-                const diff = startX - currentX;
+                currentY = e.touches[0].clientY;
+                const diffX = startX - currentX;
+                const diffY = Math.abs(startY - currentY);
                 
-                // Only allow swipe left (positive diff)
-                if (diff > 0 && diff <= 80) {
-                    e.preventDefault();
-                    item.style.transform = `translateX(-${diff}px)`;
+                // Only consider it a swipe if horizontal movement > 10px and more horizontal than vertical
+                if (Math.abs(diffX) > 10 && Math.abs(diffX) > diffY) {
+                    hasMoved = true;
+                    
+                    // Only allow swipe left (positive diff)
+                    if (diffX > 0 && diffX <= 80) {
+                        e.preventDefault();
+                        item.style.transform = `translateX(-${diffX}px)`;
+                    }
                 }
             });
             
             item.addEventListener('touchend', (e) => {
                 if (!isSwiping || isDeleting) return;
                 
-                const diff = startX - currentX;
+                const diffX = startX - currentX;
+                const diffY = Math.abs(startY - currentY);
+                
                 item.style.transition = 'transform 0.3s ease';
                 
-                // If swiped more than 40px, show delete button
-                if (diff > 40) {
-                    item.style.transform = 'translateX(-80px)';
-                    
-                    // Add click handler to delete button
-                    deleteButton.onclick = (e) => {
-                        e.stopPropagation();
-                        this.confirmDeleteRoom(item.dataset.roomId, item.dataset.roomCode);
-                    };
+                // Only process as swipe if there was horizontal movement
+                if (hasMoved && Math.abs(diffX) > diffY) {
+                    // If swiped more than 40px, show delete button
+                    if (diffX > 40) {
+                        item.style.transform = 'translateX(-80px)';
+                        
+                        // Add click handler to delete button
+                        deleteButton.onclick = (e) => {
+                            e.stopPropagation();
+                            this.confirmDeleteRoom(item.dataset.roomId, item.dataset.roomCode);
+                        };
+                    } else {
+                        // Snap back
+                        item.style.transform = 'translateX(0)';
+                    }
                 } else {
-                    // Snap back
-                    item.style.transform = 'translateX(0)';
+                    // Was a tap, not a swipe - open the room
+                    const transform = item.style.transform;
+                    if (!transform || transform === 'translateX(0px)' || transform === '') {
+                        this.openRoom(item.dataset.roomId, item.dataset.roomCode);
+                    } else {
+                        // If already swiped, snap back
+                        item.style.transform = 'translateX(0)';
+                    }
                 }
                 
                 isSwiping = false;
-            });
-            
-            // Click to open room (when not swiped)
-            item.addEventListener('click', (e) => {
-                const transform = item.style.transform;
-                if (!transform || transform === 'translateX(0px)' || transform === '') {
-                    this.openRoom(item.dataset.roomId, item.dataset.roomCode);
-                } else {
-                    // If already swiped, snap back on click
-                    item.style.transform = 'translateX(0)';
-                }
-            });
+                hasMoved = false;
+            }, { passive: true });
         });
     }
     
