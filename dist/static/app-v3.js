@@ -2100,9 +2100,12 @@ class SecureChatApp {
                         this.messages = decryptedMessages;
                         this.messageCache.set(this.currentRoom.id, decryptedMessages);
                         
-                        // Only rebuild DOM if scrolling OR initial load
-                        if (isInitialLoad || this.isScrolling) {
-                            // Full rebuild (only when necessary)
+                        // CRITICAL: Skip ALL DOM updates if user is actively scrolling!
+                        if (this.isScrolling) {
+                            // User is scrolling - don't touch the DOM at all!
+                            console.log('[SCROLL] User scrolling - skipping DOM update');
+                        } else if (isInitialLoad) {
+                            // Full rebuild (only on initial load)
                             container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('');
                         } else if (messagesToAdd.length > 0) {
                             // Append new messages only (no full rebuild!)
