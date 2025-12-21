@@ -13,6 +13,8 @@ class SecureChatApp {
         this.viewedOnceFiles = new Set();
         this.roomKeys = new Map(); // Store room encryption keys
         this.messageCache = new Map(); // Cache decrypted messages by roomId
+        this.isScrolling = false; // Track if user is actively scrolling
+        this.scrollTimeout = null;
         this.userPrivateKey = null; // User's private key for E2E
         
         // Navigation history for swipe back
@@ -1854,6 +1856,18 @@ class SecureChatApp {
         setTimeout(() => this.scrollToBottom(true), 400);
         setTimeout(() => this.scrollToBottom(true), 800);
         
+        // Add scroll detection to prevent interrupting user's scroll
+        const scrollContainer = document.getElementById('messages-scroll-container');
+        if (scrollContainer) {
+            scrollContainer.addEventListener('scroll', () => {
+                this.isScrolling = true;
+                clearTimeout(this.scrollTimeout);
+                this.scrollTimeout = setTimeout(() => {
+                    this.isScrolling = false;
+                }, 150); // 150ms after scroll stops
+            });
+        }
+        
         this.startPolling();
     }
 
@@ -2419,11 +2433,14 @@ class SecureChatApp {
         
         this.messagePoller = setInterval(async () => {
             if (this.currentRoom) {
-                await this.loadMessages();
-                // Auto-scroll to bottom when new messages arrive
-                setTimeout(() => this.scrollToBottom(), 100);
+                // Skip update if user is actively scrolling
+                if (!this.isScrolling) {
+                    await this.loadMessages();
+                    // Auto-scroll to bottom when new messages arrive
+                    setTimeout(() => this.scrollToBottom(), 100);
+                }
                 
-                // Poll typing indicators
+                // Always poll typing indicators (doesn't affect DOM)
                 await this.pollTypingIndicators(this.currentRoom.id);
             }
         }, 3000);
