@@ -7988,6 +7988,7 @@ class SecureChatApp {
             toast.style.opacity = '0';
             setTimeout(() => toast.remove(), 300);
         }, 2000);
+    }
 
     showRoomProfile(roomId, roomCode) {
         const room = this.rooms.find(r => r.id === roomId);
