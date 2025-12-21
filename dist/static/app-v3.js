@@ -1747,6 +1747,12 @@ class SecureChatApp {
     async openRoom(roomId, roomCode) {
         console.log('[V3] Opening encrypted room:', roomId);
         
+        // Clear messages for fresh load (forces isInitialLoad = true)
+        this.messages = [];
+        
+        // Clear last message ID to force full reload
+        this.lastMessageIds.delete(roomId);
+        
         // Clear app badge when opening room (user is viewing messages)
         await this.updateAppBadge(0);
         
