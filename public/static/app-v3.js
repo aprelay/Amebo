@@ -600,6 +600,16 @@ class SecureChatApp {
     async init() {
         console.log('[V3] Init started');
         
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            try {
+                const registration = await navigator.serviceWorker.register('/static/sw.js');
+                console.log('[PWA] Service Worker registered:', registration.scope);
+            } catch (error) {
+                console.error('[PWA] Service Worker registration failed:', error);
+            }
+        }
+        
         // Load notification preference
         const notificationPref = localStorage.getItem('notificationsEnabled');
         if (notificationPref !== null) {
