@@ -7721,14 +7721,19 @@ class SecureChatApp {
     }
 
     async showNotifications() {
+        console.log('[NOTIFICATIONS] showNotifications called');
         const content = document.getElementById('content');
+        console.log('[NOTIFICATIONS] content element:', content);
         
         // Fetch notifications
         let notifications = [];
         try {
+            console.log('[NOTIFICATIONS] Fetching notifications for user:', this.currentUser.id);
             const response = await fetch(`/api/notifications/${this.currentUser.id}`);
             const data = await response.json();
+            console.log('[NOTIFICATIONS] API response:', data);
             notifications = data.notifications || [];
+            console.log('[NOTIFICATIONS] Notifications count:', notifications.length);
         } catch (error) {
             console.error('[NOTIFICATIONS] Fetch error:', error);
         }
