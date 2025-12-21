@@ -6895,7 +6895,10 @@ class SecureChatApp {
     }
     
     async startDirectMessage(userId, username) {
+        console.log('[DM] Starting direct message:', { userId, username });
         try {
+            this.showToast('Opening chat...', 'info');
+            
             const response = await fetch('/api/rooms/direct', {
                 method: 'POST',
                 headers: {
@@ -6906,17 +6909,20 @@ class SecureChatApp {
             });
             
             const data = await response.json();
+            console.log('[DM] Response:', { ok: response.ok, data });
             
             if (response.ok) {
                 // Open the direct message room
+                console.log('[DM] Opening room:', data.room.room_code);
                 this.openRoom(data.room.room_code);
             } else {
                 // Show error based on privacy settings
-                this.showMessage('search-message', data.error || 'Failed to start chat', 'error');
+                console.error('[DM] Failed:', data.error);
+                this.showToast(data.error || 'Failed to start chat', 'error');
             }
         } catch (error) {
             console.error('[DM] Error starting direct message:', error);
-            this.showMessage('search-message', 'Error starting direct message', 'error');
+            this.showToast('Error starting direct message', 'error');
         }
     }
 
@@ -7070,9 +7076,12 @@ class SecureChatApp {
             if (response.ok) {
                 // Mark notification as read
                 await this.markNotificationRead(notificationId);
-                this.showToast('Contact request accepted!', 'success');
-                // Refresh notifications to remove the accepted request
-                setTimeout(() => this.showNotifications(), 500);
+                this.showToast('Contact accepted! Opening chat...', 'success');
+                
+                // Auto-open chat with the accepted contact
+                setTimeout(() => {
+                    this.startDirectMessage(requesterId, 'Contact');
+                }, 500);
             } else {
                 this.showToast('Failed to accept request', 'error');
             }
