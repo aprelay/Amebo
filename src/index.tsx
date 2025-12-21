@@ -806,12 +806,23 @@ app.get('/api/users/search', async (c) => {
 // Update user privacy settings
 app.post('/api/users/privacy', async (c) => {
   try {
-    const { userId, isSearchable, messagePrivacy, lastSeenPrivacy } = await c.req.json()
+    const userEmail = c.req.header('X-User-Email')
+    const { is_searchable, message_privacy, last_seen_privacy } = await c.req.json()
     
-    if (!userId) {
-      return c.json({ error: 'User ID required' }, 400)
+    if (!userEmail) {
+      return c.json({ error: 'User email required' }, 400)
     }
     
+    // Get user by email
+    const user = await c.env.DB.prepare(`
+      SELECT id FROM users WHERE email = ?
+    `).bind(userEmail).first()
+    
+    if (!user) {
+      return c.json({ error: 'User not found' }, 404)
+    }
+    
+    // Update privacy settings
     await c.env.DB.prepare(`
       UPDATE users
       SET is_searchable = ?,
@@ -819,12 +830,13 @@ app.post('/api/users/privacy', async (c) => {
           last_seen_privacy = ?
       WHERE id = ?
     `).bind(
-      isSearchable ? 1 : 0,
-      messagePrivacy || 'anyone',
-      lastSeenPrivacy || 'everyone',
-      userId
+      is_searchable ? 1 : 0,
+      message_privacy || 'anyone',
+      last_seen_privacy || 'everyone',
+      user.id
     ).run()
     
+    console.log(`[PRIVACY] Updated settings for user ${user.id}:`, { is_searchable, message_privacy, last_seen_privacy })
     return c.json({ success: true, message: 'Privacy settings updated' })
   } catch (error) {
     console.error('Privacy update error:', error)

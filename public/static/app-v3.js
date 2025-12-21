@@ -6629,9 +6629,16 @@ class SecureChatApp {
     }
     
     async savePrivacySettings() {
-        const searchable = document.getElementById('searchable').checked;
-        const messagePrivacy = document.querySelector('input[name="messagePrivacy"]:checked').value;
-        const lastSeenPrivacy = document.querySelector('input[name="lastSeenPrivacy"]:checked').value;
+        const searchable = document.getElementById('searchable');
+        const messagePrivacy = document.querySelector('input[name="messagePrivacy"]:checked');
+        const lastSeenPrivacy = document.querySelector('input[name="lastSeenPrivacy"]:checked');
+        
+        // Validate elements exist
+        if (!searchable || !messagePrivacy || !lastSeenPrivacy) {
+            console.error('[PRIVACY] Missing form elements');
+            this.showToast('Error: Missing form elements', 'error');
+            return;
+        }
         
         try {
             const response = await fetch('/api/users/privacy', {
@@ -6641,21 +6648,34 @@ class SecureChatApp {
                     'X-User-Email': this.currentUser.email
                 },
                 body: JSON.stringify({
-                    is_searchable: searchable,
-                    message_privacy: messagePrivacy,
-                    last_seen_privacy: lastSeenPrivacy
+                    is_searchable: searchable.checked,
+                    message_privacy: messagePrivacy.value,
+                    last_seen_privacy: lastSeenPrivacy.value
                 })
             });
             
+            const messageDiv = document.getElementById('privacy-message');
+            
             if (response.ok) {
-                this.showMessage('privacy-message', 'Privacy settings saved successfully!', 'success');
+                if (messageDiv) {
+                    this.showMessage(messageDiv, 'Privacy settings saved successfully!', 'success');
+                }
+                this.showToast('Privacy settings saved!', 'success');
                 setTimeout(() => this.showRoomList(), 1500);
             } else {
-                this.showMessage('privacy-message', 'Failed to save privacy settings', 'error');
+                const data = await response.json();
+                if (messageDiv) {
+                    this.showMessage(messageDiv, data.error || 'Failed to save privacy settings', 'error');
+                }
+                this.showToast('Failed to save settings', 'error');
             }
         } catch (error) {
             console.error('[PRIVACY] Error saving:', error);
-            this.showMessage('privacy-message', 'Error saving privacy settings', 'error');
+            const messageDiv = document.getElementById('privacy-message');
+            if (messageDiv) {
+                this.showMessage(messageDiv, 'Error saving privacy settings', 'error');
+            }
+            this.showToast('Error saving settings', 'error');
         }
     }
     

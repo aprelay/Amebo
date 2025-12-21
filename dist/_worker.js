@@ -120,13 +120,15 @@ var Ir=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
         AND id != ?
         AND (username LIKE ? OR display_name LIKE ? OR email LIKE ?)
       LIMIT 20
-    `).bind(t||"",`%${r}%`,`%${r}%`,`%${r}%`).all();return e.json({success:!0,users:s.results||[]})}catch(r){return console.error("User search error:",r),e.json({error:"Search failed"},500)}});f.post("/api/users/privacy",async e=>{try{const{userId:r,isSearchable:t,messagePrivacy:s,lastSeenPrivacy:n}=await e.req.json();return r?(await e.env.DB.prepare(`
+    `).bind(t||"",`%${r}%`,`%${r}%`,`%${r}%`).all();return e.json({success:!0,users:s.results||[]})}catch(r){return console.error("User search error:",r),e.json({error:"Search failed"},500)}});f.post("/api/users/privacy",async e=>{try{const r=e.req.header("X-User-Email"),{is_searchable:t,message_privacy:s,last_seen_privacy:n}=await e.req.json();if(!r)return e.json({error:"User email required"},400);const a=await e.env.DB.prepare(`
+      SELECT id FROM users WHERE email = ?
+    `).bind(r).first();return a?(await e.env.DB.prepare(`
       UPDATE users
       SET is_searchable = ?,
           message_privacy = ?,
           last_seen_privacy = ?
       WHERE id = ?
-    `).bind(t?1:0,s||"anyone",n||"everyone",r).run(),e.json({success:!0,message:"Privacy settings updated"})):e.json({error:"User ID required"},400)}catch(r){return console.error("Privacy update error:",r),e.json({error:"Failed to update privacy settings"},500)}});f.get("/api/users/:userId/privacy",async e=>{try{const r=e.req.param("userId"),t=await e.env.DB.prepare(`
+    `).bind(t?1:0,s||"anyone",n||"everyone",a.id).run(),console.log(`[PRIVACY] Updated settings for user ${a.id}:`,{is_searchable:t,message_privacy:s,last_seen_privacy:n}),e.json({success:!0,message:"Privacy settings updated"})):e.json({error:"User not found"},404)}catch(r){return console.error("Privacy update error:",r),e.json({error:"Failed to update privacy settings"},500)}});f.get("/api/users/:userId/privacy",async e=>{try{const r=e.req.param("userId"),t=await e.env.DB.prepare(`
       SELECT is_searchable, message_privacy, last_seen_privacy
       FROM users
       WHERE id = ?
