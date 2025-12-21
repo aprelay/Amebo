@@ -1977,21 +1977,26 @@ class SecureChatApp {
             return;
         }
         
-        // Check cache first
-        const cachedMessages = this.messageCache.get(this.currentRoom.id);
-        if (cachedMessages && cachedMessages.length > 0) {
-            this.messages = cachedMessages;
-            container.innerHTML = cachedMessages.map(msg => this.renderMessage(msg)).join('');
-            setTimeout(() => this.scrollToBottom(), 50);
-            // Still fetch in background to get new messages
-        } else {
-            // Show loading spinner with fast fade-in
-            container.innerHTML = `
-                <div class="text-gray-500 text-center py-8">
-                    <i class="fas fa-lock text-2xl mb-1 text-purple-600"></i>
-                    <p class="text-sm">🔐 Decrypting...</p>
-                </div>
-            `;
+        // Track if this is initial load or update
+        const isInitialLoad = !this.messages || this.messages.length === 0;
+        
+        // Check cache first (only on initial load)
+        if (isInitialLoad) {
+            const cachedMessages = this.messageCache.get(this.currentRoom.id);
+            if (cachedMessages && cachedMessages.length > 0) {
+                this.messages = cachedMessages;
+                container.innerHTML = cachedMessages.map(msg => this.renderMessage(msg)).join('');
+                setTimeout(() => this.scrollToBottom(), 50);
+                // Still fetch in background to get new messages
+            } else {
+                // Show loading spinner with fast fade-in
+                container.innerHTML = `
+                    <div class="text-gray-500 text-center py-8">
+                        <i class="fas fa-lock text-2xl mb-1 text-purple-600"></i>
+                        <p class="text-sm">🔐 Decrypting...</p>
+                    </div>
+                `;
+            }
         }
 
         try {
@@ -2052,8 +2057,8 @@ class SecureChatApp {
                     
                     decryptedMessages.push(...batchResults);
                     
-                    // Render progressively (show first batch immediately)
-                    if (i === 0) {
+                    // Render first batch immediately (only on initial load)
+                    if (i === 0 && isInitialLoad) {
                         this.messages = decryptedMessages;
                         container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('');
                         setTimeout(() => this.scrollToBottom(), 50);
@@ -2075,30 +2080,48 @@ class SecureChatApp {
                     }
                 }
 
-                // Update last message ID and render final state
+                // Smart update: Only render if there are NEW messages or initial load
                 if (decryptedMessages.length > 0) {
                     const latestMessageId = decryptedMessages[decryptedMessages.length - 1].id;
                     const previousLastMessageId = this.lastMessageIds.get(this.currentRoom.id);
                     
-                    if (previousLastMessageId !== latestMessageId) {
-                        this.messages = decryptedMessages;
-                        // Cache decrypted messages
-                        this.messageCache.set(this.currentRoom.id, decryptedMessages);
-                        container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('');
+                    // Check if there are actually new messages
+                    if (previousLastMessageId !== latestMessageId || isInitialLoad) {
+                        // Find new messages only
+                        let messagesToAdd = decryptedMessages;
+                        if (!isInitialLoad && previousLastMessageId) {
+                            const lastIndex = decryptedMessages.findIndex(m => m.id === previousLastMessageId);
+                            if (lastIndex !== -1) {
+                                messagesToAdd = decryptedMessages.slice(lastIndex + 1);
+                            }
+                        }
                         
-                        requestAnimationFrame(() => {
-                            this.scrollToBottom();
-                        });
+                        // Update state
+                        this.messages = decryptedMessages;
+                        this.messageCache.set(this.currentRoom.id, decryptedMessages);
+                        
+                        // Only rebuild DOM if scrolling OR initial load
+                        if (isInitialLoad || this.isScrolling) {
+                            // Full rebuild (only when necessary)
+                            container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('');
+                        } else if (messagesToAdd.length > 0) {
+                            // Append new messages only (no full rebuild!)
+                            const newHTML = messagesToAdd.map(msg => this.renderMessage(msg)).join('');
+                            container.insertAdjacentHTML('beforeend', newHTML);
+                        }
+                        
+                        // Only scroll if at bottom or initial load
+                        if (isInitialLoad) {
+                            requestAnimationFrame(() => {
+                                this.scrollToBottom();
+                            });
+                        }
                     }
                     
                     this.lastMessageIds.set(this.currentRoom.id, latestMessageId);
-                } else {
+                } else if (isInitialLoad) {
                     this.messages = decryptedMessages;
                     container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('');
-                    
-                    requestAnimationFrame(() => {
-                        this.scrollToBottom();
-                    });
                 }
             }
             
