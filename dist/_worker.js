@@ -656,7 +656,7 @@ var Ir=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
         <script src="/static/crypto-v2.js?v=20251221-fresh"><\/script>
-        <script src="/static/app-v3.js?v=20251221-auto-chat"><\/script>
+        <script src="/static/app-v3.js?v=20251221-chat-fixed"><\/script>
         
         <script>
           // Register service worker for PWA

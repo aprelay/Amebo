@@ -1488,32 +1488,35 @@ class SecureChatApp {
             console.log('[V3] Rooms loaded:', data);
             this.rooms = data.rooms || [];
 
+            // Only update DOM if roomList element exists (we're on room list page)
             const listEl = document.getElementById('roomList');
-            if (this.rooms.length === 0) {
-                listEl.innerHTML = `
-                    <div class="text-gray-500 text-center py-8">
-                        <i class="fas fa-comments text-4xl mb-2"></i>
-                        <p>No rooms yet. Create or join one above!</p>
-                    </div>
-                `;
-            } else {
-                listEl.innerHTML = this.rooms.map(room => `
-                    <div 
-                        onclick="app.openRoom('${room.id}', '${room.room_code}')"
-                        class="p-4 border border-gray-200 rounded-lg hover:bg-purple-50 cursor-pointer transition"
-                    >
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <h3 class="font-semibold flex items-center gap-2">
-                                    <i class="fas fa-lock text-purple-600"></i>
-                                    ${room.room_name || room.room_code}
-                                </h3>
-                                <p class="text-sm text-gray-600">Code: ${room.room_code}</p>
-                            </div>
-                            <i class="fas fa-chevron-right text-gray-400"></i>
+            if (listEl) {
+                if (this.rooms.length === 0) {
+                    listEl.innerHTML = `
+                        <div class="text-gray-500 text-center py-8">
+                            <i class="fas fa-comments text-4xl mb-2"></i>
+                            <p>No rooms yet. Create or join one above!</p>
                         </div>
-                    </div>
-                `).join('');
+                    `;
+                } else {
+                    listEl.innerHTML = this.rooms.map(room => `
+                        <div 
+                            onclick="app.openRoom('${room.id}', '${room.room_code}')"
+                            class="p-4 border border-gray-200 rounded-lg hover:bg-purple-50 cursor-pointer transition"
+                        >
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h3 class="font-semibold flex items-center gap-2">
+                                        <i class="fas fa-lock text-purple-600"></i>
+                                        ${room.room_name || room.room_code}
+                                    </h3>
+                                    <p class="text-sm text-gray-600">Code: ${room.room_code}</p>
+                                </div>
+                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </div>
+                        </div>
+                    `).join('');
+                }
             }
         } catch (error) {
             console.error('[V3] Error loading rooms:', error);
@@ -6912,9 +6915,22 @@ class SecureChatApp {
             console.log('[DM] Response:', { ok: response.ok, data });
             
             if (response.ok) {
-                // Open the direct message room
-                console.log('[DM] Opening room:', data.room.room_code);
-                this.openRoom(data.room.room_code);
+                // First load/refresh rooms to ensure we have the latest room data
+                await this.loadRooms();
+                
+                // Find the room in our rooms list
+                const room = this.rooms.find(r => r.room_code === data.room.room_code);
+                
+                if (room) {
+                    // Open the room with proper parameters
+                    console.log('[DM] Opening room:', { id: room.id, code: room.room_code });
+                    await this.openRoom(room.id, room.room_code);
+                } else {
+                    console.error('[DM] Room not found in rooms list:', data.room.room_code);
+                    this.showToast('Chat created! Reloading...', 'success');
+                    // Fallback: show room list and reload
+                    await this.showRoomList();
+                }
             } else {
                 // Show error based on privacy settings
                 console.error('[DM] Failed:', data.error);
