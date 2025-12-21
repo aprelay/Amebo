@@ -6782,21 +6782,21 @@ class SecureChatApp {
                             </div>
                             <div class="flex gap-2">
                                 <button 
-                                    onclick="app.startDirectMessage(${user.id}, '${this.escapeHtml(user.username)}')"
+                                    onclick="app.startDirectMessage('${user.id}', '${this.escapeHtml(user.username)}')"
                                     class="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition text-sm"
                                     title="Message"
                                 >
                                     <i class="fas fa-comment"></i>
                                 </button>
                                 <button 
-                                    onclick="app.sendContactRequest(${user.id})"
+                                    onclick="app.sendContactRequest('${user.id}')"
                                     class="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition text-sm"
                                     title="Add Contact"
                                 >
                                     <i class="fas fa-user-plus"></i>
                                 </button>
                                 <button 
-                                    onclick="if(confirm('Block this user?')) app.blockUser(${user.id})"
+                                    onclick="if(confirm('Block this user?')) app.blockUser('${user.id}')"
                                     class="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition text-sm"
                                     title="Block User"
                                 >
