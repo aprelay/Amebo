@@ -68,6 +68,11 @@ class SecureChatApp {
                     const response = await fetch(`/api/notifications/${this.currentUser.id}/unread`);
                     const { notifications } = await response.json();
                     
+                    const unreadCount = notifications ? notifications.length : 0;
+                    
+                    // Update app badge (works on iOS PWA!)
+                    await this.updateAppBadge(unreadCount);
+                    
                     if (notifications && notifications.length > 0) {
                         console.log(`[NOTIFICATIONS] 📬 ${notifications.length} unread notification(s)`);
                         
@@ -107,6 +112,9 @@ class SecureChatApp {
                                 method: 'POST' 
                             });
                         }
+                        
+                        // Update badge again after marking as read
+                        await this.updateAppBadge(0);
                     }
                 } catch (error) {
                     console.error('[NOTIFICATIONS] Poll error:', error);
@@ -120,6 +128,31 @@ class SecureChatApp {
             clearInterval(this.notificationPollInterval);
             this.notificationPollInterval = null;
             console.log('[NOTIFICATIONS] ⏹️ Stopped notification polling');
+        }
+    }
+
+    async updateAppBadge(count) {
+        try {
+            // Update app badge (iOS PWA compatible!)
+            if ('setAppBadge' in navigator) {
+                if (count > 0) {
+                    await navigator.setAppBadge(count);
+                    console.log('[BADGE] ✅ Badge set to:', count);
+                } else {
+                    await navigator.clearAppBadge();
+                    console.log('[BADGE] ✅ Badge cleared');
+                }
+            }
+            
+            // Also tell service worker to update badge
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'UPDATE_BADGE',
+                    count: count
+                });
+            }
+        } catch (error) {
+            console.error('[BADGE] Error updating badge:', error);
         }
     }
 
@@ -1420,6 +1453,10 @@ class SecureChatApp {
 
     async openRoom(roomId, roomCode) {
         console.log('[V3] Opening encrypted room:', roomId);
+        
+        // Clear app badge when opening room (user is viewing messages)
+        await this.updateAppBadge(0);
+        
         this.currentRoom = this.rooms.find(r => r.id === roomId);
         
         if (!this.currentRoom) {

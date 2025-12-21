@@ -138,3 +138,29 @@ async function syncMessages() {
   // Send them when back online
   console.log('Syncing offline messages...');
 }
+
+// Badge notifications for iOS PWA (shows unread count on app icon)
+self.addEventListener('message', async (event) => {
+  if (event.data && event.data.type === 'UPDATE_BADGE') {
+    const count = event.data.count || 0;
+    
+    console.log('[SW] Updating app badge:', count);
+    
+    // Set app badge (shows on home screen icon)
+    if ('setAppBadge' in self.navigator) {
+      try {
+        if (count > 0) {
+          await self.navigator.setAppBadge(count);
+          console.log('[SW] ✅ Badge set to:', count);
+        } else {
+          await self.navigator.clearAppBadge();
+          console.log('[SW] ✅ Badge cleared');
+        }
+      } catch (error) {
+        console.error('[SW] Badge error:', error);
+      }
+    } else {
+      console.log('[SW] ⚠️ Badge API not supported');
+    }
+  }
+});
