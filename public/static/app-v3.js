@@ -1709,35 +1709,18 @@ class SecureChatApp {
             </div>
         `;
 
-        // Force scroll to bottom immediately after HTML is rendered
-        setTimeout(() => {
-            const messagesDiv = document.getElementById('messages');
-            if (messagesDiv) {
-                messagesDiv.scrollTop = 999999; // Use large number to ensure we go to bottom
-                console.log('[CHAT] 🎯 Pre-load scroll attempt');
-            }
-        }, 10);
-
         await this.loadMessages();
         this.startPolling();
         
-        // Ensure scroll to bottom after room is fully loaded
+        // Scroll to bottom ONLY after messages are loaded (the loadMessages function already does this)
+        // Adding one more delayed scroll to be absolutely sure
         setTimeout(() => {
             const messagesDiv = document.getElementById('messages');
             if (messagesDiv) {
-                messagesDiv.scrollTop = 999999; // Use large number
-                console.log('[CHAT] 🎯 Post-load scroll attempt');
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                console.log('[CHAT] 🎯 Final openRoom scroll - Height:', messagesDiv.scrollHeight, 'Position:', messagesDiv.scrollTop);
             }
-        }, 300);
-        
-        // One more time to be absolutely sure
-        setTimeout(() => {
-            const messagesDiv = document.getElementById('messages');
-            if (messagesDiv) {
-                messagesDiv.scrollTop = 999999;
-                console.log('[CHAT] 🎯 Final scroll attempt - Height:', messagesDiv.scrollHeight, 'Position:', messagesDiv.scrollTop);
-            }
-        }, 600);
+        }, 500);
     }
 
     toggleEmojiPicker() {
@@ -1922,7 +1905,7 @@ class SecureChatApp {
                 this.messages = decryptedMessages; // Store decrypted messages
                 container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('');
                 
-                // SIMPLE: Just scroll to bottom after a small delay
+                // Scroll to bottom after messages are rendered
                 console.log('[CHAT] 🔄 Messages rendered, scrolling to bottom...');
                 setTimeout(() => {
                     const messagesDiv = document.getElementById('messages');
@@ -1930,7 +1913,7 @@ class SecureChatApp {
                         messagesDiv.scrollTop = messagesDiv.scrollHeight;
                         console.log('[CHAT] ✅ Scrolled to bottom. Height:', messagesDiv.scrollHeight, 'Position:', messagesDiv.scrollTop);
                     }
-                }, 100);
+                }, 200);
             }
         } catch (error) {
             console.error('[V3] Error loading messages:', error);
