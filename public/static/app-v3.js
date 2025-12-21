@@ -268,43 +268,15 @@ class SecureChatApp {
 
     // Scroll chat to bottom (auto-scroll on new messages)
     scrollToBottom(force = false) {
-        try {
-            const container = document.getElementById('messages');
-            if (!container) {
-                console.warn('[CHAT] ⚠️ Messages container not found');
-                return;
-            }
-            
-            console.log('[CHAT] 📜 Scroll START - scrollHeight:', container.scrollHeight, 'scrollTop:', container.scrollTop, 'clientHeight:', container.clientHeight);
-            
-            // Method 1: Immediate scroll
-            container.scrollTop = container.scrollHeight;
-            console.log('[CHAT] Method 1 applied - scrollTop now:', container.scrollTop);
-            
-            // Method 2: requestAnimationFrame (smoother)
-            requestAnimationFrame(() => {
-                container.scrollTop = container.scrollHeight;
-                console.log('[CHAT] Method 2 (RAF) applied - scrollTop now:', container.scrollTop);
-            });
-            
-            // Method 3: Small delay for content loading
-            setTimeout(() => {
-                container.scrollTop = container.scrollHeight;
-                console.log('[CHAT] Method 3 (100ms) applied - scrollTop now:', container.scrollTop, 'height:', container.scrollHeight);
-            }, 100);
-            
-            // Method 4: Longer delay for images/media
-            setTimeout(() => {
-                container.scrollTop = container.scrollHeight;
-                console.log('[CHAT] Method 4 (400ms) FINAL - scrollTop:', container.scrollTop, 'height:', container.scrollHeight);
-                
-                // Verify if we're actually at bottom
-                const isAtBottom = Math.abs(container.scrollHeight - container.clientHeight - container.scrollTop) < 10;
-                console.log('[CHAT] 📍 At bottom?', isAtBottom ? '✅ YES' : '❌ NO');
-            }, 400);
-        } catch (error) {
-            console.error('[CHAT] ❌ Scroll error:', error);
+        const container = document.getElementById('messages');
+        if (!container) {
+            console.warn('[CHAT] ⚠️ Messages container not found');
+            return;
         }
+        
+        console.log('[CHAT] 📜 scrollToBottom called');
+        container.scrollTop = container.scrollHeight;
+        console.log('[CHAT] ✅ Set scrollTop to', container.scrollHeight);
     }
 
     // Queue-based notification system for reliability
@@ -1926,32 +1898,17 @@ class SecureChatApp {
                 }
 
                 this.messages = decryptedMessages; // Store decrypted messages
-                container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('') + 
-                    '<div id="messages-bottom" style="height: 1px;"></div>';
+                container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('');
                 
-                // Force immediate scroll using multiple methods
+                // SIMPLE: Just scroll to bottom after a small delay
                 console.log('[CHAT] 🔄 Messages rendered, scrolling to bottom...');
-                
-                // Method 1: Direct scrollTop
-                container.scrollTop = container.scrollHeight;
-                
-                // Method 2: Use setTimeout to ensure DOM is updated
                 setTimeout(() => {
-                    // Scroll using scrollTo
-                    container.scrollTo({
-                        top: container.scrollHeight,
-                        behavior: 'instant'
-                    });
-                    
-                    // Scroll using scrollIntoView on anchor
-                    const bottom = document.getElementById('messages-bottom');
-                    if (bottom) {
-                        bottom.scrollIntoView({ behavior: 'instant', block: 'end' });
+                    const messagesDiv = document.getElementById('messages');
+                    if (messagesDiv) {
+                        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                        console.log('[CHAT] ✅ Scrolled to bottom. Height:', messagesDiv.scrollHeight, 'Position:', messagesDiv.scrollTop);
                     }
-                    
-                    // Also call our scroll function
-                    this.scrollToBottom();
-                }, 50);
+                }, 100);
             }
         } catch (error) {
             console.error('[V3] Error loading messages:', error);
