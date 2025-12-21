@@ -86,6 +86,10 @@ class SecureChatApp {
                         
                         // Only show browser notifications if enabled
                         if (this.notificationsEnabled) {
+                            console.log(`[NOTIFICATIONS] Browser notifications are enabled but we'll only show badge`);
+                            // DISABLED: Browser notification popups are annoying
+                            // Users can click the bell icon to see notifications
+                            /*
                             for (const notif of notifications) {
                                 // Skip if we've already shown this notification
                                 if (this.shownNotifications.has(notif.id)) {
@@ -127,6 +131,7 @@ class SecureChatApp {
                                 // Mark this notification as shown (but keep as unread in DB for badge)
                                 this.shownNotifications.add(notif.id);
                             }
+                            */
                         } else {
                             console.log(`[NOTIFICATIONS] ⏭️ Notifications disabled, badge will still show count`);
                         }
