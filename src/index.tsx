@@ -2156,8 +2156,8 @@ app.get('/', (c) => {
         <div id="app"></div>
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
-        <script src="/static/crypto-v2.js?v=NATIVE-SCROLL-V5"></script>
-        <script src="/static/app-v3.js?v=NATIVE-SCROLL-V5"></script>
+        <script src="/static/crypto-v2.js?v=PURE-CSS-SCROLL-V6"></script>
+        <script src="/static/app-v3.js?v=PURE-CSS-SCROLL-V6"></script>
         
         <script>
           // Register service worker for PWA

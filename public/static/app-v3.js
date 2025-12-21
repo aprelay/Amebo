@@ -1802,8 +1802,8 @@ class SecureChatApp {
                 </div>
 
                 <!-- WhatsApp-style Messages Area -->
-                <div style="flex: 1; overflow-y: auto; overflow-x: hidden; background: #efeae2; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; will-change: scroll-position;" id="messages-scroll-container">
-                    <div id="messages" style="max-width: 800px; margin: 0 auto; padding: 20px 16px; min-height: 100%;">
+                <div style="flex: 1; overflow-y: auto; overflow-x: hidden; background: #efeae2; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; position: relative; transform: translateZ(0);" id="messages-scroll-container">
+                    <div id="messages" style="max-width: 800px; margin: 0 auto; padding: 20px 16px; min-height: 100%; will-change: auto;">
                         <div style="text-align: center; padding: 40px 20px; color: #667781;">
                             <i class="fas fa-spinner fa-spin" style="font-size: 32px; margin-bottom: 16px;"></i>
                             <div style="font-size: 14px;">Loading encrypted messages...</div>
@@ -2442,14 +2442,10 @@ class SecureChatApp {
         
         this.messagePoller = setInterval(async () => {
             if (this.currentRoom) {
-                // Skip update if user is actively scrolling
-                if (!this.isScrolling) {
-                    await this.loadMessages();
-                    // Auto-scroll to bottom when new messages arrive
-                    setTimeout(() => this.scrollToBottom(), 100);
-                }
+                // Always load messages (smart append logic handles rendering)
+                await this.loadMessages();
                 
-                // Always poll typing indicators (doesn't affect DOM)
+                // Poll typing indicators
                 await this.pollTypingIndicators(this.currentRoom.id);
             }
         }, 3000);
