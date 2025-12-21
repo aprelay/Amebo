@@ -529,7 +529,7 @@ app.post('/api/auth/login', async (c) => {
     const { username } = await c.req.json()
     
     const result = await c.env.DB.prepare(`
-      SELECT id, username, public_key, created_at FROM users WHERE username = ?
+      SELECT id, username, public_key, avatar, created_at FROM users WHERE username = ?
     `).bind(username).first()
 
     if (!result) {
@@ -629,7 +629,7 @@ app.get('/api/users/:userId', async (c) => {
     const userId = c.req.param('userId')
     
     const result = await c.env.DB.prepare(`
-      SELECT id, username, public_key, created_at FROM users WHERE id = ?
+      SELECT id, username, public_key, avatar, created_at FROM users WHERE id = ?
     `).bind(userId).first()
 
     if (!result) {

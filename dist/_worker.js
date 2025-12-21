@@ -77,7 +77,7 @@ var Ir=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
     `).bind(i,s.id).run(),console.log("[AUTH] Password reset successful for:",s.email),e.json({success:!0,message:"Password reset successfully. You can now login with your new password."})}catch(r){return console.error("[AUTH] Reset password error:",r),e.json({error:"Failed to reset password",message:r.message},500)}});f.post("/api/auth/register",async e=>{var r;try{const{username:t,publicKey:s}=await e.req.json();if(!t||!s)return e.json({error:"Username and public key required"},400);const n=crypto.randomUUID();return await e.env.DB.prepare(`
       INSERT INTO users (id, username, public_key) VALUES (?, ?, ?)
     `).bind(n,t,s).run(),e.json({success:!0,userId:n,username:t,message:"User registered successfully"})}catch(t){return(r=t.message)!=null&&r.includes("UNIQUE constraint failed")?e.json({error:"Username already exists"},409):e.json({error:"Registration failed"},500)}});f.post("/api/auth/login",async e=>{try{const{username:r}=await e.req.json(),t=await e.env.DB.prepare(`
-      SELECT id, username, public_key, created_at FROM users WHERE username = ?
+      SELECT id, username, public_key, avatar, created_at FROM users WHERE username = ?
     `).bind(r).first();return t?e.json({success:!0,user:t}):e.json({error:"User not found"},404)}catch{return e.json({error:"Login failed"},500)}});f.get("/api/users/search",async e=>{var r;try{const t=e.req.query("q"),s=e.req.header("X-User-Email");if(!t||t.length<2)return e.json({error:"Search query must be at least 2 characters"},400);let n="";if(s){const o=await e.env.DB.prepare(`
         SELECT id FROM users WHERE email = ?
       `).bind(s).first();n=(o==null?void 0:o.id)||""}const a=await e.env.DB.prepare(`
@@ -96,7 +96,7 @@ var Ir=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
       WHERE bu.user_id = ?
       ORDER BY bu.blocked_at DESC
     `).bind(t.id).all();return e.json({success:!0,blockedUsers:s.results||[]})}catch(r){return console.error("Get blocked users error:",r),e.json({error:"Failed to get blocked users"},500)}});f.get("/api/users/:userId",async e=>{try{const r=e.req.param("userId"),t=await e.env.DB.prepare(`
-      SELECT id, username, public_key, created_at FROM users WHERE id = ?
+      SELECT id, username, public_key, avatar, created_at FROM users WHERE id = ?
     `).bind(r).first();return t?e.json({success:!0,user:t}):e.json({error:"User not found"},404)}catch{return e.json({error:"Failed to fetch user"},500)}});f.post("/api/users/update-avatar",async e=>{try{const{userId:r,avatar:t}=await e.req.json();return r?(await e.env.DB.prepare(`
       UPDATE users SET avatar = ? WHERE id = ?
     `).bind(t,r).run(),e.json({success:!0,message:"Avatar updated"})):e.json({error:"User ID required"},400)}catch(r){return console.error("Avatar update error:",r),e.json({error:"Failed to update avatar"},500)}});f.post("/api/users/update-username",async e=>{try{const{userId:r,username:t}=await e.req.json();return!r||!t?e.json({error:"User ID and username required"},400):await e.env.DB.prepare(`
