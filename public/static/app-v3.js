@@ -1381,101 +1381,62 @@ class SecureChatApp {
 
                 <!-- Room Management -->
                 <div class="max-w-4xl mx-auto p-4">
-                    <!-- Create Room Card -->
-                    <div class="bg-white rounded-lg shadow-md p-6 mb-4">
-                        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+                    <!-- Create Room Card - Compact -->
+                    <div class="bg-white rounded-lg shadow-md p-4 mb-3">
+                        <h2 class="text-sm font-bold mb-3 flex items-center gap-2">
                             <i class="fas fa-plus-circle text-purple-600"></i>
                             Create or Join Room
                         </h2>
                         
-                        <div id="room-message" class="hidden mb-4 p-3 rounded-lg"></div>
+                        <div id="room-message" class="hidden mb-3 p-2 rounded-lg text-sm"></div>
                         
-                        <div class="space-y-3">
+                        <div class="space-y-2">
                             <input 
                                 type="text" 
                                 id="roomCode" 
-                                placeholder="Enter room code (e.g., myroom123)"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                placeholder="Enter room code"
+                                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                 onkeypress="if(event.key==='Enter') app.joinRoom()"
                             />
                             <div class="grid grid-cols-2 gap-2">
                                 <button 
                                     onclick="app.joinRoom()"
-                                    class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition flex items-center justify-center gap-2"
+                                    class="bg-purple-600 text-white px-4 py-2 text-sm rounded-lg hover:bg-purple-700 transition flex items-center justify-center gap-1"
                                 >
-                                    <i class="fas fa-sign-in-alt"></i>Join (+5 tokens)
+                                    <i class="fas fa-sign-in-alt text-xs"></i>Join
                                 </button>
                                 <button 
                                     onclick="app.createRoom()"
-                                    class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2"
+                                    class="bg-indigo-600 text-white px-4 py-2 text-sm rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-1"
                                 >
-                                    <i class="fas fa-plus"></i>Create (+10 tokens)
+                                    <i class="fas fa-plus text-xs"></i>Create
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Search Users Card -->
-                    <div class="bg-white rounded-lg shadow-md p-6 mb-4">
-                        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
-                            <i class="fas fa-search text-green-600"></i>
-                            Find Users
-                        </h2>
-                        <p class="text-gray-600 text-sm mb-4">Search for users by username or email to start a direct chat</p>
+                    <!-- Search Users Card - Compact -->
+                    <div class="bg-white rounded-lg shadow-md p-4 mb-3">
                         <button 
                             onclick="app.showUserSearch()"
-                            class="w-full bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2"
+                            class="w-full bg-green-600 text-white px-4 py-2 text-sm rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2"
                         >
-                            <i class="fas fa-user-plus"></i>
-                            Search Users
+                            <i class="fas fa-search"></i>
+                            Find Users
                         </button>
                     </div>
 
                     <!-- Room List -->
-                    <div class="bg-white rounded-lg shadow-md p-6">
-                        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+                    <div class="bg-white rounded-lg shadow-md p-4">
+                        <h2 class="text-base font-bold mb-3 flex items-center gap-2">
                             <i class="fas fa-comments text-indigo-600"></i>
-                            My Rooms
+                            My Chats
                         </h2>
                         <div id="roomList" class="space-y-2" style="overflow: hidden;">
                             <div class="text-gray-500 text-center py-8">
                                 <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
                                 <p>Loading rooms...</p>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Quick Actions -->
-                    <div class="mt-4 grid grid-cols-2 gap-4">
-                        <!-- Token Info Card -->
-                        <div class="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg shadow-md p-4">
-                            <h3 class="font-bold flex items-center gap-2 mb-2">
-                                <i class="fas fa-coins"></i>
-                                Earn Tokens
-                            </h3>
-                            <div class="text-sm space-y-1">
-                                <div>• Create room: +10</div>
-                                <div>• Join room: +5</div>
-                                <div>• Send message: +1</div>
-                                <div>• Share file: +3</div>
-                            </div>
-                        </div>
-
-                        <!-- Data Purchase Card -->
-                        <div class="bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg shadow-md p-4">
-                            <h3 class="font-bold flex items-center gap-2 mb-2">
-                                <i class="fas fa-mobile-alt"></i>
-                                Buy Data
-                            </h3>
-                            <div class="text-sm mb-3">
-                                Convert tokens to mobile data for Nigerian networks
-                            </div>
-                            <button 
-                                onclick="app.showDataRedemption()"
-                                class="bg-white text-purple-600 px-4 py-2 rounded-lg font-semibold hover:bg-purple-50 transition w-full"
-                            >
-                                Browse Plans →
-                            </button>
                         </div>
                     </div>
                 </div>
