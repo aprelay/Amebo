@@ -113,14 +113,16 @@ var Ir=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
       JOIN room_members rm ON u.id = rm.user_id
       WHERE rm.room_id = ?
       ORDER BY rm.joined_at ASC
-    `).bind(r).all();return e.json({success:!0,members:t.results||[]})}catch{return e.json({error:"Failed to fetch members"},500)}});f.get("/api/users/search",async e=>{try{const r=e.req.query("q"),t=e.req.query("userId");if(!r||r.length<2)return e.json({error:"Search query must be at least 2 characters"},400);const s=await e.env.DB.prepare(`
-      SELECT id, username, display_name, bio, email
+    `).bind(r).all();return e.json({success:!0,members:t.results||[]})}catch{return e.json({error:"Failed to fetch members"},500)}});f.get("/api/users/search",async e=>{var r;try{const t=e.req.query("q"),s=e.req.header("X-User-Email");if(!t||t.length<2)return e.json({error:"Search query must be at least 2 characters"},400);let n="";if(s){const o=await e.env.DB.prepare(`
+        SELECT id FROM users WHERE email = ?
+      `).bind(s).first();n=(o==null?void 0:o.id)||""}const a=await e.env.DB.prepare(`
+      SELECT id, username, display_name, bio, email, avatar
       FROM users
       WHERE is_searchable = 1
         AND id != ?
         AND (username LIKE ? OR display_name LIKE ? OR email LIKE ?)
       LIMIT 20
-    `).bind(t||"",`%${r}%`,`%${r}%`,`%${r}%`).all();return e.json({success:!0,users:s.results||[]})}catch(r){return console.error("User search error:",r),e.json({error:"Search failed"},500)}});f.post("/api/users/privacy",async e=>{try{const r=e.req.header("X-User-Email"),{is_searchable:t,message_privacy:s,last_seen_privacy:n}=await e.req.json();if(!r)return e.json({error:"User email required"},400);const a=await e.env.DB.prepare(`
+    `).bind(n,`%${t}%`,`%${t}%`,`%${t}%`).all();return console.log(`[SEARCH] Query: "${t}", Found: ${((r=a.results)==null?void 0:r.length)||0} users`),e.json({success:!0,users:a.results||[]})}catch(t){return console.error("User search error:",t),e.json({error:"Search failed"},500)}});f.post("/api/users/privacy",async e=>{try{const r=e.req.header("X-User-Email"),{is_searchable:t,message_privacy:s,last_seen_privacy:n}=await e.req.json();if(!r)return e.json({error:"User email required"},400);const a=await e.env.DB.prepare(`
       SELECT id FROM users WHERE email = ?
     `).bind(r).first();return a?(await e.env.DB.prepare(`
       UPDATE users

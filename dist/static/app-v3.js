@@ -6746,7 +6746,8 @@ class SecureChatApp {
             });
             
             if (response.ok) {
-                const users = await response.json();
+                const data = await response.json();
+                const users = data.users || [];
                 
                 if (users.length === 0) {
                     resultsDiv.innerHTML = `

@@ -776,26 +776,36 @@ app.get('/api/rooms/:roomId/members', async (c) => {
 app.get('/api/users/search', async (c) => {
   try {
     const query = c.req.query('q')
-    const currentUserId = c.req.query('userId')
+    const userEmail = c.req.header('X-User-Email')
     
     if (!query || query.length < 2) {
       return c.json({ error: 'Search query must be at least 2 characters' }, 400)
     }
     
+    // Get current user ID from email
+    let currentUserId = ''
+    if (userEmail) {
+      const currentUser = await c.env.DB.prepare(`
+        SELECT id FROM users WHERE email = ?
+      `).bind(userEmail).first()
+      currentUserId = currentUser?.id || ''
+    }
+    
     const result = await c.env.DB.prepare(`
-      SELECT id, username, display_name, bio, email
+      SELECT id, username, display_name, bio, email, avatar
       FROM users
       WHERE is_searchable = 1
         AND id != ?
         AND (username LIKE ? OR display_name LIKE ? OR email LIKE ?)
       LIMIT 20
     `).bind(
-      currentUserId || '',
+      currentUserId,
       `%${query}%`,
       `%${query}%`,
       `%${query}%`
     ).all()
     
+    console.log(`[SEARCH] Query: "${query}", Found: ${result.results?.length || 0} users`)
     return c.json({ success: true, users: result.results || [] })
   } catch (error) {
     console.error('User search error:', error)
