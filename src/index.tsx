@@ -4270,6 +4270,23 @@ app.post('/api/contacts/request', async (c) => {
       VALUES (?, ?, 'pending', datetime('now'))
     `).bind(user.id, contact_id).run()
     
+    // Get requester username for notification
+    const requester = await c.env.DB.prepare(`
+      SELECT username FROM users WHERE id = ?
+    `).bind(user.id).first()
+    
+    // Create notification for recipient
+    await c.env.DB.prepare(`
+      INSERT INTO notifications (id, user_id, type, title, message, read, created_at)
+      VALUES (?, ?, ?, ?, ?, 0, datetime('now'))
+    `).bind(
+      crypto.randomUUID(),
+      contact_id,
+      'contact_request',
+      'New Contact Request',
+      `${requester?.username || 'Someone'} wants to connect with you`
+    ).run()
+    
     console.log(`[CONTACTS] Request sent from ${user.id} to ${contact_id}`)
     return c.json({ success: true, message: 'Contact request sent' })
   } catch (error) {
@@ -4305,6 +4322,23 @@ app.post('/api/contacts/accept', async (c) => {
       INSERT OR REPLACE INTO user_contacts (user_id, contact_user_id, status, created_at)
       VALUES (?, ?, 'accepted', datetime('now'))
     `).bind(user.id, requester_id).run()
+    
+    // Get accepter username for notification
+    const accepter = await c.env.DB.prepare(`
+      SELECT username FROM users WHERE id = ?
+    `).bind(user.id).first()
+    
+    // Create notification for requester
+    await c.env.DB.prepare(`
+      INSERT INTO notifications (id, user_id, type, title, message, read, created_at)
+      VALUES (?, ?, ?, ?, ?, 0, datetime('now'))
+    `).bind(
+      crypto.randomUUID(),
+      requester_id,
+      'contact_accepted',
+      'Contact Request Accepted',
+      `${accepter?.username || 'Someone'} accepted your contact request`
+    ).run()
     
     console.log(`[CONTACTS] Request accepted: ${requester_id} <-> ${user.id}`)
     return c.json({ success: true, message: 'Contact request accepted' })
