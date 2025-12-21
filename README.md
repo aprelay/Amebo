@@ -8,6 +8,43 @@ A Progressive Web App (PWA) with military-grade encrypted messaging and payment 
 
 ## 🆕 Latest Updates (December 2025)
 
+### 🔥 V3 USER SEARCH & PRIVACY - ALL NEW FEATURES!
+
+**✅ COMPREHENSIVE USER DISCOVERY & PRIVACY CONTROLS:**
+
+1. **🔍 User Search & Discovery** - Find & Connect
+   - Search users by username or email
+   - Real-time search results
+   - View user profiles with avatars
+   - One-click direct messaging
+   - No more need to share room codes!
+
+2. **💬 Direct Messaging** - Private 1-on-1 Chats
+   - Start private conversations instantly
+   - Automatic direct message room creation
+   - WhatsApp-style interface for DMs
+   - Privacy-respecting permissions
+   - Seamless chat experience
+
+3. **🔐 Privacy Controls** - Your Chat, Your Rules
+   - **Profile Searchability**: Choose who can find you
+   - **Message Privacy**: Control who can message you
+     * Anyone (open to all)
+     * Contacts Only (approved contacts)
+     * Nobody (private mode)
+   - **Last Seen Privacy**: Control visibility
+     * Everyone
+     * Contacts Only
+     * Nobody
+   - Easy toggle switches for quick changes
+
+4. **👥 Contact System** - Manage Your Network
+   - Send contact requests
+   - Accept/reject requests
+   - Contact list management
+   - Only approved contacts can message (if enabled)
+   - Full privacy enforcement
+
 ### 🎉 V2 ENHANCED - ALL FEATURES WORKING!
 
 **✅ 5 POWERFUL FEATURES FULLY IMPLEMENTED:**
@@ -569,8 +606,17 @@ npm run deploy:prod
 ### Chat Rooms
 - `POST /api/rooms/create` - Create room
 - `POST /api/rooms/join` - Join room
+- `POST /api/rooms/direct` - Create/join direct message room 🆕
 - `GET /api/rooms/user/:userId` - Get user's rooms
 - `GET /api/rooms/:roomId/members` - Get room members
+
+### User Management 🆕
+- `GET /api/users/search?q=query` - Search users by username or email
+- `GET /api/users/:userId/privacy` - Get user privacy settings
+- `POST /api/users/privacy` - Update privacy settings
+- `POST /api/contacts/request` - Send contact request
+- `POST /api/contacts/accept` - Accept contact request
+- `DELETE /api/contacts/:userId` - Remove contact
 
 ### Messages
 - `POST /api/messages/send` - Send encrypted message

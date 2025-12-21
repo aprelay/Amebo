@@ -769,6 +769,289 @@ app.get('/api/rooms/:roomId/members', async (c) => {
 })
 
 // ============================================
+// USER SEARCH & PRIVACY ROUTES
+// ============================================
+
+// Search users by username
+app.get('/api/users/search', async (c) => {
+  try {
+    const query = c.req.query('q')
+    const currentUserId = c.req.query('userId')
+    
+    if (!query || query.length < 2) {
+      return c.json({ error: 'Search query must be at least 2 characters' }, 400)
+    }
+    
+    const result = await c.env.DB.prepare(`
+      SELECT id, username, display_name, bio, email
+      FROM users
+      WHERE is_searchable = 1
+        AND id != ?
+        AND (username LIKE ? OR display_name LIKE ? OR email LIKE ?)
+      LIMIT 20
+    `).bind(
+      currentUserId || '',
+      `%${query}%`,
+      `%${query}%`,
+      `%${query}%`
+    ).all()
+    
+    return c.json({ success: true, users: result.results || [] })
+  } catch (error) {
+    console.error('User search error:', error)
+    return c.json({ error: 'Search failed' }, 500)
+  }
+})
+
+// Update user privacy settings
+app.post('/api/users/privacy', async (c) => {
+  try {
+    const { userId, isSearchable, messagePrivacy, lastSeenPrivacy } = await c.req.json()
+    
+    if (!userId) {
+      return c.json({ error: 'User ID required' }, 400)
+    }
+    
+    await c.env.DB.prepare(`
+      UPDATE users
+      SET is_searchable = ?,
+          message_privacy = ?,
+          last_seen_privacy = ?
+      WHERE id = ?
+    `).bind(
+      isSearchable ? 1 : 0,
+      messagePrivacy || 'anyone',
+      lastSeenPrivacy || 'everyone',
+      userId
+    ).run()
+    
+    return c.json({ success: true, message: 'Privacy settings updated' })
+  } catch (error) {
+    console.error('Privacy update error:', error)
+    return c.json({ error: 'Failed to update privacy settings' }, 500)
+  }
+})
+
+// Get user privacy settings
+app.get('/api/users/:userId/privacy', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    
+    const user = await c.env.DB.prepare(`
+      SELECT is_searchable, message_privacy, last_seen_privacy
+      FROM users
+      WHERE id = ?
+    `).bind(userId).first()
+    
+    if (!user) {
+      return c.json({ error: 'User not found' }, 404)
+    }
+    
+    return c.json({
+      success: true,
+      privacy: {
+        isSearchable: user.is_searchable === 1,
+        messagePrivacy: user.message_privacy || 'anyone',
+        lastSeenPrivacy: user.last_seen_privacy || 'everyone'
+      }
+    })
+  } catch (error) {
+    console.error('Privacy fetch error:', error)
+    return c.json({ error: 'Failed to fetch privacy settings' }, 500)
+  }
+})
+
+// Create or get direct message room
+app.post('/api/rooms/direct', async (c) => {
+  try {
+    const { user1Id, user2Id } = await c.req.json()
+    
+    if (!user1Id || !user2Id) {
+      return c.json({ error: 'Both user IDs required' }, 400)
+    }
+    
+    if (user1Id === user2Id) {
+      return c.json({ error: 'Cannot create DM with yourself' }, 400)
+    }
+    
+    // Check if user2 allows messages from user1
+    const user2 = await c.env.DB.prepare(`
+      SELECT message_privacy FROM users WHERE id = ?
+    `).bind(user2Id).first()
+    
+    if (user2?.message_privacy === 'contacts_only') {
+      // Check if user1 is in user2's contacts
+      const contact = await c.env.DB.prepare(`
+        SELECT status FROM user_contacts
+        WHERE user_id = ? AND contact_user_id = ? AND status = 'accepted'
+      `).bind(user2Id, user1Id).first()
+      
+      if (!contact) {
+        return c.json({ 
+          error: 'This user only accepts messages from contacts',
+          needsContact: true
+        }, 403)
+      }
+    }
+    
+    // Check if DM room already exists (check both directions)
+    let existingDM = await c.env.DB.prepare(`
+      SELECT id, room_id FROM direct_message_rooms
+      WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)
+    `).bind(user1Id, user2Id, user2Id, user1Id).first()
+    
+    if (existingDM) {
+      // Get room details
+      const room = await c.env.DB.prepare(`
+        SELECT * FROM chat_rooms WHERE id = ?
+      `).bind(existingDM.room_id).first()
+      
+      return c.json({
+        success: true,
+        room,
+        isNew: false
+      })
+    }
+    
+    // Create new DM room
+    const roomId = crypto.randomUUID()
+    const dmId = crypto.randomUUID()
+    
+    // Get user2 username for room name
+    const user2Data = await c.env.DB.prepare(`
+      SELECT username, display_name FROM users WHERE id = ?
+    `).bind(user2Id).first()
+    
+    const roomName = user2Data?.display_name || user2Data?.username || 'Direct Message'
+    const roomCode = `dm-${crypto.randomUUID().slice(0, 8)}`
+    
+    // Create chat room
+    await c.env.DB.prepare(`
+      INSERT INTO chat_rooms (id, room_code, room_name, created_by, room_type)
+      VALUES (?, ?, ?, ?, 'direct')
+    `).bind(roomId, roomCode, roomName, user1Id).run()
+    
+    // Create DM mapping
+    await c.env.DB.prepare(`
+      INSERT INTO direct_message_rooms (id, user1_id, user2_id, room_id)
+      VALUES (?, ?, ?, ?)
+    `).bind(dmId, user1Id, user2Id, roomId).run()
+    
+    // Add both users as members
+    await c.env.DB.prepare(`
+      INSERT INTO room_members (room_id, user_id) VALUES (?, ?)
+    `).bind(roomId, user1Id).run()
+    
+    await c.env.DB.prepare(`
+      INSERT INTO room_members (room_id, user_id) VALUES (?, ?)
+    `).bind(roomId, user2Id).run()
+    
+    // Get room details
+    const room = await c.env.DB.prepare(`
+      SELECT * FROM chat_rooms WHERE id = ?
+    `).bind(roomId).first()
+    
+    return c.json({
+      success: true,
+      room,
+      isNew: true,
+      message: 'Direct message room created'
+    })
+  } catch (error: any) {
+    console.error('DM creation error:', error)
+    return c.json({ error: 'Failed to create direct message', details: error.message }, 500)
+  }
+})
+
+// Send contact request
+app.post('/api/contacts/request', async (c) => {
+  try {
+    const { userId, contactUserId } = await c.req.json()
+    
+    if (!userId || !contactUserId) {
+      return c.json({ error: 'Both user IDs required' }, 400)
+    }
+    
+    // Check if contact already exists
+    const existing = await c.env.DB.prepare(`
+      SELECT * FROM user_contacts WHERE user_id = ? AND contact_user_id = ?
+    `).bind(userId, contactUserId).first()
+    
+    if (existing) {
+      return c.json({ error: 'Contact request already exists', status: existing.status }, 409)
+    }
+    
+    // Create contact request
+    await c.env.DB.prepare(`
+      INSERT INTO user_contacts (user_id, contact_user_id, status)
+      VALUES (?, ?, 'pending')
+    `).bind(userId, contactUserId).run()
+    
+    return c.json({ success: true, message: 'Contact request sent' })
+  } catch (error) {
+    console.error('Contact request error:', error)
+    return c.json({ error: 'Failed to send contact request' }, 500)
+  }
+})
+
+// Accept contact request
+app.post('/api/contacts/accept', async (c) => {
+  try {
+    const { userId, contactUserId } = await c.req.json()
+    
+    // Update status to accepted (both directions)
+    await c.env.DB.prepare(`
+      UPDATE user_contacts
+      SET status = 'accepted', updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = ? AND contact_user_id = ?
+    `).bind(contactUserId, userId).run()
+    
+    // Create reverse contact if doesn't exist
+    const reverse = await c.env.DB.prepare(`
+      SELECT * FROM user_contacts WHERE user_id = ? AND contact_user_id = ?
+    `).bind(userId, contactUserId).first()
+    
+    if (!reverse) {
+      await c.env.DB.prepare(`
+        INSERT INTO user_contacts (user_id, contact_user_id, status)
+        VALUES (?, ?, 'accepted')
+      `).bind(userId, contactUserId).run()
+    } else {
+      await c.env.DB.prepare(`
+        UPDATE user_contacts
+        SET status = 'accepted', updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ? AND contact_user_id = ?
+      `).bind(userId, contactUserId).run()
+    }
+    
+    return c.json({ success: true, message: 'Contact request accepted' })
+  } catch (error) {
+    console.error('Contact accept error:', error)
+    return c.json({ error: 'Failed to accept contact request' }, 500)
+  }
+})
+
+// Get user's contacts
+app.get('/api/contacts/:userId', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    
+    const result = await c.env.DB.prepare(`
+      SELECT u.id, u.username, u.display_name, u.email, uc.status, uc.created_at
+      FROM user_contacts uc
+      JOIN users u ON uc.contact_user_id = u.id
+      WHERE uc.user_id = ?
+      ORDER BY uc.created_at DESC
+    `).bind(userId).all()
+    
+    return c.json({ success: true, contacts: result.results || [] })
+  } catch (error) {
+    console.error('Contacts fetch error:', error)
+    return c.json({ error: 'Failed to fetch contacts' }, 500)
+  }
+})
+
+// ============================================
 // MESSAGING ROUTES
 // ============================================
 
@@ -1815,8 +2098,8 @@ app.get('/', (c) => {
         <div id="app"></div>
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System -->
-        <script src="/static/crypto-v2.js?v=20251220-v4"></script>
-        <script src="/static/app-v3.js?v=20251220-v6"></script>
+        <script src="/static/crypto-v2.js?v=20251221-user-search"></script>
+        <script src="/static/app-v3.js?v=20251221-user-search"></script>
         
         <script>
           // Register service worker for PWA

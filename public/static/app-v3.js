@@ -268,15 +268,23 @@ class SecureChatApp {
 
     // Scroll chat to bottom (auto-scroll on new messages)
     scrollToBottom(force = false) {
-        const container = document.getElementById('messages');
-        if (!container) {
-            console.warn('[CHAT] ⚠️ Messages container not found');
+        const scrollContainer = document.getElementById('messages-scroll-container');
+        
+        if (!scrollContainer) {
+            console.error('[CHAT] ❌ Scroll container not found!');
             return;
         }
         
-        console.log('[CHAT] 📜 scrollToBottom called');
-        container.scrollTop = container.scrollHeight;
-        console.log('[CHAT] ✅ Set scrollTop to', container.scrollHeight);
+        // Check if user is already near the bottom (within 150px)
+        const isNearBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight < 150;
+        
+        // Only auto-scroll if user is near bottom OR force is true
+        if (isNearBottom || force) {
+            scrollContainer.scrollTop = scrollContainer.scrollHeight;
+            console.log('[CHAT] ✅ Scrolled to bottom. ScrollHeight:', scrollContainer.scrollHeight, 'ScrollTop:', scrollContainer.scrollTop);
+        } else {
+            console.log('[CHAT] ⏸️ User is scrolling up, skipping auto-scroll');
+        }
     }
 
     // Queue-based notification system for reliability
@@ -1368,6 +1376,22 @@ class SecureChatApp {
                         </div>
                     </div>
 
+                    <!-- Search Users Card -->
+                    <div class="bg-white rounded-lg shadow-md p-6 mb-4">
+                        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+                            <i class="fas fa-search text-green-600"></i>
+                            Find Users
+                        </h2>
+                        <p class="text-gray-600 text-sm mb-4">Search for users by username or email to start a direct chat</p>
+                        <button 
+                            onclick="app.showUserSearch()"
+                            class="w-full bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2"
+                        >
+                            <i class="fas fa-user-plus"></i>
+                            Search Users
+                        </button>
+                    </div>
+
                     <!-- Room List -->
                     <div class="bg-white rounded-lg shadow-md p-6">
                         <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
@@ -1611,96 +1635,67 @@ class SecureChatApp {
             : `<div class="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center"><i class="fas fa-user text-white text-sm"></i></div>`;
 
         document.getElementById('app').innerHTML = `
-            <div class="min-h-screen bg-gray-100 flex flex-col">
-                <!-- Header -->
-                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
-                    <div class="max-w-4xl mx-auto flex items-center gap-4">
-                        <button onclick="app.showRoomList()" class="hover:bg-white/20 p-2 rounded transition">
+            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; background: #efeae2;">
+                <!-- WhatsApp-style Header -->
+                <div style="background: #075e54; color: white; padding: 10px 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); flex-shrink: 0; z-index: 10;">
+                    <div style="max-width: 800px; margin: 0 auto; display: flex; align-items: center; gap: 12px;">
+                        <button onclick="app.showRoomList()" style="background: none; border: none; color: white; padding: 8px; cursor: pointer; font-size: 20px;">
                             <i class="fas fa-arrow-left"></i>
                         </button>
-                        ${avatarHtml}
-                        <div class="flex-1">
-                            <h1 class="text-lg font-bold flex items-center gap-2">
-                                <i class="fas fa-lock text-sm"></i>
-                                ${this.currentRoom?.room_name || 'Chat Room'}
-                            </h1>
-                            <p class="text-sm opacity-90">E2E Encrypted • Code: ${this.currentRoom?.room_code || roomId}</p>
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: #25d366; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">
+                            ${this.currentRoom?.room_name?.charAt(0)?.toUpperCase() || 'C'}
                         </div>
-                        <div class="flex items-center gap-3">
-                            <button 
-                                onclick="app.showTokenGiftModal()"
-                                class="bg-white/20 hover:bg-white/30 px-3 py-1 rounded text-sm transition"
-                                title="Gift Tokens to Room Members"
-                            >
-                                <i class="fas fa-gift"></i>
-                            </button>
-                            <button 
-                                onclick="app.showRoomEncryptionInfo()"
-                                class="bg-white/20 hover:bg-white/30 px-3 py-1 rounded text-sm transition"
-                                title="View Encryption Details"
-                            >
-                                <i class="fas fa-shield-halved"></i>
-                            </button>
-                            <div class="text-right">
-                                <div class="flex items-center gap-1 text-yellow-300">
-                                    <i class="fas fa-coins"></i>
-                                    <span class="font-bold" id="tokenBalance">${this.currentUser.tokens || 0}</span>
-                                </div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 16px; font-weight: 600;">${this.currentRoom?.room_name || 'Chat Room'}</div>
+                            <div style="font-size: 12px; opacity: 0.8;">
+                                <i class="fas fa-lock" style="font-size: 10px;"></i> Encrypted • ${this.currentRoom?.room_code || roomId}
                             </div>
                         </div>
+                        <button onclick="app.showTokenGiftModal()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 10px; border-radius: 20px; cursor: pointer; font-size: 12px; margin-right: 8px;">
+                            <i class="fas fa-gift"></i>
+                        </button>
+                        <div style="background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 20px; font-size: 13px; font-weight: 600;">
+                            <i class="fas fa-coins" style="color: #ffd700;"></i> <span id="tokenBalance">${this.currentUser.tokens || 0}</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Messages -->
-                <div id="messages" class="flex-1 overflow-y-auto p-4 max-w-4xl mx-auto w-full" style="min-height: 0;">
-                    <div class="text-gray-500 text-center py-8">
-                        <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
-                        <p>Loading encrypted messages...</p>
+                <!-- WhatsApp-style Messages Area -->
+                <div style="flex: 1; overflow-y: scroll; overflow-x: hidden; background: #efeae2; -webkit-overflow-scrolling: touch;" id="messages-scroll-container">
+                    <div id="messages" style="max-width: 800px; margin: 0 auto; padding: 20px 16px; min-height: 100%;">
+                        <div style="text-align: center; padding: 40px 20px; color: #667781;">
+                            <i class="fas fa-spinner fa-spin" style="font-size: 32px; margin-bottom: 16px;"></i>
+                            <div style="font-size: 14px;">Loading encrypted messages...</div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Input -->
-                <div class="bg-white border-t border-gray-200 p-4">
-                    <div class="max-w-4xl mx-auto">
+                <!-- WhatsApp-style Input Bar -->
+                <div style="background: #f0f0f0; padding: 8px 16px; box-shadow: 0 -2px 5px rgba(0,0,0,0.05); flex-shrink: 0;">
+                    <div style="max-width: 800px; margin: 0 auto;">
                         <!-- Emoji Picker -->
-                        <div id="emojiPicker" class="hidden mb-2 p-3 bg-white border border-gray-300 rounded-lg shadow-lg">
-                            <div class="grid grid-cols-8 gap-2 max-h-48 overflow-y-auto">
-                                ${['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','🥲','😋','😛','😜','🤪','😝','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿','💀','☠️','💩','🤡','👹','👺','👻','👽','👾','🤖','😺','😸','😹','😻','😼','😽','🙀','😿','😾','🙈','🙉','🙊','💋','💌','💘','💝','💖','💗','💓','💞','💕','💟','❣️','💔','❤️','🧡','💛','💚','💙','💜','🤎','🖤','🤍','💯','💢','💥','💫','💦','💨','🕳️','💬','👁️','🗨️','🗯️','💭','💤','👋','🤚','🖐️','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✍️','💅','🤳','💪','🦾','🦵','🦿','🦶','👂','🦻','👃','🧠','🫀','🫁','🦷','🦴','👀','👁️','👅','👄','🔒','🔐','🔑','💰','💎','🎁','🎉','🎊','🔥','⚡','✨','💫','⭐','🌟'].map(e => `<button onclick="app.insertEmoji('${e}')" class="text-2xl hover:bg-gray-100 p-1 rounded">${e}</button>`).join('')}
+                        <div id="emojiPicker" class="hidden" style="background: white; margin-bottom: 8px; padding: 12px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                            <div style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; max-height: 200px; overflow-y: auto;">
+                                ${['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','🥲','😋','😛','😜','🤪','😝','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿','💀','☠️','💩','🤡','👹','👺','👻','👽','👾','🤖','😺','😸','😹','😻','😼','😽','🙀','😿','😾','🙈','🙉','🙊','💋','💌','💘','💝','💖','💗','💓','💞','💕','💟','❣️','💔','❤️','🧡','💛','💚','💙','💜','🤎','🖤','🤍','💯','💢','💥','💫','💦','💨','🕳️','💬','👁️','🗨️','🗯️','💭','💤','👋','🤚','🖐️','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✍️','💅','🤳','💪','🦾','🦵','🦿','🦶','👂','🦻','👃','🧠','🫀','🫁','🦷','🦴','👀','👁️','👅','👄','🔒','🔐','🔑','💰','💎','🎁','🎉','🎊','🔥','⚡','✨','💫','⭐','🌟'].map(e => `<button onclick="app.insertEmoji('${e}')" style="background: none; border: none; font-size: 24px; cursor: pointer; padding: 4px; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='none'">${e}</button>`).join('')}
                             </div>
                         </div>
                         
-                        <div class="flex gap-2">
-                            <button 
-                                onclick="app.toggleEmojiPicker()"
-                                class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition"
-                                title="Emoji"
-                            >
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <button onclick="app.toggleEmojiPicker()" style="background: white; border: none; color: #54656f; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px;" title="Emoji">
                                 <i class="fas fa-smile"></i>
                             </button>
-                            <button 
-                                onclick="document.getElementById('fileInput').click()"
-                                class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition"
-                                title="Attach File (+3 tokens)"
-                            >
+                            <button onclick="document.getElementById('fileInput').click()" style="background: white; border: none; color: #54656f; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px;" title="Attach">
                                 <i class="fas fa-paperclip"></i>
                             </button>
-                            <input 
-                                type="file" 
-                                id="fileInput" 
-                                class="hidden"
-                                onchange="app.handleFileSelect(event)"
-                            />
+                            <input type="file" id="fileInput" style="display: none;" onchange="app.handleFileSelect(event)" />
                             <input 
                                 type="text" 
                                 id="messageInput" 
-                                placeholder="Type encrypted message... (+1 token)"
-                                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                placeholder="Type a message"
+                                style="flex: 1; padding: 10px 16px; border: none; border-radius: 24px; background: white; font-size: 15px; outline: none;"
                                 onkeypress="if(event.key==='Enter') app.sendMessage()"
                             />
-                            <button 
-                                onclick="app.sendMessage()"
-                                class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition"
-                            >
+                            <button onclick="app.sendMessage()" style="background: #25d366; border: none; color: white; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.4);">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>
@@ -1710,17 +1705,18 @@ class SecureChatApp {
         `;
 
         await this.loadMessages();
-        this.startPolling();
         
-        // Scroll to bottom ONLY after messages are loaded (the loadMessages function already does this)
-        // Adding one more delayed scroll to be absolutely sure
-        setTimeout(() => {
-            const messagesDiv = document.getElementById('messages');
-            if (messagesDiv) {
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                console.log('[CHAT] 🎯 Final openRoom scroll - Height:', messagesDiv.scrollHeight, 'Position:', messagesDiv.scrollTop);
-            }
-        }, 500);
+        // Force scroll to bottom immediately after loading (force=true on initial open)
+        console.log('[CHAT] 🎯 Opening room - forcing scroll to bottom');
+        this.scrollToBottom(true);
+        
+        // Aggressive scroll with force=true for initial room open
+        setTimeout(() => this.scrollToBottom(true), 50);
+        setTimeout(() => this.scrollToBottom(true), 150);
+        setTimeout(() => this.scrollToBottom(true), 400);
+        setTimeout(() => this.scrollToBottom(true), 800);
+        
+        this.startPolling();
     }
 
     toggleEmojiPicker() {
@@ -1833,6 +1829,11 @@ class SecureChatApp {
             const newMessages = data.messages || [];
 
             const container = document.getElementById('messages');
+            if (!container) {
+                console.error('[V3] Messages container not found! Cannot render messages.');
+                return;
+            }
+            
             if (newMessages.length === 0) {
                 container.innerHTML = `
                     <div class="text-gray-500 text-center py-8">
@@ -1899,22 +1900,35 @@ class SecureChatApp {
 
                 // Update last message ID
                 if (decryptedMessages.length > 0) {
-                    this.lastMessageIds.set(this.currentRoom.id, decryptedMessages[decryptedMessages.length - 1].id);
-                }
-
-                this.messages = decryptedMessages; // Store decrypted messages
-                container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('');
-                
-                // Scroll to bottom after messages are rendered
-                console.log('[CHAT] 🔄 Messages rendered, scrolling to bottom...');
-                setTimeout(() => {
-                    const messagesDiv = document.getElementById('messages');
-                    if (messagesDiv) {
-                        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                        console.log('[CHAT] ✅ Scrolled to bottom. Height:', messagesDiv.scrollHeight, 'Position:', messagesDiv.scrollTop);
+                    const latestMessageId = decryptedMessages[decryptedMessages.length - 1].id;
+                    const previousLastMessageId = this.lastMessageIds.get(this.currentRoom.id);
+                    
+                    // Only re-render if there are NEW messages (different last message ID)
+                    if (previousLastMessageId !== latestMessageId) {
+                        console.log('[CHAT] 🆕 New messages detected, re-rendering...');
+                        this.messages = decryptedMessages; // Store decrypted messages
+                        container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('');
+                        
+                        // Smart scroll: only auto-scroll if user is near bottom (don't force)
+                        requestAnimationFrame(() => {
+                            this.scrollToBottom(); // Don't force
+                        });
+                    } else {
+                        console.log('[CHAT] ✅ No new messages, skipping re-render');
                     }
-                }, 200);
+                    
+                    this.lastMessageIds.set(this.currentRoom.id, latestMessageId);
+                } else {
+                    // First load with messages
+                    this.messages = decryptedMessages;
+                    container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('');
+                    
+                    requestAnimationFrame(() => {
+                        this.scrollToBottom();
+                    });
+                }
             }
+            
         } catch (error) {
             console.error('[V3] Error loading messages:', error);
         }
@@ -1935,9 +1949,11 @@ class SecureChatApp {
             // Not a file message
         }
 
-        const senderAvatar = isMine && this.currentUser.avatar
-            ? `<img src="${this.currentUser.avatar}" class="w-8 h-8 rounded-full object-cover" alt="Avatar">`
-            : `<div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center"><i class="fas fa-user text-gray-600 text-xs"></i></div>`;
+        // WhatsApp-style message bubble
+        const bubbleColor = isMine ? '#dcf8c6' : '#ffffff';
+        const textColor = isMine ? '#000000' : '#000000';
+        const timeColor = isMine ? '#667781' : '#667781';
+        const alignment = isMine ? 'flex-end' : 'flex-start';
 
         // File message
         if (fileData) {
@@ -1951,75 +1967,50 @@ class SecureChatApp {
             else if (fileData.fileType.startsWith('audio/')) fileIcon = 'fa-music';
 
             return `
-                <div class="mb-4 ${isMine ? 'text-right' : 'text-left'}">
-                    <div class="inline-block max-w-xs lg:max-w-md">
-                        ${!isMine ? `
-                            <div class="flex items-center gap-2 mb-1">
-                                ${senderAvatar}
-                                <p class="text-xs text-gray-600">${msg.sender_username || 'User'}</p>
+                <div style="display: flex; justify-content: ${alignment}; margin-bottom: 8px;">
+                    <div style="max-width: 65%; background: ${bubbleColor}; border-radius: 8px; padding: 6px 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); position: relative;">
+                        ${!isMine ? `<div style="font-size: 12px; color: #667781; font-weight: 600; margin-bottom: 4px;">${msg.sender_username || 'User'}</div>` : ''}
+                        ${isViewOnce && isViewed ? `
+                            <div style="text-align: center; padding: 20px; color: #667781;">
+                                <i class="fas fa-eye-slash" style="font-size: 28px; margin-bottom: 8px; opacity: 0.5;"></i>
+                                <div style="font-size: 13px;">File has been deleted</div>
+                                <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">View-once file</div>
                             </div>
-                        ` : ''}
-                        <div class="${isMine ? 'bg-purple-600 text-white' : 'bg-white'} rounded-lg px-4 py-3 shadow">
-                            ${isViewOnce && isViewed ? `
-                                <div class="text-center py-4">
-                                    <i class="fas fa-eye-slash text-3xl mb-2 opacity-50"></i>
-                                    <p class="text-sm opacity-75">File has been deleted</p>
-                                    <p class="text-xs opacity-50 mt-1">View-once file</p>
+                        ` : `
+                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                                <i class="fas ${fileIcon}" style="font-size: 24px; color: #667781;"></i>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-size: 14px; font-weight: 500; color: ${textColor}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(fileData.fileName)}</div>
+                                    <div style="font-size: 12px; color: #667781;">${this.formatFileSize(fileData.fileSize)}</div>
                                 </div>
-                            ` : `
-                                <div class="flex items-center gap-3">
-                                    <i class="fas ${fileIcon} text-2xl"></i>
-                                    <div class="flex-1">
-                                        <p class="font-semibold text-sm">${this.escapeHtml(fileData.fileName)}</p>
-                                        <p class="text-xs opacity-75">${this.formatFileSize(fileData.fileSize)}</p>
-                                    </div>
+                            </div>
+                            ${isViewOnce ? `
+                                <div style="background: #fff3cd; padding: 6px; border-radius: 6px; font-size: 11px; color: #856404; margin-bottom: 8px;">
+                                    <i class="fas fa-eye-slash"></i> <strong>VIEW ONCE:</strong> Will be deleted after viewing
                                 </div>
-                                ${isViewOnce ? `
-                                    <div class="mt-2 p-2 bg-yellow-500/20 rounded text-xs">
-                                        <i class="fas fa-eye-slash mr-1"></i>
-                                        <strong>VIEW ONCE:</strong> File will be deleted after viewing
-                                    </div>
-                                ` : ''}
-                                <button 
-                                    onclick="app.downloadFile('${messageId}', '${fileData.fileName}', '${fileData.fileType}', ${isViewOnce})"
-                                    class="mt-2 w-full bg-white/20 hover:bg-white/30 px-3 py-2 rounded text-sm font-semibold transition"
-                                >
-                                    <i class="fas fa-download mr-2"></i>${isViewOnce ? 'View Once' : 'Download'}
-                                </button>
-                            `}
-                            <p class="text-xs ${isMine ? 'text-purple-200' : 'text-gray-500'} mt-2">
-                                ${time} • <i class="fas fa-lock text-xs"></i> Encrypted
-                            </p>
+                            ` : ''}
+                            <button onclick="app.downloadFile('${messageId}', '${fileData.fileName}', '${fileData.fileType}', ${isViewOnce})" style="width: 100%; background: rgba(0,0,0,0.05); border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; color: ${textColor};">
+                                <i class="fas fa-download"></i> ${isViewOnce ? 'View Once' : 'Download'}
+                            </button>
+                        `}
+                        <div style="font-size: 11px; color: ${timeColor}; text-align: right; margin-top: 4px;">
+                            ${time}
                         </div>
                     </div>
                 </div>
             `;
         }
 
-        // Text message
+        // Text message - WhatsApp style
         return `
-            <div class="mb-4 ${isMine ? 'text-right' : 'text-left'}">
-                <div class="inline-block max-w-xs lg:max-w-md">
-                    ${!isMine ? `
-                        <div class="flex items-center gap-2 mb-1">
-                            ${senderAvatar}
-                            <p class="text-xs text-gray-600">${msg.sender_username || 'User'}</p>
-                        </div>
-                    ` : ''}
-                    <div class="${isMine ? 'bg-purple-600 text-white' : 'bg-white'} rounded-lg px-4 py-2 shadow">
-                        <p>${this.escapeHtml(msg.decrypted || '[Encrypted]')}</p>
-                        <div class="flex items-center justify-between gap-2 mt-2">
-                            <p class="text-xs ${isMine ? 'text-purple-200' : 'text-gray-500'}">
-                                ${time} • <i class="fas fa-lock text-xs"></i> E2E
-                            </p>
-                            <button 
-                                onclick="app.showEncryptionInfo('${msg.id}')"
-                                class="text-xs ${isMine ? 'text-purple-200 hover:text-white' : 'text-gray-500 hover:text-gray-700'} underline"
-                                title="View encryption details"
-                            >
-                                <i class="fas fa-shield-halved"></i> Info
-                            </button>
-                        </div>
+            <div style="display: flex; justify-content: ${alignment}; margin-bottom: 4px; animation: slideIn 0.2s ease-out;">
+                <div style="max-width: 65%; background: ${bubbleColor}; border-radius: 8px; padding: 6px 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); position: relative;">
+                    ${!isMine ? `<div style="font-size: 12px; color: #00897b; font-weight: 600; margin-bottom: 2px;">${msg.sender_username || 'User'}</div>` : ''}
+                    <div style="font-size: 14.2px; color: ${textColor}; word-wrap: break-word; white-space: pre-wrap; line-height: 1.4; padding-right: 50px;">
+                        ${this.escapeHtml(msg.decrypted || '[Encrypted]')}
+                    </div>
+                    <div style="font-size: 11px; color: ${timeColor}; text-align: right; margin-top: -18px; float: right;">
+                        ${time}
                     </div>
                 </div>
             </div>
@@ -2242,9 +2233,9 @@ class SecureChatApp {
                 input.value = '';
                 await this.loadMessages();
                 
-                // Ensure scroll to bottom after sending
+                // Force scroll to bottom after sending your own message
                 setTimeout(() => {
-                    this.scrollToBottom();
+                    this.scrollToBottom(true);
                 }, 100);
                 
                 // Award tokens for messaging
@@ -2258,9 +2249,11 @@ class SecureChatApp {
     startPolling() {
         if (this.messagePoller) clearInterval(this.messagePoller);
         
-        this.messagePoller = setInterval(() => {
+        this.messagePoller = setInterval(async () => {
             if (this.currentRoom) {
-                this.loadMessages();
+                await this.loadMessages();
+                // Auto-scroll to bottom when new messages arrive
+                setTimeout(() => this.scrollToBottom(), 100);
             }
         }, 3000);
     }
@@ -6486,9 +6479,300 @@ class SecureChatApp {
         }
     }
 
-    showPrivacySettings() {
+    async showPrivacySettings() {
         this.closeProfileDrawer();
-        alert('Privacy Settings coming soon!\n\nFeatures:\n- Read receipts toggle\n- Online status visibility\n- Profile picture visibility\n- Block users');
+        
+        // Get current privacy settings
+        let privacySettings = {
+            is_searchable: true,
+            message_privacy: 'anyone',
+            last_seen_privacy: 'everyone'
+        };
+        
+        try {
+            const response = await fetch(`/api/users/${this.currentUser.id}/privacy`, {
+                headers: { 'X-User-Email': this.currentUser.email }
+            });
+            
+            if (response.ok) {
+                privacySettings = await response.json();
+            }
+        } catch (error) {
+            console.error('[PRIVACY] Error loading settings:', error);
+        }
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100 p-4">
+                <div class="max-w-md mx-auto">
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h1 class="text-2xl font-bold text-gray-800">Privacy Settings</h1>
+                            <button onclick="app.showRoomList()" class="text-gray-600 hover:text-gray-800">
+                                <i class="fas fa-times text-2xl"></i>
+                            </button>
+                        </div>
+
+                        <div id="privacy-message" class="hidden mb-4 p-3 rounded-lg"></div>
+
+                        <!-- Searchability -->
+                        <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+                            <div class="flex items-start gap-3 mb-3">
+                                <i class="fas fa-search text-purple-600 text-xl mt-1"></i>
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-gray-800 mb-1">Profile Searchability</h3>
+                                    <p class="text-sm text-gray-600">Allow others to find you by username or email</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between pl-9">
+                                <span class="text-sm ${privacySettings.is_searchable ? 'text-green-600 font-semibold' : 'text-gray-500'}">
+                                    ${privacySettings.is_searchable ? 'Searchable' : 'Hidden'}
+                                </span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="searchable" class="sr-only peer" ${privacySettings.is_searchable ? 'checked' : ''}>
+                                    <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Message Privacy -->
+                        <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+                            <div class="flex items-start gap-3 mb-3">
+                                <i class="fas fa-envelope text-purple-600 text-xl mt-1"></i>
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-gray-800 mb-1">Who Can Message You</h3>
+                                    <p class="text-sm text-gray-600">Control who can start a direct chat with you</p>
+                                </div>
+                            </div>
+                            <div class="pl-9 space-y-2">
+                                <label class="flex items-center gap-3 cursor-pointer p-2 hover:bg-white rounded-lg transition">
+                                    <input type="radio" name="messagePrivacy" value="anyone" ${privacySettings.message_privacy === 'anyone' ? 'checked' : ''} class="w-4 h-4 text-purple-600">
+                                    <span class="text-sm">Anyone</span>
+                                </label>
+                                <label class="flex items-center gap-3 cursor-pointer p-2 hover:bg-white rounded-lg transition">
+                                    <input type="radio" name="messagePrivacy" value="contacts_only" ${privacySettings.message_privacy === 'contacts_only' ? 'checked' : ''} class="w-4 h-4 text-purple-600">
+                                    <span class="text-sm">Contacts Only</span>
+                                </label>
+                                <label class="flex items-center gap-3 cursor-pointer p-2 hover:bg-white rounded-lg transition">
+                                    <input type="radio" name="messagePrivacy" value="nobody" ${privacySettings.message_privacy === 'nobody' ? 'checked' : ''} class="w-4 h-4 text-purple-600">
+                                    <span class="text-sm">Nobody</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Last Seen -->
+                        <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+                            <div class="flex items-start gap-3 mb-3">
+                                <i class="fas fa-clock text-purple-600 text-xl mt-1"></i>
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-gray-800 mb-1">Last Seen</h3>
+                                    <p class="text-sm text-gray-600">Control who can see when you were last online</p>
+                                </div>
+                            </div>
+                            <div class="pl-9 space-y-2">
+                                <label class="flex items-center gap-3 cursor-pointer p-2 hover:bg-white rounded-lg transition">
+                                    <input type="radio" name="lastSeenPrivacy" value="everyone" ${privacySettings.last_seen_privacy === 'everyone' ? 'checked' : ''} class="w-4 h-4 text-purple-600">
+                                    <span class="text-sm">Everyone</span>
+                                </label>
+                                <label class="flex items-center gap-3 cursor-pointer p-2 hover:bg-white rounded-lg transition">
+                                    <input type="radio" name="lastSeenPrivacy" value="contacts" ${privacySettings.last_seen_privacy === 'contacts' ? 'checked' : ''} class="w-4 h-4 text-purple-600">
+                                    <span class="text-sm">Contacts Only</span>
+                                </label>
+                                <label class="flex items-center gap-3 cursor-pointer p-2 hover:bg-white rounded-lg transition">
+                                    <input type="radio" name="lastSeenPrivacy" value="nobody" ${privacySettings.last_seen_privacy === 'nobody' ? 'checked' : ''} class="w-4 h-4 text-purple-600">
+                                    <span class="text-sm">Nobody</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Save Button -->
+                        <button 
+                            onclick="app.savePrivacySettings()"
+                            class="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition font-semibold flex items-center justify-center gap-2"
+                        >
+                            <i class="fas fa-save"></i>
+                            Save Settings
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    async savePrivacySettings() {
+        const searchable = document.getElementById('searchable').checked;
+        const messagePrivacy = document.querySelector('input[name="messagePrivacy"]:checked').value;
+        const lastSeenPrivacy = document.querySelector('input[name="lastSeenPrivacy"]:checked').value;
+        
+        try {
+            const response = await fetch('/api/users/privacy', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-Email': this.currentUser.email
+                },
+                body: JSON.stringify({
+                    is_searchable: searchable,
+                    message_privacy: messagePrivacy,
+                    last_seen_privacy: lastSeenPrivacy
+                })
+            });
+            
+            if (response.ok) {
+                this.showMessage('privacy-message', 'Privacy settings saved successfully!', 'success');
+                setTimeout(() => this.showRoomList(), 1500);
+            } else {
+                this.showMessage('privacy-message', 'Failed to save privacy settings', 'error');
+            }
+        } catch (error) {
+            console.error('[PRIVACY] Error saving:', error);
+            this.showMessage('privacy-message', 'Error saving privacy settings', 'error');
+        }
+    }
+    
+    async showUserSearch() {
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100 p-4">
+                <div class="max-w-md mx-auto">
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h1 class="text-2xl font-bold text-gray-800">Search Users</h1>
+                            <button onclick="app.showRoomList()" class="text-gray-600 hover:text-gray-800">
+                                <i class="fas fa-times text-2xl"></i>
+                            </button>
+                        </div>
+
+                        <div id="search-message" class="hidden mb-4 p-3 rounded-lg"></div>
+
+                        <!-- Search Input -->
+                        <div class="mb-6">
+                            <div class="relative">
+                                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                <input 
+                                    type="text" 
+                                    id="userSearch" 
+                                    placeholder="Search by username or email..."
+                                    class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    oninput="app.searchUsers(this.value)"
+                                />
+                            </div>
+                        </div>
+
+                        <!-- Search Results -->
+                        <div id="searchResults" class="space-y-2">
+                            <div class="text-gray-500 text-center py-8">
+                                <i class="fas fa-search text-4xl mb-3 text-gray-300"></i>
+                                <p>Enter a username or email to search</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    async searchUsers(query) {
+        const resultsDiv = document.getElementById('searchResults');
+        
+        if (!query || query.trim().length < 2) {
+            resultsDiv.innerHTML = `
+                <div class="text-gray-500 text-center py-8">
+                    <i class="fas fa-search text-4xl mb-3 text-gray-300"></i>
+                    <p>Enter at least 2 characters to search</p>
+                </div>
+            `;
+            return;
+        }
+        
+        resultsDiv.innerHTML = `
+            <div class="text-gray-500 text-center py-8">
+                <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                <p>Searching...</p>
+            </div>
+        `;
+        
+        try {
+            const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`, {
+                headers: { 'X-User-Email': this.currentUser.email }
+            });
+            
+            if (response.ok) {
+                const users = await response.json();
+                
+                if (users.length === 0) {
+                    resultsDiv.innerHTML = `
+                        <div class="text-gray-500 text-center py-8">
+                            <i class="fas fa-user-slash text-4xl mb-3 text-gray-300"></i>
+                            <p>No users found</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                resultsDiv.innerHTML = users.map(user => {
+                    const avatarHtml = user.avatar 
+                        ? `<img src="${user.avatar}" class="w-12 h-12 rounded-full object-cover" alt="Avatar">`
+                        : `<div class="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center text-white font-bold text-lg">${user.username.charAt(0).toUpperCase()}</div>`;
+                    
+                    return `
+                        <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                            ${avatarHtml}
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-gray-800">${this.escapeHtml(user.username)}</h3>
+                                <p class="text-sm text-gray-500">${this.escapeHtml(user.email)}</p>
+                            </div>
+                            <button 
+                                onclick="app.startDirectMessage(${user.id}, '${this.escapeHtml(user.username)}')"
+                                class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center gap-2"
+                            >
+                                <i class="fas fa-comment"></i>
+                                Message
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                resultsDiv.innerHTML = `
+                    <div class="text-red-500 text-center py-8">
+                        <i class="fas fa-exclamation-circle text-4xl mb-3"></i>
+                        <p>Error searching users</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('[SEARCH] Error:', error);
+            resultsDiv.innerHTML = `
+                <div class="text-red-500 text-center py-8">
+                    <i class="fas fa-exclamation-circle text-4xl mb-3"></i>
+                    <p>Error searching users</p>
+                </div>
+            `;
+        }
+    }
+    
+    async startDirectMessage(userId, username) {
+        try {
+            const response = await fetch('/api/rooms/direct', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-Email': this.currentUser.email
+                },
+                body: JSON.stringify({ recipient_id: userId })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                // Open the direct message room
+                this.openRoom(data.room.room_code);
+            } else {
+                // Show error based on privacy settings
+                this.showMessage('search-message', data.error || 'Failed to start chat', 'error');
+            }
+        } catch (error) {
+            console.error('[DM] Error starting direct message:', error);
+            this.showMessage('search-message', 'Error starting direct message', 'error');
+        }
     }
 
     async showClearChatHistory() {
