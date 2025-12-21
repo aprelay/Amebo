@@ -2355,9 +2355,9 @@ class SecureChatApp {
 
         const modal = document.createElement('div');
         modal.id = 'tokenGiftModal';
-        modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+        modal.className = 'fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto';
         modal.innerHTML = `
-            <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 animate-fadeIn">
+            <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 animate-fadeIn my-8">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
                         <i class="fas fa-gift text-purple-600"></i>
