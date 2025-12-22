@@ -2254,7 +2254,7 @@ app.get('/', (c) => {
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
         <script src="/static/crypto-v2.js?v=NOTIF-FIX-V2"></script>
-        <script src="/static/app-v3.js?v=TELEGRAM-FIXED-V2"></script>
+        <script src="/static/app-v3.js?v=TELEGRAM-V3-1766403788"></script>
         
         <script>
           // Register service worker for PWA
@@ -5298,6 +5298,9 @@ app.get('*', (c) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+        <meta http-equiv="Pragma" content="no-cache">
+        <meta http-equiv="Expires" content="0">
         <title>Amebo - 🇳🇬 Earn Tokens · Buy Data</title>
         <link rel="icon" type="image/png" href="/static/amebo-logo.png">
         <link rel="apple-touch-icon" href="/static/amebo-logo.png">
@@ -5309,7 +5312,7 @@ app.get('*', (c) => {
         <div id="app"></div>
         
         <script src="/static/crypto-v2.js?v=NOTIF-FIX-V2"></script>
-        <script src="/static/app-v3.js?v=TELEGRAM-FIXED-V2"></script>
+        <script src="/static/app-v3.js?v=TELEGRAM-V3-1766403788"></script>
         <script>
             const app = new SecureChatApp();
             app.init();
