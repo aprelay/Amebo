@@ -2190,7 +2190,7 @@ class SecureChatApp {
                             ></textarea>
                             
                             <!-- Voice Note Button (changes to Send when typing) -->
-                            <button id="voiceNoteBtn" onclick="app.toggleVoiceRecording()" style="background: #25d366; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.3); flex-shrink: 0; align-self: flex-end; margin-bottom: 3px; transition: all 0.2s;" title="Voice Note" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 3px 8px rgba(37, 211, 102, 0.5)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 5px rgba(37, 211, 102, 0.3)'">
+                            <button id="voiceNoteBtn" style="background: #25d366; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.3); flex-shrink: 0; align-self: flex-end; margin-bottom: 3px; transition: all 0.2s;" title="Voice Note" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 3px 8px rgba(37, 211, 102, 0.5)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 5px rgba(37, 211, 102, 0.3)'">
                                 <i class="fas fa-microphone"></i>
                             </button>
                             
@@ -2210,8 +2210,18 @@ class SecureChatApp {
         // Single scroll to bottom after messages load
         setTimeout(() => this.scrollToBottom(true), 100);
         
-        // Initialize button state (microphone by default)
-        setTimeout(() => this.handleMessageInput(), 50);
+        // Initialize button state and attach click handler
+        setTimeout(() => {
+            const voiceBtn = document.getElementById('voiceNoteBtn');
+            if (voiceBtn) {
+                // Attach click handler that checks button state
+                voiceBtn.addEventListener('click', () => {
+                    this.handleButtonClick();
+                });
+                // Set initial button state
+                this.handleMessageInput();
+            }
+        }, 50);
         
         this.startPolling();
     }
@@ -2253,23 +2263,50 @@ class SecureChatApp {
             return;
         }
         
-        // Toggle between send and voice note button
+        // Update button appearance based on input state
         if (hasText) {
-            // Send button (paper plane icon)
+            // Send button appearance
             console.log('[UI] Switching to SEND button (has text)');
             voiceBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
-            voiceBtn.onclick = () => this.sendMessage();
             voiceBtn.title = 'Send Message';
-            voiceBtn.style.background = '#25d366';
-            voiceBtn.style.animation = 'none';
+            voiceBtn.setAttribute('data-mode', 'send');
         } else {
-            // Voice note button (microphone icon)
+            // Voice note button appearance
             console.log('[UI] Switching to MICROPHONE button (no text)');
             voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-            voiceBtn.onclick = () => this.toggleVoiceRecording();
             voiceBtn.title = 'Record Voice Note';
-            voiceBtn.style.background = '#25d366';
-            voiceBtn.style.animation = 'none';
+            voiceBtn.setAttribute('data-mode', 'voice');
+        }
+        
+        // Keep consistent styling
+        voiceBtn.style.background = '#25d366';
+        voiceBtn.style.animation = 'none';
+    }
+
+    handleButtonClick() {
+        const voiceBtn = document.getElementById('voiceNoteBtn');
+        const input = document.getElementById('messageInput');
+        
+        if (!voiceBtn || !input) return;
+        
+        const mode = voiceBtn.getAttribute('data-mode');
+        const hasText = input.value.trim().length > 0;
+        
+        console.log('[UI] Button clicked. Mode:', mode, 'Has text:', hasText);
+        
+        // Determine action based on current state
+        if (this.isRecording) {
+            // Stop recording
+            console.log('[UI] Stopping recording...');
+            this.stopRecording();
+        } else if (hasText || mode === 'send') {
+            // Send text message
+            console.log('[UI] Sending text message...');
+            this.sendMessage();
+        } else {
+            // Start voice recording
+            console.log('[UI] Starting voice recording...');
+            this.toggleVoiceRecording();
         }
     }
 
