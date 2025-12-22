@@ -10400,7 +10400,3 @@ Enter number or description:`;
         }
     }
 }
-
-// Initialize app
-const app = new SecureChatApp();
-document.addEventListener('DOMContentLoaded', () => app.init());
