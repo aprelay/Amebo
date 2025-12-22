@@ -273,9 +273,17 @@ class SecureChatApp {
         console.log('[UNREAD] Starting update for', this.rooms.length, 'rooms');
         console.log('[UNREAD] Last read message IDs Map:', Object.fromEntries(this.lastReadMessageIds));
         console.log('[UNREAD] Current unread counts Map:', Object.fromEntries(this.unreadCounts));
+        console.log('[UNREAD] Currently open room:', this.currentRoom?.id || 'none');
         
         for (const room of this.rooms) {
             try {
+                // Skip current open room - it should always show 0 unread
+                if (this.currentRoom && this.currentRoom.id === room.id) {
+                    this.unreadCounts.set(room.id, 0);
+                    console.log(`[UNREAD] Room ${room.id}: 0 (currently open - always 0)`);
+                    continue;
+                }
+                
                 // Get messages for this room
                 const response = await fetch(`${API_BASE}/api/messages/${room.id}`);
                 if (!response.ok) continue;
