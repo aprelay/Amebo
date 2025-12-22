@@ -840,14 +840,23 @@ class SecureChatApp {
             }
             
             // Load last read message IDs from localStorage (source of truth)
+            console.log('[LOGIN] ========== LOADING LAST READ IDS ==========');
+            console.log('[LOGIN] Looking for key: lastReadMessages_' + this.currentUser.id);
             const lastReadData = localStorage.getItem('lastReadMessages_' + this.currentUser.id);
+            console.log('[LOGIN] Raw data from localStorage:', lastReadData);
+            
             if (lastReadData) {
                 const parsed = JSON.parse(lastReadData);
+                console.log('[LOGIN] Parsed data:', parsed);
                 // Keep keys as-is (could be numbers OR UUID strings depending on room ID format)
                 this.lastReadMessageIds = new Map(Object.entries(parsed));
-                console.log('[LOGIN] Loaded last read message IDs:', Object.keys(parsed).length, 'rooms');
-                console.log('[LOGIN] Last read IDs:', Object.fromEntries(this.lastReadMessageIds));
+                console.log('[LOGIN] ✅ Loaded last read message IDs:', Object.keys(parsed).length, 'rooms');
+                console.log('[LOGIN] Last read IDs Map:', Object.fromEntries(this.lastReadMessageIds));
+            } else {
+                console.log('[LOGIN] ❌ No last read data found in localStorage');
+                console.log('[LOGIN] All localStorage keys:', Object.keys(localStorage));
             }
+            console.log('[LOGIN] ===============================================');
             
             // DON'T load stale unread counts from localStorage
             // They will be recalculated fresh by updateUnreadCounts() based on lastReadMessageIds
@@ -1122,6 +1131,24 @@ class SecureChatApp {
                 const keyPair = await CryptoUtils.generateUserKeyPair();
                 this.userPrivateKey = keyPair.privateKey;
                 await CryptoUtils.storePrivateKey(this.currentUser.id, keyPair.privateKey);
+                
+                // Load last read message IDs from localStorage (CRITICAL!)
+                console.log('[LOGIN] ========== LOADING LAST READ IDS (Email Login) ==========');
+                console.log('[LOGIN] Looking for key: lastReadMessages_' + this.currentUser.id);
+                const lastReadData = localStorage.getItem('lastReadMessages_' + this.currentUser.id);
+                console.log('[LOGIN] Raw data from localStorage:', lastReadData);
+                
+                if (lastReadData) {
+                    const parsed = JSON.parse(lastReadData);
+                    console.log('[LOGIN] Parsed data:', parsed);
+                    this.lastReadMessageIds = new Map(Object.entries(parsed));
+                    console.log('[LOGIN] ✅ Loaded last read message IDs:', Object.keys(parsed).length, 'rooms');
+                    console.log('[LOGIN] Last read IDs Map:', Object.fromEntries(this.lastReadMessageIds));
+                } else {
+                    console.log('[LOGIN] ❌ No last read data found in localStorage');
+                    console.log('[LOGIN] All localStorage keys:', Object.keys(localStorage));
+                }
+                console.log('[LOGIN] ===============================================');
                 
                 // Start notification polling for mobile push notifications
                 this.startNotificationPolling();
