@@ -70,7 +70,7 @@ async function sendVerificationEmail(email: string, token: string, appUrl: strin
       return false
     }
     
-    console.log('[EMAIL] Verification email sent to:', email)
+    // Only log success if response was OK
     return true
   } catch (error) {
     console.error('[EMAIL] Send error:', error)
@@ -135,10 +135,22 @@ app.post('/api/auth/register-email', async (c) => {
     const resendApiKey = c.env.RESEND_API_KEY || ''
     const fromEmail = c.env.FROM_EMAIL || 'onboarding@resend.dev'
     
-    if (resendApiKey) {
-      await sendVerificationEmail(email, verificationToken, appUrl, resendApiKey, fromEmail)
-    } else {
-      console.log('[EMAIL] Verification link (RESEND_API_KEY not set):', `${appUrl}/verify-email?token=${verificationToken}`)
+    try {
+      if (resendApiKey) {
+        await sendVerificationEmail(email, verificationToken, appUrl, resendApiKey, fromEmail)
+        console.log(`[EMAIL] Verification email sent to: ${email}`)
+      } else {
+        const verifyUrl = `${appUrl}/verify-email?token=${verificationToken}`
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        console.log('[EMAIL] ⚠️  RESEND_API_KEY not configured')
+        console.log('[EMAIL] 📧 Development mode - Manual verification link:')
+        console.log(`[EMAIL] 🔗 ${verifyUrl}`)
+        console.log('[EMAIL] 📋 Copy this link to verify your email in development')
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      }
+    } catch (emailError: any) {
+      console.error('[EMAIL] Failed to send verification email:', emailError)
+      // Don't fail registration if email fails - user can still verify manually
     }
     
     console.log(`[AUTH] User registered: ${email} (verification pending)`)
@@ -148,11 +160,19 @@ app.post('/api/auth/register-email', async (c) => {
       userId,
       email,
       message: 'Registration successful! Please check your email to verify your account.',
-      verificationRequired: true
+      verificationRequired: true,
+      verificationToken: resendApiKey ? undefined : verificationToken  // Only return token in dev mode
     })
   } catch (error: any) {
     console.error('[AUTH] Registration error:', error)
-    return c.json({ error: 'Registration failed' }, 500)
+    // Return more specific error message
+    if (error.message?.includes('UNIQUE constraint')) {
+      return c.json({ error: 'Email already registered' }, 409)
+    }
+    return c.json({ 
+      error: 'Registration failed', 
+      details: error.message || 'Unknown error'
+    }, 500)
   }
 })
 
@@ -302,6 +322,37 @@ app.post('/api/auth/resend-verification', async (c) => {
   } catch (error: any) {
     console.error('[AUTH] Resend error:', error)
     return c.json({ error: 'Failed to resend verification' }, 500)
+  }
+})
+
+// DEV ONLY - Get verification link (for testing without email)
+app.get('/api/auth/dev/verification-link/:email', async (c) => {
+  try {
+    const email = c.req.param('email')
+    
+    const user = await c.env.DB.prepare(`
+      SELECT verification_token, email_verified FROM users WHERE email = ?
+    `).bind(email).first()
+    
+    if (!user) {
+      return c.json({ error: 'Email not found' }, 404)
+    }
+    
+    if (user.email_verified === 1) {
+      return c.json({ error: 'Email already verified', verified: true }, 400)
+    }
+    
+    const appUrl = c.env.APP_URL || 'http://localhost:3000'
+    const verificationUrl = `${appUrl}/verify-email?token=${user.verification_token}`
+    
+    return c.json({ 
+      success: true, 
+      verificationUrl,
+      message: 'Click this link to verify your email'
+    })
+  } catch (error: any) {
+    console.error('[DEV] Get verification link error:', error)
+    return c.json({ error: 'Failed to get verification link' }, 500)
   }
 })
 
@@ -2193,8 +2244,8 @@ app.get('/', (c) => {
         <div id="app"></div>
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
-        <script src="/static/crypto-v2.js?v=ALL-FIXES-V1"></script>
-        <script src="/static/app-v3.js?v=ALL-FIXES-V1"></script>
+        <script src="/static/crypto-v2.js?v=REG-FIX-V1"></script>
+        <script src="/static/app-v3.js?v=REG-FIX-V1"></script>
         
         <script>
           // Register service worker for PWA
