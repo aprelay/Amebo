@@ -2287,16 +2287,16 @@ class SecureChatApp {
             `;
         }
 
-        // Text message - Telegram style (SUPER compact!)
+        // Text message - Single line with time
         return `
             <div style="display: flex; justify-content: ${alignment}; margin-bottom: 2px;">
-                <div style="max-width: 70%; background: ${bubbleColor}; border-radius: 10px; padding: 5px 8px 3px 8px; box-shadow: 0 1px 0.5px rgba(0,0,0,0.05);">
-                    <div style="font-size: 13.5px; color: ${textColor}; word-wrap: break-word; white-space: pre-wrap; line-height: 1.3; margin-bottom: 1px;">
+                <div style="background: ${bubbleColor}; border-radius: 8px; padding: 4px 7px; box-shadow: 0 1px 0.5px rgba(0,0,0,0.05); display: inline-flex; align-items: baseline; gap: 6px;">
+                    <span style="font-size: 13.5px; color: ${textColor}; word-wrap: break-word; line-height: 1.3;">
                         ${this.escapeHtml(msg.decrypted || '[Encrypted]')}
-                    </div>
-                    <div style="font-size: 10px; color: ${timeColor}; text-align: right; line-height: 1; margin-top: 1px;">
+                    </span>
+                    <span style="font-size: 10px; color: ${timeColor}; white-space: nowrap; flex-shrink: 0;">
                         ${time}
-                    </div>
+                    </span>
                 </div>
             </div>
         `;
