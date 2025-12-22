@@ -2704,16 +2704,16 @@ class SecureChatApp {
         
         this.isLoadingMessages = true;
         
-        try {
-            const container = document.getElementById('messages');
-            if (!container) {
-                console.error('[V3] Messages container not found!');
-                return;
-            }
-            
-            // Track if this is initial load or update
-            const isInitialLoad = !this.messages || this.messages.length === 0;
+        const container = document.getElementById('messages');
+        if (!container) {
+            console.error('[V3] Messages container not found!');
+            this.isLoadingMessages = false;
+            return;
+        }
         
+        // Track if this is initial load or update
+        const isInitialLoad = !this.messages || this.messages.length === 0;
+    
         // Check cache first (only on initial load)
         if (isInitialLoad) {
             const cachedMessages = this.messageCache.get(this.currentRoom.id);
