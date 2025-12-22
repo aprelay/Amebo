@@ -37,12 +37,20 @@ class SecureChatApp {
         this.notificationPermissionChecked = false;
         this.pendingNotifications = []; // Backup queue for retry
         
-        // Voice note recording
+        // Voice note recording (WhatsApp-style with gestures)
         this.mediaRecorder = null;
         this.audioChunks = [];
         this.recordingStartTime = null;
         this.recordingTimer = null;
         this.isRecording = false;
+        this.isRecordingLocked = false; // Hands-free mode after slide up
+        
+        // Touch/mouse tracking for slide gestures
+        this.recordingStartX = 0;
+        this.recordingStartY = 0;
+        this.currentX = 0;
+        this.currentY = 0;
+        this.slideIndicator = null; // Visual feedback element
         
         // Recursion guard for loadMessages
         this.isLoadingMessages = false;
@@ -2224,22 +2232,76 @@ class SecureChatApp {
             console.log('[INIT] Voice button element:', voiceBtn);
             
             if (voiceBtn) {
-                console.log('[INIT] ✅ Button found! Removing old listeners and attaching new one');
+                console.log('[INIT] ✅ Button found! Setting up WhatsApp-style hold-to-record');
                 
                 // CRITICAL FIX: Clone and replace the button to remove ALL old event listeners
                 // This prevents stacking listeners when opening the room multiple times
                 const newVoiceBtn = voiceBtn.cloneNode(true);
                 voiceBtn.parentNode.replaceChild(newVoiceBtn, voiceBtn);
                 
-                // Now attach the click handler to the fresh button (no stacked listeners!)
-                newVoiceBtn.addEventListener('click', () => {
-                    console.log('[INIT] 🎯 Voice button clicked!');
-                    this.handleButtonClick();
+                // WhatsApp-style gesture controls:
+                // - Click button when text exists = SEND MESSAGE
+                // - Hold button to record voice note
+                // - Slide left to cancel
+                // - Slide up to lock (hands-free)
+                // - Release to send
+                
+                // Click event for sending text messages (when button shows send icon)
+                newVoiceBtn.addEventListener('click', (e) => {
+                    const hasText = document.getElementById('messageInput')?.value.trim().length > 0;
+                    if (hasText) {
+                        console.log('[SEND] Sending text message via click');
+                        this.sendMessage();
+                    }
+                });
+                
+                // Mouse events (desktop) - for voice recording
+                newVoiceBtn.addEventListener('mousedown', (e) => {
+                    const hasText = document.getElementById('messageInput')?.value.trim().length > 0;
+                    if (!hasText) { // Only start recording if no text
+                        e.preventDefault();
+                        this.startVoiceRecordingGesture(e.clientX, e.clientY);
+                    }
+                });
+                
+                document.addEventListener('mousemove', (e) => {
+                    if (this.isRecording && !this.isRecordingLocked) {
+                        this.updateVoiceRecordingGesture(e.clientX, e.clientY);
+                    }
+                });
+                
+                document.addEventListener('mouseup', (e) => {
+                    if (this.isRecording && !this.isRecordingLocked) {
+                        this.endVoiceRecordingGesture();
+                    }
+                });
+                
+                // Touch events (mobile) - for voice recording
+                newVoiceBtn.addEventListener('touchstart', (e) => {
+                    const hasText = document.getElementById('messageInput')?.value.trim().length > 0;
+                    if (!hasText) { // Only start recording if no text
+                        e.preventDefault();
+                        const touch = e.touches[0];
+                        this.startVoiceRecordingGesture(touch.clientX, touch.clientY);
+                    }
+                });
+                
+                document.addEventListener('touchmove', (e) => {
+                    if (this.isRecording && !this.isRecordingLocked) {
+                        const touch = e.touches[0];
+                        this.updateVoiceRecordingGesture(touch.clientX, touch.clientY);
+                    }
+                });
+                
+                document.addEventListener('touchend', (e) => {
+                    if (this.isRecording && !this.isRecordingLocked) {
+                        this.endVoiceRecordingGesture();
+                    }
                 });
                 
                 // Set initial button state
                 this.handleMessageInput();
-                console.log('[INIT] ✅ Button initialized successfully (old listeners removed)');
+                console.log('[INIT] ✅ Button initialized with WhatsApp-style gestures (hold, slide, release)');
             } else {
                 console.error('[INIT] ❌ Voice button not found! Attempt:', attempts);
                 
@@ -3187,6 +3249,206 @@ class SecureChatApp {
         }
     }
 
+    // ========================================
+    // WhatsApp-Style Voice Recording Gestures
+    // ========================================
+    
+    async startVoiceRecordingGesture(x, y) {
+        console.log('[VOICE] 🎤 Hold started at:', x, y);
+        
+        // Save starting position
+        this.recordingStartX = x;
+        this.recordingStartY = y;
+        this.currentX = x;
+        this.currentY = y;
+        
+        // Start recording immediately
+        await this.startRecording();
+        
+        // Create slide indicator overlay
+        this.createSlideIndicator();
+    }
+    
+    updateVoiceRecordingGesture(x, y) {
+        if (!this.isRecording || this.isRecordingLocked) return;
+        
+        this.currentX = x;
+        this.currentY = y;
+        
+        const deltaX = this.recordingStartX - x; // Left is positive
+        const deltaY = this.recordingStartY - y; // Up is positive
+        
+        console.log('[VOICE] Gesture delta - X:', deltaX, 'Y:', deltaY);
+        
+        // Check for slide left to CANCEL (>120px left)
+        if (deltaX > 120) {
+            console.log('[VOICE] ❌ Slide left detected - CANCELING');
+            this.cancelRecording();
+            return;
+        }
+        
+        // Check for slide up to LOCK (>120px up)
+        if (deltaY > 120) {
+            console.log('[VOICE] 🔒 Slide up detected - LOCKING hands-free mode');
+            this.lockRecording();
+            return;
+        }
+        
+        // Update slide indicator position
+        this.updateSlideIndicator(deltaX, deltaY);
+    }
+    
+    async endVoiceRecordingGesture() {
+        if (!this.isRecording) return;
+        
+        console.log('[VOICE] 🔴 Release detected - SENDING voice note');
+        
+        // Release = Send (if not cancelled/locked)
+        await this.stopRecording();
+        this.removeSlideIndicator();
+    }
+    
+    createSlideIndicator() {
+        // Remove any existing indicator
+        this.removeSlideIndicator();
+        
+        const indicator = document.createElement('div');
+        indicator.id = 'voiceSlideIndicator';
+        indicator.style.cssText = `
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 25px;
+            font-size: 14px;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        `;
+        
+        indicator.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-chevron-left" style="color: #ef4444;"></i>
+                <span style="font-size: 13px; opacity: 0.9;">Slide to cancel</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-chevron-up" style="color: #10b981;"></i>
+                <span style="font-size: 13px; opacity: 0.9;">Slide to lock</span>
+            </div>
+        `;
+        
+        document.body.appendChild(indicator);
+        this.slideIndicator = indicator;
+    }
+    
+    updateSlideIndicator(deltaX, deltaY) {
+        if (!this.slideIndicator) return;
+        
+        // Update opacity based on gesture progress
+        const cancelProgress = Math.min(deltaX / 120, 1);
+        const lockProgress = Math.min(deltaY / 120, 1);
+        
+        if (cancelProgress > 0.3) {
+            this.slideIndicator.style.background = 'rgba(239, 68, 68, 0.9)'; // Red
+        } else if (lockProgress > 0.3) {
+            this.slideIndicator.style.background = 'rgba(16, 185, 129, 0.9)'; // Green
+        } else {
+            this.slideIndicator.style.background = 'rgba(0, 0, 0, 0.8)'; // Default
+        }
+    }
+    
+    removeSlideIndicator() {
+        if (this.slideIndicator) {
+            this.slideIndicator.remove();
+            this.slideIndicator = null;
+        }
+    }
+    
+    lockRecording() {
+        if (!this.isRecording) return;
+        
+        console.log('[VOICE] 🔒 Recording LOCKED - Hands-free mode activated');
+        this.isRecordingLocked = true;
+        
+        // Remove slide indicator
+        this.removeSlideIndicator();
+        
+        // Update UI to show locked state with send/cancel buttons
+        this.updateLockedRecordingUI();
+    }
+    
+    async cancelRecording() {
+        if (!this.isRecording) return;
+        
+        console.log('[VOICE] ❌ Recording CANCELLED');
+        
+        // Stop recording without sending
+        this.isRecording = false;
+        
+        if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+            this.mediaRecorder.stop();
+        }
+        
+        // Stop all media tracks
+        if (this.mediaRecorder && this.mediaRecorder.stream) {
+            this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        }
+        
+        // Clear chunks (don't process)
+        this.audioChunks = [];
+        
+        // Stop timer
+        this.stopRecordingTimer();
+        
+        // Reset UI
+        this.updateRecordingUI(false);
+        this.removeSlideIndicator();
+        
+        // Reset button to microphone
+        this.handleMessageInput();
+    }
+    
+    updateLockedRecordingUI() {
+        const recordingTimer = document.getElementById('recordingTimer');
+        const voiceBtn = document.getElementById('voiceNoteBtn');
+        
+        if (recordingTimer) {
+            recordingTimer.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 15px; background: #25d366; padding: 10px 20px; border-radius: 25px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 8px; height: 8px; border-radius: 50%; background: white; animation: pulse 1s infinite;"></div>
+                        <span id="recordingTime" style="color: white; font-weight: 600;">0:00</span>
+                    </div>
+                    <button onclick="app.stopAndSendRecording()" style="background: white; color: #25d366; border: none; padding: 8px 16px; border-radius: 15px; font-weight: 600; cursor: pointer;">
+                        <i class="fas fa-paper-plane"></i> Send
+                    </button>
+                    <button onclick="app.cancelRecording()" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 15px; font-weight: 600; cursor: pointer;">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </div>
+            `;
+            recordingTimer.style.display = 'flex';
+        }
+        
+        // Hide the voice button when locked
+        if (voiceBtn) {
+            voiceBtn.style.display = 'none';
+        }
+    }
+    
+    async stopAndSendRecording() {
+        if (!this.isRecording) return;
+        
+        console.log('[VOICE] 📤 Sending locked recording');
+        this.isRecordingLocked = false;
+        await this.stopRecording();
+    }
+
     // Voice Note Recording Functions
     async toggleVoiceRecording() {
         if (this.isRecording) {
@@ -3293,25 +3555,35 @@ class SecureChatApp {
         
         if (!voiceBtn) return;
         
-        if (isRecording) {
-            // Show recording state
-            voiceBtn.style.background = '#dc2626';
-            voiceBtn.style.animation = 'pulse 1.5s ease-in-out infinite';
-            voiceBtn.innerHTML = '<i class="fas fa-stop"></i>';
-            voiceBtn.title = 'Stop Recording';
+        if (isRecording && !this.isRecordingLocked) {
+            // WhatsApp-style: Keep mic icon while holding
+            // Only show timer
+            voiceBtn.style.background = '#25d366';
+            voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+            voiceBtn.title = 'Recording...';
             
-            if (recordingTimer) recordingTimer.style.display = 'block';
-            if (messageInput) messageInput.placeholder = '🎤 Recording voice note...';
-        } else {
+            if (recordingTimer) {
+                recordingTimer.style.display = 'flex';
+                recordingTimer.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px; padding: 5px 15px; background: rgba(0,0,0,0.1); border-radius: 20px;">
+                        <div style="width: 8px; height: 8px; border-radius: 50%; background: #dc2626; animation: pulse 1s infinite;"></div>
+                        <span id="recordingTime" style="font-weight: 600; color: #666;">0:00</span>
+                    </div>
+                `;
+            }
+            if (messageInput) messageInput.placeholder = '🎤 Recording...';
+        } else if (!isRecording) {
             // Reset to normal state
             voiceBtn.style.background = '#25d366';
             voiceBtn.style.animation = 'none';
+            voiceBtn.style.display = 'flex'; // Show button again
             voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
             voiceBtn.title = 'Voice Note';
             
             if (recordingTimer) recordingTimer.style.display = 'none';
             if (messageInput) messageInput.placeholder = 'Type a message';
         }
+        // Note: Locked state is handled separately in updateLockedRecordingUI()
     }
 
     async processRecording() {
