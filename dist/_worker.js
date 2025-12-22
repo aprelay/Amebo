@@ -1116,34 +1116,34 @@ var Tr=Object.defineProperty;var We=e=>{throw TypeError(e)};var Dr=(e,r,t)=>r in
       JOIN users u ON mr.user_id = u.id
       WHERE mr.message_id = ?
       ORDER BY mr.read_at ASC
-    `).bind(r).all();return e.json({receipts:t.results||[]})}catch(r){return console.error("[RECEIPTS] Get receipts error:",r),e.json({error:"Failed to get read receipts"},500)}});p.get("*",e=>(p.post("/api/profile/nickname",async r=>{try{const{userId:t,targetUserId:s,roomId:n,nickname:a}=await r.req.json();if(!t||!a)return r.json({error:"User ID and nickname required"},400);const o=crypto.randomUUID();return await r.env.DB.prepare(`
+    `).bind(r).all();return e.json({receipts:t.results||[]})}catch(r){return console.error("[RECEIPTS] Get receipts error:",r),e.json({error:"Failed to get read receipts"},500)}});p.post("/api/profile/nickname",async e=>{try{const{userId:r,targetUserId:t,roomId:s,nickname:n}=await e.req.json();if(!r||!n)return e.json({error:"User ID and nickname required"},400);const a=crypto.randomUUID();return await e.env.DB.prepare(`
       INSERT INTO custom_nicknames (id, user_id, target_user_id, room_id, nickname, created_at)
       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(user_id, target_user_id, room_id) 
       DO UPDATE SET nickname = ?, updated_at = CURRENT_TIMESTAMP
-    `).bind(o,t,s||null,n||null,a,a).run(),r.json({success:!0,nickname:a})}catch(t){return console.error("[PROFILE] Set nickname error:",t),r.json({error:"Failed to set nickname"},500)}}),p.get("/api/profile/nickname/:userId/:targetUserId",async r=>{try{const t=r.req.param("userId"),s=r.req.param("targetUserId"),n=await r.env.DB.prepare(`
+    `).bind(a,r,t||null,s||null,n,n).run(),e.json({success:!0,nickname:n})}catch(r){return console.error("[PROFILE] Set nickname error:",r),e.json({error:"Failed to set nickname"},500)}});p.get("/api/profile/nickname/:userId/:targetUserId",async e=>{try{const r=e.req.param("userId"),t=e.req.param("targetUserId"),s=await e.env.DB.prepare(`
       SELECT nickname FROM custom_nicknames 
       WHERE user_id = ? AND target_user_id = ?
-    `).bind(t,s).first();return r.json({nickname:(n==null?void 0:n.nickname)||null})}catch(t){return console.error("[PROFILE] Get nickname error:",t),r.json({error:"Failed to get nickname"},500)}}),p.post("/api/profile/mute",async r=>{try{const{userId:t,roomId:s,duration:n}=await r.req.json();if(!t||!s)return r.json({error:"User ID and room ID required"},400);const a=n===-1?"2099-12-31 23:59:59":new Date(Date.now()+n*1e3).toISOString();return await r.env.DB.prepare(`
+    `).bind(r,t).first();return e.json({nickname:(s==null?void 0:s.nickname)||null})}catch(r){return console.error("[PROFILE] Get nickname error:",r),e.json({error:"Failed to get nickname"},500)}});p.post("/api/profile/mute",async e=>{try{const{userId:r,roomId:t,duration:s}=await e.req.json();if(!r||!t)return e.json({error:"User ID and room ID required"},400);const n=s===-1?"2099-12-31 23:59:59":new Date(Date.now()+s*1e3).toISOString();return await e.env.DB.prepare(`
       INSERT INTO muted_chats (user_id, room_id, muted_until, created_at)
       VALUES (?, ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(user_id, room_id) 
       DO UPDATE SET muted_until = ?, updated_at = CURRENT_TIMESTAMP
-    `).bind(t,s,a,a).run(),r.json({success:!0,mutedUntil:a})}catch(t){return console.error("[PROFILE] Mute chat error:",t),r.json({error:"Failed to mute chat"},500)}}),p.get("/api/profile/mute/:userId/:roomId",async r=>{try{const t=r.req.param("userId"),s=r.req.param("roomId"),n=await r.env.DB.prepare(`
+    `).bind(r,t,n,n).run(),e.json({success:!0,mutedUntil:n})}catch(r){return console.error("[PROFILE] Mute chat error:",r),e.json({error:"Failed to mute chat"},500)}});p.get("/api/profile/mute/:userId/:roomId",async e=>{try{const r=e.req.param("userId"),t=e.req.param("roomId"),s=await e.env.DB.prepare(`
       SELECT muted_until FROM muted_chats 
       WHERE user_id = ? AND room_id = ? AND muted_until > CURRENT_TIMESTAMP
-    `).bind(t,s).first();return r.json({isMuted:!!n,mutedUntil:(n==null?void 0:n.muted_until)||null})}catch(t){return console.error("[PROFILE] Check mute error:",t),r.json({error:"Failed to check mute status"},500)}}),p.delete("/api/profile/mute/:userId/:roomId",async r=>{try{const t=r.req.param("userId"),s=r.req.param("roomId");return await r.env.DB.prepare(`
+    `).bind(r,t).first();return e.json({isMuted:!!s,mutedUntil:(s==null?void 0:s.muted_until)||null})}catch(r){return console.error("[PROFILE] Check mute error:",r),e.json({error:"Failed to check mute status"},500)}});p.delete("/api/profile/mute/:userId/:roomId",async e=>{try{const r=e.req.param("userId"),t=e.req.param("roomId");return await e.env.DB.prepare(`
       DELETE FROM muted_chats WHERE user_id = ? AND room_id = ?
-    `).bind(t,s).run(),r.json({success:!0})}catch(t){return console.error("[PROFILE] Unmute chat error:",t),r.json({error:"Failed to unmute chat"},500)}}),p.get("/api/profile/media/:roomId",async r=>{try{const t=r.req.param("roomId"),s=r.req.query("type")||"all";let n="";s==="photos"?n="AND json_extract(file_metadata, '$.type') LIKE 'image/%'":s==="videos"?n="AND json_extract(file_metadata, '$.type') LIKE 'video/%'":s==="files"&&(n="AND json_extract(file_metadata, '$.type') NOT LIKE 'image/%' AND json_extract(file_metadata, '$.type') NOT LIKE 'video/%'");const a=await r.env.DB.prepare(`
+    `).bind(r,t).run(),e.json({success:!0})}catch(r){return console.error("[PROFILE] Unmute chat error:",r),e.json({error:"Failed to unmute chat"},500)}});p.get("/api/profile/media/:roomId",async e=>{try{const r=e.req.param("roomId"),t=e.req.query("type")||"all";let s="";t==="photos"?s="AND json_extract(file_metadata, '$.type') LIKE 'image/%'":t==="videos"?s="AND json_extract(file_metadata, '$.type') LIKE 'video/%'":t==="files"&&(s="AND json_extract(file_metadata, '$.type') NOT LIKE 'image/%' AND json_extract(file_metadata, '$.type') NOT LIKE 'video/%'");const n=await e.env.DB.prepare(`
       SELECT 
         m.id, m.sender_id, m.file_metadata, m.created_at,
         u.username, u.avatar
       FROM messages m
       JOIN users u ON m.sender_id = u.id
-      WHERE m.room_id = ? AND m.is_file = 1 ${n}
+      WHERE m.room_id = ? AND m.is_file = 1 ${s}
       ORDER BY m.created_at DESC
       LIMIT 100
-    `).bind(t).all();return r.json({media:a.results||[]})}catch(t){return console.error("[PROFILE] Get media error:",t),r.json({error:"Failed to get media"},500)}}),p.get("/api/profile/search/:roomId",async r=>{try{const t=r.req.param("roomId"),s=r.req.query("q")||"";if(!s||s.length<2)return r.json({results:[]});const n=await r.env.DB.prepare(`
+    `).bind(r).all();return e.json({media:n.results||[]})}catch(r){return console.error("[PROFILE] Get media error:",r),e.json({error:"Failed to get media"},500)}});p.get("/api/profile/search/:roomId",async e=>{try{const r=e.req.param("roomId"),t=e.req.query("q")||"";if(!t||t.length<2)return e.json({results:[]});const s=await e.env.DB.prepare(`
       SELECT 
         m.id, m.sender_id, m.encrypted_content, m.iv, m.created_at,
         u.username, u.avatar
@@ -1152,37 +1152,37 @@ var Tr=Object.defineProperty;var We=e=>{throw TypeError(e)};var Dr=(e,r,t)=>r in
       WHERE m.room_id = ? 
       ORDER BY m.created_at DESC
       LIMIT 50
-    `).bind(t).all();return r.json({results:n.results||[]})}catch(t){return console.error("[PROFILE] Search error:",t),r.json({error:"Failed to search messages"},500)}}),p.post("/api/profile/group/update",async r=>{try{const{roomId:t,userId:s,roomName:n,description:a,avatar:o}=await r.req.json();if(!t||!s)return r.json({error:"Room ID and user ID required"},400);const i=await r.env.DB.prepare(`
+    `).bind(r).all();return e.json({results:s.results||[]})}catch(r){return console.error("[PROFILE] Search error:",r),e.json({error:"Failed to search messages"},500)}});p.post("/api/profile/group/update",async e=>{try{const{roomId:r,userId:t,roomName:s,description:n,avatar:a}=await e.req.json();if(!r||!t)return e.json({error:"Room ID and user ID required"},400);const o=await e.env.DB.prepare(`
       SELECT created_by FROM rooms WHERE id = ?
-    `).bind(t).first();return!i||i.created_by!==s?r.json({error:"Only group admin can update info"},403):(await r.env.DB.prepare(`
+    `).bind(r).first();return!o||o.created_by!==t?e.json({error:"Only group admin can update info"},403):(await e.env.DB.prepare(`
       UPDATE rooms 
       SET room_name = ?, description = ?, avatar = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).bind(n,a||null,o||null,t).run(),r.json({success:!0}))}catch(t){return console.error("[PROFILE] Update group error:",t),r.json({error:"Failed to update group"},500)}}),p.post("/api/profile/group/permissions",async r=>{try{const{roomId:t,userId:s,permission:n,value:a}=await r.req.json();if(!t||!s||!n)return r.json({error:"Missing required fields"},400);const o=await r.env.DB.prepare(`
+    `).bind(s,n||null,a||null,r).run(),e.json({success:!0}))}catch(r){return console.error("[PROFILE] Update group error:",r),e.json({error:"Failed to update group"},500)}});p.post("/api/profile/group/permissions",async e=>{try{const{roomId:r,userId:t,permission:s,value:n}=await e.req.json();if(!r||!t||!s)return e.json({error:"Missing required fields"},400);const a=await e.env.DB.prepare(`
       SELECT created_by FROM rooms WHERE id = ?
-    `).bind(t).first();return!o||o.created_by!==s?r.json({error:"Only group admin can change permissions"},403):(await r.env.DB.prepare(`
+    `).bind(r).first();return!a||a.created_by!==t?e.json({error:"Only group admin can change permissions"},403):(await e.env.DB.prepare(`
       INSERT INTO group_permissions (room_id, permission_type, permission_value, created_at)
       VALUES (?, ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(room_id, permission_type) 
       DO UPDATE SET permission_value = ?, updated_at = CURRENT_TIMESTAMP
-    `).bind(t,n,a,a).run(),r.json({success:!0}))}catch(t){return console.error("[PROFILE] Set permissions error:",t),r.json({error:"Failed to set permissions"},500)}}),p.get("/api/profile/group/permissions/:roomId",async r=>{var t;try{const s=r.req.param("roomId"),n=await r.env.DB.prepare(`
+    `).bind(r,s,n,n).run(),e.json({success:!0}))}catch(r){return console.error("[PROFILE] Set permissions error:",r),e.json({error:"Failed to set permissions"},500)}});p.get("/api/profile/group/permissions/:roomId",async e=>{var r;try{const t=e.req.param("roomId"),s=await e.env.DB.prepare(`
       SELECT permission_type, permission_value 
       FROM group_permissions 
       WHERE room_id = ?
-    `).bind(s).all(),a={messages:"everyone",add_members:"admins",edit_info:"admins"};return(t=n.results)==null||t.forEach(o=>{a[o.permission_type]=o.permission_value}),r.json({permissions:a})}catch(s){return console.error("[PROFILE] Get permissions error:",s),r.json({error:"Failed to get permissions"},500)}}),p.post("/api/profile/group/privacy",async r=>{try{const{roomId:t,userId:s,privacy:n}=await r.req.json();if(!t||!s||!n)return r.json({error:"Missing required fields"},400);const a=await r.env.DB.prepare(`
+    `).bind(t).all(),n={messages:"everyone",add_members:"admins",edit_info:"admins"};return(r=s.results)==null||r.forEach(a=>{n[a.permission_type]=a.permission_value}),e.json({permissions:n})}catch(t){return console.error("[PROFILE] Get permissions error:",t),e.json({error:"Failed to get permissions"},500)}});p.post("/api/profile/group/privacy",async e=>{try{const{roomId:r,userId:t,privacy:s}=await e.req.json();if(!r||!t||!s)return e.json({error:"Missing required fields"},400);const n=await e.env.DB.prepare(`
       SELECT created_by FROM rooms WHERE id = ?
-    `).bind(t).first();return!a||a.created_by!==s?r.json({error:"Only group admin can change privacy"},403):(await r.env.DB.prepare(`
+    `).bind(r).first();return!n||n.created_by!==t?e.json({error:"Only group admin can change privacy"},403):(await e.env.DB.prepare(`
       UPDATE rooms SET privacy = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
-    `).bind(n,t).run(),r.json({success:!0}))}catch(t){return console.error("[PROFILE] Set privacy error:",t),r.json({error:"Failed to set privacy"},500)}}),p.post("/api/profile/report/user",async r=>{try{const{reporterId:t,reportedUserId:s,reason:n,description:a}=await r.req.json();if(!t||!s||!n)return r.json({error:"Missing required fields"},400);const o=crypto.randomUUID();return await r.env.DB.prepare(`
+    `).bind(s,r).run(),e.json({success:!0}))}catch(r){return console.error("[PROFILE] Set privacy error:",r),e.json({error:"Failed to set privacy"},500)}});p.post("/api/profile/report/user",async e=>{try{const{reporterId:r,reportedUserId:t,reason:s,description:n}=await e.req.json();if(!r||!t||!s)return e.json({error:"Missing required fields"},400);const a=crypto.randomUUID();return await e.env.DB.prepare(`
       INSERT INTO reports (id, reporter_id, reported_user_id, reason, description, status, created_at)
       VALUES (?, ?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP)
-    `).bind(o,t,s,n,a||null).run(),r.json({success:!0,reportId:o})}catch(t){return console.error("[PROFILE] Report user error:",t),r.json({error:"Failed to report user"},500)}}),p.post("/api/profile/report/group",async r=>{try{const{reporterId:t,roomId:s,reason:n,description:a}=await r.req.json();if(!t||!s||!n)return r.json({error:"Missing required fields"},400);const o=crypto.randomUUID();return await r.env.DB.prepare(`
+    `).bind(a,r,t,s,n||null).run(),e.json({success:!0,reportId:a})}catch(r){return console.error("[PROFILE] Report user error:",r),e.json({error:"Failed to report user"},500)}});p.post("/api/profile/report/group",async e=>{try{const{reporterId:r,roomId:t,reason:s,description:n}=await e.req.json();if(!r||!t||!s)return e.json({error:"Missing required fields"},400);const a=crypto.randomUUID();return await e.env.DB.prepare(`
       INSERT INTO reports (id, reporter_id, reported_room_id, reason, description, status, created_at)
       VALUES (?, ?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP)
-    `).bind(o,t,s,n,a||null).run(),r.json({success:!0,reportId:o})}catch(t){return console.error("[PROFILE] Report group error:",t),r.json({error:"Failed to report group"},500)}}),p.delete("/api/profile/clear/:userId/:roomId",async r=>{try{const t=r.req.param("userId"),s=r.req.param("roomId");return await r.env.DB.prepare(`
+    `).bind(a,r,t,s,n||null).run(),e.json({success:!0,reportId:a})}catch(r){return console.error("[PROFILE] Report group error:",r),e.json({error:"Failed to report group"},500)}});p.delete("/api/profile/clear/:userId/:roomId",async e=>{try{const r=e.req.param("userId"),t=e.req.param("roomId");return await e.env.DB.prepare(`
       INSERT INTO deleted_messages (user_id, message_id)
       SELECT ?, id FROM messages WHERE room_id = ?
-    `).bind(t,s).run(),r.json({success:!0})}catch(t){return console.error("[PROFILE] Clear chat error:",t),r.json({error:"Failed to clear chat"},500)}}),p.get("/api/profile/export/:roomId",async r=>{var t,s;try{const n=r.req.param("roomId");console.log(`[EXPORT] Exporting chat for room: ${n}`);const a=await r.env.DB.prepare(`
+    `).bind(r,t).run(),e.json({success:!0})}catch(r){return console.error("[PROFILE] Clear chat error:",r),e.json({error:"Failed to clear chat"},500)}});p.get("/api/profile/export/:roomId",async e=>{var r,t;try{const s=e.req.param("roomId");console.log(`[EXPORT] Exporting chat for room: ${s}`);const n=await e.env.DB.prepare(`
       SELECT 
         m.id, m.encrypted_content, m.iv, m.is_file, m.file_metadata, m.created_at,
         u.username, u.id as sender_id
@@ -1190,7 +1190,7 @@ var Tr=Object.defineProperty;var We=e=>{throw TypeError(e)};var Dr=(e,r,t)=>r in
       JOIN users u ON m.sender_id = u.id
       WHERE m.room_id = ?
       ORDER BY m.created_at ASC
-    `).bind(n).all();return console.log(`[EXPORT] Found ${((t=a.results)==null?void 0:t.length)||0} messages`),r.json({success:!0,messages:a.results||[],messageCount:((s=a.results)==null?void 0:s.length)||0,exportedAt:new Date().toISOString()})}catch(n){return console.error("[PROFILE] Export chat error:",n),r.json({error:"Failed to export chat",details:n.message},500)}}),e.req.path.startsWith("/api/")||e.req.path.startsWith("/static/")?e.notFound():e.html(`
+    `).bind(s).all();return console.log(`[EXPORT] Found ${((r=n.results)==null?void 0:r.length)||0} messages`),e.json({success:!0,messages:n.results||[],messageCount:((t=n.results)==null?void 0:t.length)||0,exportedAt:new Date().toISOString()})}catch(s){return console.error("[PROFILE] Export chat error:",s),e.json({error:"Failed to export chat",details:s.message},500)}});p.get("*",e=>e.req.path.startsWith("/api/")||e.req.path.startsWith("/static/")?e.notFound():e.html(`
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -1206,12 +1206,12 @@ var Tr=Object.defineProperty;var We=e=>{throw TypeError(e)};var Dr=(e,r,t)=>r in
     <body class="bg-gray-100">
         <div id="app"></div>
         
-        <script src="/static/crypto-v2.js"><\/script>
-        <script src="/static/app-v3.js?v=20251220-v8"><\/script>
+        <script src="/static/crypto-v2.js?v=UNVERIFIED-FIX-V1"><\/script>
+        <script src="/static/app-v3.js?v=UNVERIFIED-FIX-V1"><\/script>
         <script>
             const app = new SecureChatApp();
             app.init();
         <\/script>
     </body>
     </html>
-  `)));const ze=new _r,wt=Object.assign({"/src/index.tsx":p});let Rr=!1;for(const[,e]of Object.entries(wt))e&&(ze.all("*",r=>{let t;try{t=r.executionCtx}catch{}return e.fetch(r.req.raw,r.env,t)}),ze.notFound(r=>{let t;try{t=r.executionCtx}catch{}return e.fetch(r.req.raw,r.env,t)}),Rr=!0);if(!Rr)throw new Error("Can't import modules from ['/src/index.ts','/src/index.tsx','/app/server.ts']");export{ze as default};
+  `));const ze=new _r,wt=Object.assign({"/src/index.tsx":p});let Rr=!1;for(const[,e]of Object.entries(wt))e&&(ze.all("*",r=>{let t;try{t=r.executionCtx}catch{}return e.fetch(r.req.raw,r.env,t)}),ze.notFound(r=>{let t;try{t=r.executionCtx}catch{}return e.fetch(r.req.raw,r.env,t)}),Rr=!0);if(!Rr)throw new Error("Can't import modules from ['/src/index.ts','/src/index.tsx','/app/server.ts']");export{ze as default};

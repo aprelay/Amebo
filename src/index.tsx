@@ -4893,10 +4893,7 @@ app.get('/api/messages/:messageId/receipts', async (c) => {
   }
 })
 
-// Catch-all route - serve HTML for all non-API routes (for client-side routing)
-app.get('*', (c) => {
-  // Check if it's an API route
-  // ==================== PROFILE & CHAT MANAGEMENT ====================
+// ==================== PROFILE & CHAT MANAGEMENT ====================
 
 // Set custom nickname for a user/room
 app.post('/api/profile/nickname', async (c) => {
@@ -5288,6 +5285,8 @@ app.get('/api/profile/export/:roomId', async (c) => {
   }
 })
 
+// Catch-all route - serve HTML for all non-API routes (client-side routing)
+app.get('*', (c) => {
   if (c.req.path.startsWith('/api/') || c.req.path.startsWith('/static/')) {
     return c.notFound()
   }
@@ -5309,8 +5308,8 @@ app.get('/api/profile/export/:roomId', async (c) => {
     <body class="bg-gray-100">
         <div id="app"></div>
         
-        <script src="/static/crypto-v2.js"></script>
-        <script src="/static/app-v3.js?v=20251220-v8"></script>
+        <script src="/static/crypto-v2.js?v=UNVERIFIED-FIX-V1"></script>
+        <script src="/static/app-v3.js?v=UNVERIFIED-FIX-V1"></script>
         <script>
             const app = new SecureChatApp();
             app.init();
