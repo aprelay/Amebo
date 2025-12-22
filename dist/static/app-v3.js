@@ -834,6 +834,33 @@ class SecureChatApp {
         }
     }
 
+    // Format timestamp in WhatsApp style
+    formatTimestamp(timestamp) {
+        if (!timestamp) return '';
+        
+        const date = new Date(timestamp);
+        const now = new Date();
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        const isToday = date.toDateString() === now.toDateString();
+        const isYesterday = date.toDateString() === yesterday.toDateString();
+        const isThisWeek = (now - date) / (1000 * 60 * 60 * 24) < 7;
+        
+        if (isToday) {
+            // Show time: "10:30 AM"
+            return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        } else if (isYesterday) {
+            return 'Yesterday';
+        } else if (isThisWeek) {
+            // Show day name: "Monday"
+            return date.toLocaleDateString('en-US', { weekday: 'long' });
+        } else {
+            // Show date: "12/15/24"
+            return date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' });
+        }
+    }
+
     showAuth() {
         console.log('[V3] Rendering email auth page');
         document.getElementById('app').innerHTML = `
@@ -1682,32 +1709,54 @@ class SecureChatApp {
                     listEl.innerHTML = this.rooms.map(room => {
                         // Get unread message count for this room
                         const unreadCount = this.unreadCounts.get(room.id) || 0;
-                        const showCount = unreadCount > 0;
+                        const hasUnread = unreadCount > 0;
                         
                         return `
                         <div class="room-item-wrapper relative overflow-hidden" data-room-id="${room.id}">
                             <div 
-                                class="room-item p-4 border border-gray-200 rounded-lg bg-white cursor-pointer transition-transform relative z-10"
+                                class="room-item p-4 border-b border-gray-200 bg-white cursor-pointer hover:bg-gray-50 transition-colors relative z-10"
                                 data-room-id="${room.id}"
                                 data-room-code="${room.room_code}"
                             >
-                                <div class="flex justify-between items-center">
-                                    <div class="flex-1">
-                                        <h3 class="font-semibold flex items-center gap-2">
-                                            <i class="fas fa-lock text-purple-600"></i>
-                                            ${room.room_name || room.room_code}
-                                        </h3>
-                                        <p class="text-sm text-gray-600">Code: ${room.room_code}</p>
+                                <div class="flex items-center gap-3">
+                                    <!-- Avatar / Icon -->
+                                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                                        <i class="fas fa-${room.is_group ? 'users' : 'user'} text-white text-lg"></i>
                                     </div>
-                                    <div class="flex items-center gap-3">
-                                        <div class="unread-badge-container">
-                                            ${showCount ? `<span class="bg-purple-600 text-white text-xs font-bold rounded-full px-2.5 py-1 min-w-[28px] text-center">${unreadCount}</span>` : ''}
+                                    
+                                    <!-- Chat Info -->
+                                    <div class="flex-1 min-w-0">
+                                        <!-- Name and Time -->
+                                        <div class="flex justify-between items-baseline mb-1">
+                                            <h3 class="${hasUnread ? 'font-bold' : 'font-semibold'} text-gray-900 truncate pr-2">
+                                                ${room.room_name || room.room_code}
+                                            </h3>
+                                            <span class="text-xs ${hasUnread ? 'text-green-600 font-semibold' : 'text-gray-500'} whitespace-nowrap">
+                                                ${this.formatTimestamp(room.last_message_at || room.created_at)}
+                                            </span>
                                         </div>
-                                        <i class="fas fa-chevron-right text-gray-400"></i>
+                                        
+                                        <!-- Last Message Preview and Badge -->
+                                        <div class="flex justify-between items-center gap-2">
+                                            <p class="text-sm ${hasUnread ? 'font-medium text-gray-700' : 'text-gray-500'} truncate flex-1">
+                                                <i class="fas fa-lock text-purple-500 text-xs mr-1"></i>
+                                                ${room.last_message_preview || 'No messages yet'}
+                                            </p>
+                                            
+                                            <!-- Unread Badge (WhatsApp style) -->
+                                            <div class="unread-badge-container flex-shrink-0">
+                                                ${hasUnread ? `
+                                                <span class="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-green-500 text-white text-xs font-bold rounded-full">
+                                                    ${unreadCount > 999 ? '999+' : unreadCount}
+                                                </span>
+                                                ` : ''}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="delete-button absolute right-0 top-0 h-full bg-red-600 text-white flex items-center justify-center rounded-r-lg z-0" style="width: 80px;">
+                            <!-- Swipe Delete Button -->
+                            <div class="delete-button absolute right-0 top-0 h-full bg-red-600 text-white flex items-center justify-center z-0" style="width: 80px;">
                                 <i class="fas fa-trash text-xl"></i>
                             </div>
                         </div>
@@ -3684,11 +3733,46 @@ class SecureChatApp {
                 return; // Just wait for next full refresh
             }
             
-            // Update badge
+            // Update badge and chat name styling
             if (unreadCount > 0) {
-                badgeContainer.innerHTML = `<span class="bg-purple-600 text-white text-xs font-bold rounded-full px-2.5 py-1 min-w-[28px] text-center">${unreadCount}</span>`;
+                // WhatsApp-style green badge
+                badgeContainer.innerHTML = `<span class="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-green-500 text-white text-xs font-bold rounded-full">${unreadCount > 999 ? '999+' : unreadCount}</span>`;
+                
+                // Make chat name bold
+                const chatName = roomElement.querySelector('h3');
+                if (chatName) {
+                    chatName.className = chatName.className.replace('font-semibold', 'font-bold');
+                }
+                
+                // Make timestamp green
+                const timestamp = roomElement.querySelector('.text-xs');
+                if (timestamp) {
+                    timestamp.className = 'text-xs text-green-600 font-semibold whitespace-nowrap';
+                }
+                
+                // Make preview bold
+                const preview = roomElement.querySelector('.text-sm');
+                if (preview) {
+                    preview.className = preview.className.replace('text-gray-500', 'font-medium text-gray-700');
+                }
             } else {
                 badgeContainer.innerHTML = '';
+                
+                // Restore normal styling
+                const chatName = roomElement.querySelector('h3');
+                if (chatName) {
+                    chatName.className = chatName.className.replace('font-bold', 'font-semibold');
+                }
+                
+                const timestamp = roomElement.querySelector('.text-xs');
+                if (timestamp) {
+                    timestamp.className = 'text-xs text-gray-500 whitespace-nowrap';
+                }
+                
+                const preview = roomElement.querySelector('.text-sm');
+                if (preview) {
+                    preview.className = preview.className.replace('font-medium text-gray-700', 'text-gray-500');
+                }
             }
         });
     }
