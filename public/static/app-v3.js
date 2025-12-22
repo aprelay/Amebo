@@ -1660,7 +1660,9 @@ class SecureChatApp {
                                         <p class="text-sm text-gray-600">Code: ${room.room_code}</p>
                                     </div>
                                     <div class="flex items-center gap-3">
-                                        ${showCount ? `<span class="bg-purple-600 text-white text-xs font-bold rounded-full px-2.5 py-1 min-w-[28px] text-center">${unreadCount}</span>` : ''}
+                                        <div class="unread-badge-container">
+                                            ${showCount ? `<span class="bg-purple-600 text-white text-xs font-bold rounded-full px-2.5 py-1 min-w-[28px] text-center">${unreadCount}</span>` : ''}
+                                        </div>
                                         <i class="fas fa-chevron-right text-gray-400"></i>
                                     </div>
                                 </div>
@@ -3435,9 +3437,119 @@ class SecureChatApp {
                 this.unreadNotifications = 0;
                 this.updateNotificationBadge();
             }
+            
+            // Check for new messages in all rooms (for unread count badges)
+            await this.checkUnreadMessages();
         } catch (error) {
             console.error('[V3] Check notifications error:', error);
         }
+    }
+    
+    async checkUnreadMessages() {
+        if (!this.rooms || this.rooms.length === 0) return;
+        
+        try {
+            let hasUpdates = false;
+            
+            for (const room of this.rooms) {
+                // Skip current open room (already being updated by loadMessages)
+                if (this.currentRoom && this.currentRoom.id === room.id) {
+                    continue;
+                }
+                
+                // Fetch latest messages for this room
+                const response = await fetch(`${API_BASE}/api/messages/${room.id}`);
+                if (!response.ok) continue;
+                
+                const data = await response.json();
+                const messages = data.messages || [];
+                
+                if (messages.length === 0) {
+                    if (this.unreadCounts.get(room.id) !== 0) {
+                        this.unreadCounts.set(room.id, 0);
+                        hasUpdates = true;
+                    }
+                    continue;
+                }
+                
+                // Get last read message ID for this room
+                const lastReadId = this.lastReadMessageIds.get(room.id);
+                const latestMessageId = messages[messages.length - 1].id;
+                
+                if (!lastReadId) {
+                    // Never read any message - all unread
+                    const unreadCount = messages.length;
+                    if (this.unreadCounts.get(room.id) !== unreadCount) {
+                        this.unreadCounts.set(room.id, unreadCount);
+                        hasUpdates = true;
+                        console.log('[UNREAD] New room with unread:', room.id, unreadCount);
+                    }
+                } else {
+                    // Find last read message
+                    const lastReadIndex = messages.findIndex(m => m.id === lastReadId);
+                    
+                    if (lastReadIndex === -1) {
+                        // Last read not found - all unread
+                        const unreadCount = messages.length;
+                        if (this.unreadCounts.get(room.id) !== unreadCount) {
+                            this.unreadCounts.set(room.id, unreadCount);
+                            hasUpdates = true;
+                        }
+                    } else {
+                        // Count messages after last read
+                        const unreadCount = messages.length - lastReadIndex - 1;
+                        const currentCount = this.unreadCounts.get(room.id) || 0;
+                        
+                        if (currentCount !== unreadCount) {
+                            this.unreadCounts.set(room.id, Math.max(0, unreadCount));
+                            hasUpdates = true;
+                            
+                            if (unreadCount > currentCount) {
+                                console.log('[UNREAD] ✨ New messages in room:', room.id, 'Count:', unreadCount);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Save and update UI if there were changes
+            if (hasUpdates) {
+                this.saveUnreadCounts();
+                this.updateRoomListBadges();
+            }
+        } catch (error) {
+            console.error('[UNREAD] Error checking unread messages:', error);
+        }
+    }
+    
+    updateRoomListBadges() {
+        // Update badges on room list if visible
+        const roomList = document.getElementById('roomList');
+        if (!roomList) return;
+        
+        // Update each room's badge
+        this.rooms.forEach(room => {
+            const roomElement = document.querySelector(`[data-room-id="${room.id}"]`);
+            if (!roomElement) return;
+            
+            const unreadCount = this.unreadCounts.get(room.id) || 0;
+            const parentWrapper = roomElement.closest('.room-item-wrapper');
+            if (!parentWrapper) return;
+            
+            // Find or create badge container
+            let badgeContainer = parentWrapper.querySelector('.unread-badge-container');
+            if (!badgeContainer) {
+                // Badge doesn't exist, need to reconstruct
+                return; // Just wait for next full refresh
+            }
+            
+            // Update badge
+            if (unreadCount > 0) {
+                badgeContainer.innerHTML = `<span class="bg-purple-600 text-white text-xs font-bold rounded-full px-2.5 py-1 min-w-[28px] text-center">${unreadCount}</span>`;
+            } else {
+                badgeContainer.innerHTML = '';
+            }
+        });
     }
 
     showInAppNotification(notification) {
