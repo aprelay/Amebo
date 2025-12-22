@@ -8350,13 +8350,13 @@ class SecureChatApp {
                 <!-- Tabs -->
                 <div class="max-w-4xl mx-auto">
                     <div class="bg-white shadow-sm flex">
-                        <button onclick="app.filterMedia('photos')" id="tab-photos" class="flex-1 py-3 font-medium border-b-2 border-purple-600 text-purple-600">
+                        <button onclick="app.filterMedia('photos', '${roomId}')" id="tab-photos" class="flex-1 py-3 font-medium border-b-2 border-purple-600 text-purple-600">
                             <i class="fas fa-image mr-2"></i>Photos
                         </button>
-                        <button onclick="app.filterMedia('videos')" id="tab-videos" class="flex-1 py-3 font-medium border-b-2 border-transparent text-gray-500 hover:text-purple-600">
+                        <button onclick="app.filterMedia('videos', '${roomId}')" id="tab-videos" class="flex-1 py-3 font-medium border-b-2 border-transparent text-gray-500 hover:text-purple-600">
                             <i class="fas fa-video mr-2"></i>Videos
                         </button>
-                        <button onclick="app.filterMedia('files')" id="tab-files" class="flex-1 py-3 font-medium border-b-2 border-transparent text-gray-500 hover:text-purple-600">
+                        <button onclick="app.filterMedia('files', '${roomId}')" id="tab-files" class="flex-1 py-3 font-medium border-b-2 border-transparent text-gray-500 hover:text-purple-600">
                             <i class="fas fa-file mr-2"></i>Files
                         </button>
                     </div>
@@ -8392,15 +8392,59 @@ class SecureChatApp {
         `;
     }
 
-    filterMedia(type) {
+    async filterMedia(type, roomId) {
         // Update tab UI
         document.querySelectorAll('[id^="tab-"]').forEach(tab => {
             tab.className = 'flex-1 py-3 font-medium border-b-2 border-transparent text-gray-500 hover:text-purple-600';
         });
         document.getElementById('tab-' + type).className = 'flex-1 py-3 font-medium border-b-2 border-purple-600 text-purple-600';
         
-        // Update media display
-        console.log('[MEDIA] Filtering:', type);
+        try {
+            // Fetch media from backend
+            const response = await fetch(`${API_BASE}/api/profile/media/${roomId}?type=${type}`);
+            if (!response.ok) throw new Error('Failed to fetch media');
+            
+            const data = await response.json();
+            const container = document.getElementById('media-container');
+            
+            if (data.media.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-3 text-center py-12 text-gray-500">
+                        <i class="fas fa-photo-video text-5xl mb-3 opacity-50"></i>
+                        <p class="font-medium">No ${type} yet</p>
+                        <p class="text-sm mt-1">${type === 'photos' ? 'Photos' : type === 'videos' ? 'Videos' : 'Files'} you share will appear here</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Display media grid
+            container.innerHTML = data.media.map(item => {
+                const metadata = JSON.parse(item.file_metadata || '{}');
+                const icon = type === 'videos' ? 'fa-video' : type === 'files' ? 'fa-file' : 'fa-image';
+                
+                return `
+                    <div class="aspect-square bg-gray-200 rounded-lg overflow-hidden relative group cursor-pointer" onclick="app.viewMedia('${item.id}')">
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <i class="fas ${icon} text-gray-400 text-4xl"></i>
+                        </div>
+                        <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-2 text-xs opacity-0 group-hover:opacity-100 transition">
+                            <div class="truncate">${metadata.name || 'File'}</div>
+                            <div>${new Date(item.created_at).toLocaleDateString()}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+        } catch (error) {
+            console.error('[MEDIA] Error:', error);
+            this.showToast('Failed to load media', 'error');
+        }
+    }
+    
+    viewMedia(messageId) {
+        console.log('[MEDIA] View:', messageId);
+        this.showToast('Media viewer coming soon!', 'info');
     }
 
     searchInChat(roomId) {
@@ -8439,7 +8483,7 @@ class SecureChatApp {
         setTimeout(() => document.getElementById('search-input').focus(), 100);
     }
 
-    performChatSearch(query) {
+    async performChatSearch(query) {
         if (!query.trim()) {
             document.getElementById('search-results').innerHTML = `
                 <div class="text-center py-12 text-gray-500">
@@ -8451,14 +8495,92 @@ class SecureChatApp {
             return;
         }
 
-        // Simulate search results
-        document.getElementById('search-results').innerHTML = `
-            <div class="text-center py-8 text-gray-500">
-                <i class="fas fa-inbox text-5xl mb-3 opacity-50"></i>
-                <p class="font-medium">No results found for "${query}"</p>
-                <p class="text-sm mt-1">Try different keywords</p>
-            </div>
-        `;
+        try {
+            // Show loading
+            document.getElementById('search-results').innerHTML = `
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-spinner fa-spin text-4xl mb-3"></i>
+                    <p class="font-medium">Searching...</p>
+                </div>
+            `;
+
+            // Fetch encrypted messages
+            const response = await fetch(`${API_BASE}/api/profile/search/${this.currentRoom.id}?q=${encodeURIComponent(query)}`);
+            if (!response.ok) throw new Error('Search failed');
+            
+            const data = await response.json();
+            
+            // Decrypt and search
+            const roomKey = this.roomKeys.get(this.currentRoom.id);
+            if (!roomKey) {
+                throw new Error('Room key not available');
+            }
+            
+            const matches = [];
+            for (const msg of data.results) {
+                try {
+                    const decrypted = await CryptoUtils.decryptMessage(
+                        msg.encrypted_content,
+                        msg.iv,
+                        roomKey
+                    );
+                    
+                    // Check if message contains query
+                    if (decrypted.toLowerCase().includes(query.toLowerCase())) {
+                        matches.push({ ...msg, decrypted });
+                    }
+                } catch (e) {
+                    console.warn('[SEARCH] Decrypt error:', e);
+                }
+            }
+            
+            // Display results
+            if (matches.length === 0) {
+                document.getElementById('search-results').innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-inbox text-5xl mb-3 opacity-50"></i>
+                        <p class="font-medium">No results found for "${query}"</p>
+                        <p class="text-sm mt-1">Try different keywords</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            document.getElementById('search-results').innerHTML = matches.map(msg => `
+                <div class="bg-white rounded-lg p-4 shadow hover:shadow-md transition cursor-pointer" onclick="app.jumpToMessage('${msg.id}')">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold">
+                            ${msg.username.charAt(0).toUpperCase()}
+                        </div>
+                        <div class="flex-1">
+                            <div class="font-medium">${msg.username}</div>
+                            <div class="text-xs text-gray-500">${new Date(msg.created_at).toLocaleString()}</div>
+                        </div>
+                    </div>
+                    <div class="text-gray-700">${this.highlightQuery(msg.decrypted, query)}</div>
+                </div>
+            `).join('');
+            
+        } catch (error) {
+            console.error('[SEARCH] Error:', error);
+            document.getElementById('search-results').innerHTML = `
+                <div class="text-center py-8 text-red-500">
+                    <i class="fas fa-exclamation-circle text-5xl mb-3"></i>
+                    <p class="font-medium">Search failed</p>
+                    <p class="text-sm mt-1">${error.message}</p>
+                </div>
+            `;
+        }
+    }
+    
+    highlightQuery(text, query) {
+        const regex = new RegExp(`(${query})`, 'gi');
+        return text.replace(regex, '<mark class="bg-yellow-200">$1</mark>');
+    }
+    
+    jumpToMessage(messageId) {
+        console.log('[SEARCH] Jump to:', messageId);
+        this.showToast('Message navigation coming soon!', 'info');
     }
 
     setCustomNickname(roomId) {
@@ -8518,23 +8640,39 @@ class SecureChatApp {
         setTimeout(() => document.getElementById('nickname-input').focus(), 100);
     }
 
-    saveCustomNickname(roomId) {
+    async saveCustomNickname(roomId) {
         const nickname = document.getElementById('nickname-input').value.trim();
         if (!nickname) {
             alert('Please enter a nickname');
             return;
         }
 
-        // Save nickname (would update backend in production)
-        console.log('[NICKNAME] Saved:', nickname);
-        
-        this.showToast(`Nickname set to "${nickname}"`, 'success');
-        
-        // Return to profile
-        setTimeout(() => {
+        try {
             const room = this.rooms.find(r => r.id === roomId);
-            this.showRoomProfile(roomId, room?.room_code || '');
-        }, 1000);
+            const response = await fetch(`${API_BASE}/api/profile/nickname`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: this.currentUser.id,
+                    targetUserId: room?.created_by,
+                    roomId: roomId,
+                    nickname: nickname
+                })
+            });
+
+            if (!response.ok) throw new Error('Failed to save nickname');
+            
+            console.log('[NICKNAME] Saved:', nickname);
+            this.showToast(`Nickname set to "${nickname}"`, 'success');
+            
+            // Return to profile
+            setTimeout(() => {
+                this.showRoomProfile(roomId, room?.room_code || '');
+            }, 1000);
+        } catch (error) {
+            console.error('[NICKNAME] Error:', error);
+            this.showToast('Failed to save nickname', 'error');
+        }
     }
 
     toggleMuteChat(roomId) {
@@ -8605,7 +8743,7 @@ class SecureChatApp {
         `;
     }
 
-    muteFor(roomId, seconds) {
+    async muteFor(roomId, seconds) {
         let duration = '';
         if (seconds === 3600) duration = '1 hour';
         else if (seconds === 28800) duration = '8 hours';
@@ -8613,13 +8751,30 @@ class SecureChatApp {
         else if (seconds === 604800) duration = '1 week';
         else if (seconds === -1) duration = 'forever';
 
-        console.log('[MUTE] Chat muted for:', duration);
-        this.showToast(`Chat muted for ${duration}`, 'success');
+        try {
+            const response = await fetch(`${API_BASE}/api/profile/mute`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: this.currentUser.id,
+                    roomId: roomId,
+                    duration: seconds
+                })
+            });
 
-        setTimeout(() => {
-            const room = this.rooms.find(r => r.id === roomId);
-            this.showRoomProfile(roomId, room?.room_code || '');
-        }, 1000);
+            if (!response.ok) throw new Error('Failed to mute chat');
+
+            console.log('[MUTE] Chat muted for:', duration);
+            this.showToast(`Chat muted for ${duration}`, 'success');
+
+            setTimeout(() => {
+                const room = this.rooms.find(r => r.id === roomId);
+                this.showRoomProfile(roomId, room?.room_code || '');
+            }, 1000);
+        } catch (error) {
+            console.error('[MUTE] Error:', error);
+            this.showToast('Failed to mute chat', 'error');
+        }
     }
 
     editGroupInfo(roomId) {
@@ -8695,7 +8850,7 @@ class SecureChatApp {
         `;
     }
 
-    saveGroupInfo(roomId) {
+    async saveGroupInfo(roomId) {
         const name = document.getElementById('group-name-input').value.trim();
         const desc = document.getElementById('group-desc-input').value.trim();
         
@@ -8704,13 +8859,34 @@ class SecureChatApp {
             return;
         }
 
-        console.log('[GROUP] Info updated:', { name, desc });
-        this.showToast('Group info updated successfully', 'success');
+        try {
+            const response = await fetch(`${API_BASE}/api/profile/group/update`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomId: roomId,
+                    userId: this.currentUser.id,
+                    roomName: name,
+                    description: desc
+                })
+            });
 
-        setTimeout(() => {
-            const room = this.rooms.find(r => r.id === roomId);
-            this.showGroupProfile(roomId, room?.room_code || '');
-        }, 1000);
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to update group');
+            }
+
+            console.log('[GROUP] Info updated:', { name, desc });
+            this.showToast('Group info updated successfully', 'success');
+
+            setTimeout(() => {
+                const room = this.rooms.find(r => r.id === roomId);
+                this.showGroupProfile(roomId, room?.room_code || '');
+            }, 1000);
+        } catch (error) {
+            console.error('[GROUP] Error:', error);
+            this.showToast(error.message || 'Failed to update group', 'error');
+        }
     }
 
     shareGroup(roomId) {
@@ -9023,31 +9199,93 @@ class SecureChatApp {
         `;
     }
 
-    setPermission(roomId, type, value) {
-        console.log('[PERMISSION]', type, ':', value);
-        this.showToast('Permission updated', 'success');
-        setTimeout(() => {
-            const room = this.rooms.find(r => r.id === roomId);
-            this.showGroupProfile(roomId, room?.room_code || '');
-        }, 1000);
+    async setPermission(roomId, type, value) {
+        try {
+            const response = await fetch(`${API_BASE}/api/profile/group/permissions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomId: roomId,
+                    userId: this.currentUser.id,
+                    permission: type,
+                    value: value
+                })
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to update permission');
+            }
+
+            console.log('[PERMISSION]', type, ':', value);
+            this.showToast('Permission updated', 'success');
+            setTimeout(() => {
+                const room = this.rooms.find(r => r.id === roomId);
+                this.showGroupProfile(roomId, room?.room_code || '');
+            }, 1000);
+        } catch (error) {
+            console.error('[PERMISSION] Error:', error);
+            this.showToast(error.message || 'Failed to update permission', 'error');
+        }
     }
 
-    setPrivacy(roomId, level) {
-        console.log('[PRIVACY]', level);
-        this.showToast('Privacy setting updated', 'success');
-        setTimeout(() => {
-            const room = this.rooms.find(r => r.id === roomId);
-            this.showGroupProfile(roomId, room?.room_code || '');
-        }, 1000);
+    async setPrivacy(roomId, level) {
+        try {
+            const response = await fetch(`${API_BASE}/api/profile/group/privacy`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomId: roomId,
+                    userId: this.currentUser.id,
+                    privacy: level
+                })
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to update privacy');
+            }
+
+            console.log('[PRIVACY]', level);
+            this.showToast('Privacy setting updated', 'success');
+            setTimeout(() => {
+                const room = this.rooms.find(r => r.id === roomId);
+                this.showGroupProfile(roomId, room?.room_code || '');
+            }, 1000);
+        } catch (error) {
+            console.error('[PRIVACY] Error:', error);
+            this.showToast(error.message || 'Failed to update privacy', 'error');
+        }
     }
 
     muteGroupNotifications(roomId) {
         this.toggleMuteChat(roomId); // Reuse the same mute UI
     }
 
-    reportGroup(roomId) {
-        if (confirm('Report this group for spam, abuse, or inappropriate content?')) {
-            alert('Group reported. Thank you for keeping Amebo safe!');
+    async reportGroup(roomId) {
+        const reason = prompt('Report reason (spam/abuse/inappropriate):');
+        if (!reason) return;
+        
+        const description = prompt('Additional details (optional):');
+        
+        try {
+            const response = await fetch(`${API_BASE}/api/profile/report/group`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    reporterId: this.currentUser.id,
+                    roomId: roomId,
+                    reason: reason,
+                    description: description
+                })
+            });
+
+            if (!response.ok) throw new Error('Failed to submit report');
+
+            this.showToast('Group reported. Thank you for keeping Amebo safe!', 'success');
+        } catch (error) {
+            console.error('[REPORT] Error:', error);
+            this.showToast('Failed to submit report', 'error');
         }
     }
 

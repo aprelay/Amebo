@@ -2158,7 +2158,7 @@ app.get('/', (c) => {
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
         <script src="/static/crypto-v2.js?v=ROOM-PROFILES-V9"></script>
-        <script src="/static/app-v3.js?v=FULL-PROFILES-V10"></script>
+        <script src="/static/app-v3.js?v=REAL-API-V11"></script>
         
         <script>
           // Register service worker for PWA
@@ -4797,6 +4797,393 @@ app.get('/api/messages/:messageId/receipts', async (c) => {
 // Catch-all route - serve HTML for all non-API routes (for client-side routing)
 app.get('*', (c) => {
   // Check if it's an API route
+  // ==================== PROFILE & CHAT MANAGEMENT ====================
+
+// Set custom nickname for a user/room
+app.post('/api/profile/nickname', async (c) => {
+  try {
+    const { userId, targetUserId, roomId, nickname } = await c.req.json()
+    
+    if (!userId || !nickname) {
+      return c.json({ error: 'User ID and nickname required' }, 400)
+    }
+    
+    const nicknameId = crypto.randomUUID()
+    
+    // Store custom nickname (user-specific, not visible to others)
+    await c.env.DB.prepare(`
+      INSERT INTO custom_nicknames (id, user_id, target_user_id, room_id, nickname, created_at)
+      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(user_id, target_user_id, room_id) 
+      DO UPDATE SET nickname = ?, updated_at = CURRENT_TIMESTAMP
+    `).bind(nicknameId, userId, targetUserId || null, roomId || null, nickname, nickname).run()
+    
+    return c.json({ success: true, nickname })
+  } catch (error: any) {
+    console.error('[PROFILE] Set nickname error:', error)
+    return c.json({ error: 'Failed to set nickname' }, 500)
+  }
+})
+
+// Get custom nickname
+app.get('/api/profile/nickname/:userId/:targetUserId', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    const targetUserId = c.req.param('targetUserId')
+    
+    const result = await c.env.DB.prepare(`
+      SELECT nickname FROM custom_nicknames 
+      WHERE user_id = ? AND target_user_id = ?
+    `).bind(userId, targetUserId).first()
+    
+    return c.json({ nickname: result?.nickname || null })
+  } catch (error: any) {
+    console.error('[PROFILE] Get nickname error:', error)
+    return c.json({ error: 'Failed to get nickname' }, 500)
+  }
+})
+
+// Mute/unmute chat
+app.post('/api/profile/mute', async (c) => {
+  try {
+    const { userId, roomId, duration } = await c.req.json() // duration in seconds, -1 for forever
+    
+    if (!userId || !roomId) {
+      return c.json({ error: 'User ID and room ID required' }, 400)
+    }
+    
+    const muteUntil = duration === -1 
+      ? '2099-12-31 23:59:59' 
+      : new Date(Date.now() + duration * 1000).toISOString()
+    
+    await c.env.DB.prepare(`
+      INSERT INTO muted_chats (user_id, room_id, muted_until, created_at)
+      VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(user_id, room_id) 
+      DO UPDATE SET muted_until = ?, updated_at = CURRENT_TIMESTAMP
+    `).bind(userId, roomId, muteUntil, muteUntil).run()
+    
+    return c.json({ success: true, mutedUntil: muteUntil })
+  } catch (error: any) {
+    console.error('[PROFILE] Mute chat error:', error)
+    return c.json({ error: 'Failed to mute chat' }, 500)
+  }
+})
+
+// Check if chat is muted
+app.get('/api/profile/mute/:userId/:roomId', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    const roomId = c.req.param('roomId')
+    
+    const result = await c.env.DB.prepare(`
+      SELECT muted_until FROM muted_chats 
+      WHERE user_id = ? AND room_id = ? AND muted_until > CURRENT_TIMESTAMP
+    `).bind(userId, roomId).first()
+    
+    return c.json({ 
+      isMuted: !!result, 
+      mutedUntil: result?.muted_until || null 
+    })
+  } catch (error: any) {
+    console.error('[PROFILE] Check mute error:', error)
+    return c.json({ error: 'Failed to check mute status' }, 500)
+  }
+})
+
+// Unmute chat
+app.delete('/api/profile/mute/:userId/:roomId', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    const roomId = c.req.param('roomId')
+    
+    await c.env.DB.prepare(`
+      DELETE FROM muted_chats WHERE user_id = ? AND room_id = ?
+    `).bind(userId, roomId).run()
+    
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('[PROFILE] Unmute chat error:', error)
+    return c.json({ error: 'Failed to unmute chat' }, 500)
+  }
+})
+
+// Get shared media in a room
+app.get('/api/profile/media/:roomId', async (c) => {
+  try {
+    const roomId = c.req.param('roomId')
+    const type = c.req.query('type') || 'all' // photos, videos, files, all
+    
+    let typeFilter = ''
+    if (type === 'photos') {
+      typeFilter = "AND json_extract(file_metadata, '$.type') LIKE 'image/%'"
+    } else if (type === 'videos') {
+      typeFilter = "AND json_extract(file_metadata, '$.type') LIKE 'video/%'"
+    } else if (type === 'files') {
+      typeFilter = "AND json_extract(file_metadata, '$.type') NOT LIKE 'image/%' AND json_extract(file_metadata, '$.type') NOT LIKE 'video/%'"
+    }
+    
+    const media = await c.env.DB.prepare(`
+      SELECT 
+        m.id, m.sender_id, m.file_metadata, m.created_at,
+        u.username, u.avatar
+      FROM messages m
+      JOIN users u ON m.sender_id = u.id
+      WHERE m.room_id = ? AND m.is_file = 1 ${typeFilter}
+      ORDER BY m.created_at DESC
+      LIMIT 100
+    `).bind(roomId).all()
+    
+    return c.json({ media: media.results || [] })
+  } catch (error: any) {
+    console.error('[PROFILE] Get media error:', error)
+    return c.json({ error: 'Failed to get media' }, 500)
+  }
+})
+
+// Search messages in chat
+app.get('/api/profile/search/:roomId', async (c) => {
+  try {
+    const roomId = c.req.param('roomId')
+    const query = c.req.query('q') || ''
+    
+    if (!query || query.length < 2) {
+      return c.json({ results: [] })
+    }
+    
+    // Note: This returns encrypted messages - client must decrypt and search
+    const results = await c.env.DB.prepare(`
+      SELECT 
+        m.id, m.sender_id, m.encrypted_content, m.iv, m.created_at,
+        u.username, u.avatar
+      FROM messages m
+      JOIN users u ON m.sender_id = u.id
+      WHERE m.room_id = ? 
+      ORDER BY m.created_at DESC
+      LIMIT 50
+    `).bind(roomId).all()
+    
+    return c.json({ results: results.results || [] })
+  } catch (error: any) {
+    console.error('[PROFILE] Search error:', error)
+    return c.json({ error: 'Failed to search messages' }, 500)
+  }
+})
+
+// Update group info
+app.post('/api/profile/group/update', async (c) => {
+  try {
+    const { roomId, userId, roomName, description, avatar } = await c.req.json()
+    
+    if (!roomId || !userId) {
+      return c.json({ error: 'Room ID and user ID required' }, 400)
+    }
+    
+    // Check if user is admin (creator)
+    const room = await c.env.DB.prepare(`
+      SELECT created_by FROM rooms WHERE id = ?
+    `).bind(roomId).first()
+    
+    if (!room || room.created_by !== userId) {
+      return c.json({ error: 'Only group admin can update info' }, 403)
+    }
+    
+    await c.env.DB.prepare(`
+      UPDATE rooms 
+      SET room_name = ?, description = ?, avatar = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(roomName, description || null, avatar || null, roomId).run()
+    
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('[PROFILE] Update group error:', error)
+    return c.json({ error: 'Failed to update group' }, 500)
+  }
+})
+
+// Set group permissions
+app.post('/api/profile/group/permissions', async (c) => {
+  try {
+    const { roomId, userId, permission, value } = await c.req.json()
+    // permission: 'messages', 'add_members', 'edit_info'
+    // value: 'everyone', 'admins'
+    
+    if (!roomId || !userId || !permission) {
+      return c.json({ error: 'Missing required fields' }, 400)
+    }
+    
+    // Check if user is admin
+    const room = await c.env.DB.prepare(`
+      SELECT created_by FROM rooms WHERE id = ?
+    `).bind(roomId).first()
+    
+    if (!room || room.created_by !== userId) {
+      return c.json({ error: 'Only group admin can change permissions' }, 403)
+    }
+    
+    await c.env.DB.prepare(`
+      INSERT INTO group_permissions (room_id, permission_type, permission_value, created_at)
+      VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(room_id, permission_type) 
+      DO UPDATE SET permission_value = ?, updated_at = CURRENT_TIMESTAMP
+    `).bind(roomId, permission, value, value).run()
+    
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('[PROFILE] Set permissions error:', error)
+    return c.json({ error: 'Failed to set permissions' }, 500)
+  }
+})
+
+// Get group permissions
+app.get('/api/profile/group/permissions/:roomId', async (c) => {
+  try {
+    const roomId = c.req.param('roomId')
+    
+    const permissions = await c.env.DB.prepare(`
+      SELECT permission_type, permission_value 
+      FROM group_permissions 
+      WHERE room_id = ?
+    `).bind(roomId).all()
+    
+    const perms: any = {
+      messages: 'everyone',
+      add_members: 'admins',
+      edit_info: 'admins'
+    }
+    
+    permissions.results?.forEach((p: any) => {
+      perms[p.permission_type] = p.permission_value
+    })
+    
+    return c.json({ permissions: perms })
+  } catch (error: any) {
+    console.error('[PROFILE] Get permissions error:', error)
+    return c.json({ error: 'Failed to get permissions' }, 500)
+  }
+})
+
+// Set group privacy
+app.post('/api/profile/group/privacy', async (c) => {
+  try {
+    const { roomId, userId, privacy } = await c.req.json()
+    // privacy: 'public', 'private', 'secret'
+    
+    if (!roomId || !userId || !privacy) {
+      return c.json({ error: 'Missing required fields' }, 400)
+    }
+    
+    // Check if user is admin
+    const room = await c.env.DB.prepare(`
+      SELECT created_by FROM rooms WHERE id = ?
+    `).bind(roomId).first()
+    
+    if (!room || room.created_by !== userId) {
+      return c.json({ error: 'Only group admin can change privacy' }, 403)
+    }
+    
+    await c.env.DB.prepare(`
+      UPDATE rooms SET privacy = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+    `).bind(privacy, roomId).run()
+    
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('[PROFILE] Set privacy error:', error)
+    return c.json({ error: 'Failed to set privacy' }, 500)
+  }
+})
+
+// Report user
+app.post('/api/profile/report/user', async (c) => {
+  try {
+    const { reporterId, reportedUserId, reason, description } = await c.req.json()
+    
+    if (!reporterId || !reportedUserId || !reason) {
+      return c.json({ error: 'Missing required fields' }, 400)
+    }
+    
+    const reportId = crypto.randomUUID()
+    
+    await c.env.DB.prepare(`
+      INSERT INTO reports (id, reporter_id, reported_user_id, reason, description, status, created_at)
+      VALUES (?, ?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP)
+    `).bind(reportId, reporterId, reportedUserId, reason, description || null).run()
+    
+    return c.json({ success: true, reportId })
+  } catch (error: any) {
+    console.error('[PROFILE] Report user error:', error)
+    return c.json({ error: 'Failed to report user' }, 500)
+  }
+})
+
+// Report group
+app.post('/api/profile/report/group', async (c) => {
+  try {
+    const { reporterId, roomId, reason, description } = await c.req.json()
+    
+    if (!reporterId || !roomId || !reason) {
+      return c.json({ error: 'Missing required fields' }, 400)
+    }
+    
+    const reportId = crypto.randomUUID()
+    
+    await c.env.DB.prepare(`
+      INSERT INTO reports (id, reporter_id, reported_room_id, reason, description, status, created_at)
+      VALUES (?, ?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP)
+    `).bind(reportId, reporterId, roomId, reason, description || null).run()
+    
+    return c.json({ success: true, reportId })
+  } catch (error: any) {
+    console.error('[PROFILE] Report group error:', error)
+    return c.json({ error: 'Failed to report group' }, 500)
+  }
+})
+
+// Clear chat history
+app.delete('/api/profile/clear/:userId/:roomId', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    const roomId = c.req.param('roomId')
+    
+    // Soft delete: mark messages as deleted for this user
+    await c.env.DB.prepare(`
+      INSERT INTO deleted_messages (user_id, message_id)
+      SELECT ?, id FROM messages WHERE room_id = ?
+    `).bind(userId, roomId).run()
+    
+    return c.json({ success: true })
+  } catch (error: any) {
+    console.error('[PROFILE] Clear chat error:', error)
+    return c.json({ error: 'Failed to clear chat' }, 500)
+  }
+})
+
+// Export chat history
+app.get('/api/profile/export/:roomId', async (c) => {
+  try {
+    const roomId = c.req.param('roomId')
+    
+    const messages = await c.env.DB.prepare(`
+      SELECT 
+        m.id, m.encrypted_content, m.iv, m.is_file, m.file_metadata, m.created_at,
+        u.username
+      FROM messages m
+      JOIN users u ON m.sender_id = u.id
+      WHERE m.room_id = ?
+      ORDER BY m.created_at ASC
+    `).bind(roomId).all()
+    
+    return c.json({ 
+      success: true, 
+      messages: messages.results || [],
+      exportedAt: new Date().toISOString()
+    })
+  } catch (error: any) {
+    console.error('[PROFILE] Export chat error:', error)
+    return c.json({ error: 'Failed to export chat' }, 500)
+  }
+})
+
   if (c.req.path.startsWith('/api/') || c.req.path.startsWith('/static/')) {
     return c.notFound()
   }
