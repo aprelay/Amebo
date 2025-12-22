@@ -736,7 +736,7 @@ app.post('/api/users/update-password', async (c) => {
 // Create chat room
 app.post('/api/rooms/create', async (c) => {
   try {
-    const { roomCode, roomName, userId } = await c.req.json()
+    const { roomCode, roomName, userId, memberIds } = await c.req.json()
     
     if (!roomCode || !userId) {
       return c.json({ error: 'Room code and user ID required' }, 400)
@@ -753,6 +753,17 @@ app.post('/api/rooms/create', async (c) => {
     await c.env.DB.prepare(`
       INSERT INTO room_members (room_id, user_id) VALUES (?, ?)
     `).bind(roomId, userId).run()
+    
+    // Add additional members if provided
+    if (memberIds && Array.isArray(memberIds)) {
+      for (const memberId of memberIds) {
+        if (memberId !== userId) { // Don't add creator twice
+          await c.env.DB.prepare(`
+            INSERT INTO room_members (room_id, user_id) VALUES (?, ?)
+          `).bind(roomId, memberId).run()
+        }
+      }
+    }
 
     return c.json({ 
       success: true, 
@@ -2182,7 +2193,7 @@ app.get('/', (c) => {
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
         <script src="/static/crypto-v2.js?v=ROOM-PROFILES-V9"></script>
-        <script src="/static/app-v3.js?v=ALL-FIXED-V14"></script>
+        <script src="/static/app-v3.js?v=COMPLETE-V15"></script>
         
         <script>
           // Register service worker for PWA

@@ -9448,10 +9448,51 @@ class SecureChatApp {
     }
 
     async createGroupWithUser(roomId, username) {
-        const groupName = prompt(`Create group with ${username}?\\n\\nEnter group name:`);
-        if (!groupName) return;
+        const groupName = prompt(`Create group with ${username}?\n\nEnter group name:`);
+        if (!groupName || !groupName.trim()) return;
         
-        this.showToast(`Group "${groupName}" creation coming soon!`, 'info');
+        try {
+            // Extract other user ID from DM room code
+            const room = this.rooms.find(r => r.id === roomId);
+            if (!room?.room_code?.startsWith('dm-')) {
+                this.showToast('Can only create group from direct messages', 'error');
+                return;
+            }
+            
+            const parts = room.room_code.split('-');
+            const otherUserId = parts[1] === this.currentUser.id ? parts[2] : parts[1];
+            
+            this.showToast('Creating group...', 'info');
+            
+            // Create group room
+            const response = await fetch(`${API_BASE}/api/rooms/create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomName: groupName.trim(),
+                    roomCode: `group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    userId: this.currentUser.id,
+                    memberIds: [this.currentUser.id, otherUserId] // Add both users
+                })
+            });
+            
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to create group');
+            }
+            
+            const data = await response.json();
+            this.showToast(`Group "${groupName}" created!`, 'success');
+            
+            // Reload rooms and open the new group
+            await this.loadRooms();
+            setTimeout(() => {
+                this.openRoom(data.roomId, data.roomCode);
+            }, 1000);
+        } catch (error) {
+            console.error('[CREATE_GROUP] Error:', error);
+            this.showToast(error.message || 'Failed to create group', 'error');
+        }
     }
 
     async blockUser(roomId, roomCode, username) {

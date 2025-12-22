@@ -107,11 +107,13 @@ var Tr=Object.defineProperty;var $e=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
       SELECT password_hash FROM users WHERE id = ? AND email = ?
     `).bind(r,t).first();if(!a)return e.json({error:"User not found"},404);if(!await bcrypt.compare(s,a.password_hash))return e.json({error:"Current password is incorrect"},401);const i=await bcrypt.hash(n,10);return await e.env.DB.prepare(`
       UPDATE users SET password_hash = ? WHERE id = ?
-    `).bind(i,r).run(),e.json({success:!0,message:"Password updated"})}catch(r){return console.error("Password update error:",r),e.json({error:"Failed to update password"},500)}});p.post("/api/rooms/create",async e=>{var r;try{const{roomCode:t,roomName:s,userId:n}=await e.req.json();if(!t||!n)return e.json({error:"Room code and user ID required"},400);const a=crypto.randomUUID();return await e.env.DB.prepare(`
+    `).bind(i,r).run(),e.json({success:!0,message:"Password updated"})}catch(r){return console.error("Password update error:",r),e.json({error:"Failed to update password"},500)}});p.post("/api/rooms/create",async e=>{var r;try{const{roomCode:t,roomName:s,userId:n,memberIds:a}=await e.req.json();if(!t||!n)return e.json({error:"Room code and user ID required"},400);const o=crypto.randomUUID();if(await e.env.DB.prepare(`
       INSERT INTO chat_rooms (id, room_code, room_name, created_by) VALUES (?, ?, ?, ?)
-    `).bind(a,t,s||"Private Chat",n).run(),await e.env.DB.prepare(`
+    `).bind(o,t,s||"Private Chat",n).run(),await e.env.DB.prepare(`
       INSERT INTO room_members (room_id, user_id) VALUES (?, ?)
-    `).bind(a,n).run(),e.json({success:!0,roomId:a,roomCode:t,message:"Room created successfully"})}catch(t){return(r=t.message)!=null&&r.includes("UNIQUE constraint failed")?e.json({error:"Room code already exists"},409):e.json({error:"Failed to create room"},500)}});p.post("/api/rooms/join",async e=>{try{const{roomCode:r,userId:t}=await e.req.json();if(!r||!t)return e.json({error:"Room code and user ID required"},400);const s=await e.env.DB.prepare(`
+    `).bind(o,n).run(),a&&Array.isArray(a))for(const i of a)i!==n&&await e.env.DB.prepare(`
+            INSERT INTO room_members (room_id, user_id) VALUES (?, ?)
+          `).bind(o,i).run();return e.json({success:!0,roomId:o,roomCode:t,message:"Room created successfully"})}catch(t){return(r=t.message)!=null&&r.includes("UNIQUE constraint failed")?e.json({error:"Room code already exists"},409):e.json({error:"Failed to create room"},500)}});p.post("/api/rooms/join",async e=>{try{const{roomCode:r,userId:t}=await e.req.json();if(!r||!t)return e.json({error:"Room code and user ID required"},400);const s=await e.env.DB.prepare(`
       SELECT id, room_code, room_name FROM chat_rooms WHERE room_code = ?
     `).bind(r).first();return s?(await e.env.DB.prepare(`
       SELECT * FROM room_members WHERE room_id = ? AND user_id = ?
@@ -676,7 +678,7 @@ var Tr=Object.defineProperty;var $e=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
         <script src="/static/crypto-v2.js?v=ROOM-PROFILES-V9"><\/script>
-        <script src="/static/app-v3.js?v=ALL-FIXED-V14"><\/script>
+        <script src="/static/app-v3.js?v=COMPLETE-V15"><\/script>
         
         <script>
           // Register service worker for PWA
