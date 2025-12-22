@@ -1047,6 +1047,30 @@ app.post('/api/rooms/direct', async (c) => {
   }
 })
 
+// Get shared groups between two users
+app.get('/api/rooms/shared/:userId/:otherUserId', async (c) => {
+  try {
+    const userId = c.req.param('userId')
+    const otherUserId = c.req.param('otherUserId')
+    
+    // Find all groups where both users are members
+    const sharedGroups = await c.env.DB.prepare(`
+      SELECT DISTINCT r.id, r.room_code, r.room_name, r.created_at,
+        (SELECT COUNT(*) FROM room_members rm2 WHERE rm2.room_id = r.id) as member_count
+      FROM rooms r
+      INNER JOIN room_members rm1 ON r.id = rm1.room_id AND rm1.user_id = ?
+      INNER JOIN room_members rm2 ON r.id = rm2.room_id AND rm2.user_id = ?
+      WHERE r.room_code NOT LIKE 'dm-%'
+      ORDER BY r.created_at DESC
+    `).bind(userId, otherUserId).all()
+    
+    return c.json({ groups: sharedGroups.results || [] })
+  } catch (error: any) {
+    console.error('[SHARED_GROUPS] Error:', error)
+    return c.json({ error: 'Failed to load shared groups' }, 500)
+  }
+})
+
 // Leave/Delete Room
 app.post('/api/rooms/:roomId/leave', async (c) => {
   try {
@@ -2158,7 +2182,7 @@ app.get('/', (c) => {
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
         <script src="/static/crypto-v2.js?v=ROOM-PROFILES-V9"></script>
-        <script src="/static/app-v3.js?v=NAV-FIX-V13"></script>
+        <script src="/static/app-v3.js?v=ALL-FIXED-V14"></script>
         
         <script>
           // Register service worker for PWA

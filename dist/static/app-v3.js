@@ -9384,7 +9384,67 @@ class SecureChatApp {
     }
 
     async viewSharedGroups(roomId) {
-        this.showToast('Shared groups feature coming soon!', 'info');
+        try {
+            // Extract other user ID from DM room code
+            const room = this.rooms.find(r => r.id === roomId);
+            if (!room?.room_code?.startsWith('dm-')) {
+                this.showToast('Can only view shared groups with direct message contacts', 'error');
+                return;
+            }
+            
+            const parts = room.room_code.split('-');
+            const otherUserId = parts[1] === this.currentUser.id ? parts[2] : parts[1];
+            
+            // Show loading
+            this.showToast('Loading shared groups...', 'info');
+            
+            // Fetch shared groups
+            const response = await fetch(`${API_BASE}/api/rooms/shared/${this.currentUser.id}/${otherUserId}`);
+            if (!response.ok) throw new Error('Failed to load shared groups');
+            
+            const { groups } = await response.json();
+            
+            if (groups.length === 0) {
+                this.showToast('No shared groups yet', 'info');
+                return;
+            }
+            
+            // Display shared groups modal
+            const groupsList = groups.map(g => `
+                <div class="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer" onclick="app.openRoom('${g.id}', '${g.room_code}')">
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white font-bold">
+                        ${g.room_name.charAt(0).toUpperCase()}
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-medium text-gray-800">${g.room_name}</div>
+                        <div class="text-sm text-gray-500">${g.member_count || 0} members</div>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-400"></i>
+                </div>
+            `).join('');
+            
+            document.getElementById('app').innerHTML = `
+                <div class="min-h-screen bg-gray-100">
+                    <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                        <div class="max-w-4xl mx-auto flex items-center gap-3">
+                            <button onclick="app.showUserProfile('${roomId}', '${room.room_code}')" class="p-2 hover:bg-white/20 rounded-lg">
+                                <i class="fas fa-arrow-left text-xl"></i>
+                            </button>
+                            <h1 class="text-xl font-bold">Shared Groups</h1>
+                        </div>
+                    </div>
+                    
+                    <div class="max-w-4xl mx-auto p-4">
+                        <div class="bg-white rounded-2xl shadow-lg p-4 space-y-2">
+                            ${groupsList}
+                        </div>
+                    </div>
+                </div>
+            `;
+        } catch (error) {
+            console.error('[SHARED_GROUPS] Error:', error);
+            this.showToast('Failed to load shared groups', 'error');
+        }
     }
 
     async createGroupWithUser(roomId, username) {
@@ -9435,7 +9495,16 @@ class SecureChatApp {
     }
 
     async reportUser(roomId, userId) {
-        const reason = prompt('Report reason:\\n\\n1. Spam\\n2. Harassment\\n3. Inappropriate content\\n4. Fake account\\n5. Other\\n\\nEnter number or description:');
+        const reasonText = `Report reason:
+
+1. Spam
+2. Harassment
+3. Inappropriate content
+4. Fake account
+5. Other
+
+Enter number or description:`;
+        const reason = prompt(reasonText);
         if (!reason) return;
         
         const description = prompt('Additional details (optional):');
@@ -9526,11 +9595,191 @@ class SecureChatApp {
     }
 
     changeChatWallpaper(roomId) {
-        this.showToast('Chat wallpaper customization coming soon!', 'info');
+        const room = this.rooms.find(r => r.id === roomId);
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.showRoomProfile('${roomId}', '${room?.room_code || ''}'')" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Chat Wallpaper</h1>
+                    </div>
+                </div>
+                
+                <div class="max-w-4xl mx-auto p-4 space-y-4">
+                    <!-- Preset Wallpapers -->
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <h2 class="font-bold text-gray-800 mb-4"><i class="fas fa-image mr-2 text-purple-600"></i>Choose Wallpaper</h2>
+                        <div class="grid grid-cols-3 gap-3">
+                            <button onclick="app.applyWallpaper('${roomId}', 'gradient-1')" class="aspect-square rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 hover:scale-105 transition"></button>
+                            <button onclick="app.applyWallpaper('${roomId}', 'gradient-2')" class="aspect-square rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 hover:scale-105 transition"></button>
+                            <button onclick="app.applyWallpaper('${roomId}', 'gradient-3')" class="aspect-square rounded-xl bg-gradient-to-br from-green-500 to-teal-500 hover:scale-105 transition"></button>
+                            <button onclick="app.applyWallpaper('${roomId}', 'gradient-4')" class="aspect-square rounded-xl bg-gradient-to-br from-orange-500 to-red-500 hover:scale-105 transition"></button>
+                            <button onclick="app.applyWallpaper('${roomId}', 'gradient-5')" class="aspect-square rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 hover:scale-105 transition"></button>
+                            <button onclick="app.applyWallpaper('${roomId}', 'gradient-6')" class="aspect-square rounded-xl bg-gradient-to-br from-gray-700 to-gray-900 hover:scale-105 transition"></button>
+                        </div>
+                    </div>
+                    
+                    <!-- Solid Colors -->
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <h2 class="font-bold text-gray-800 mb-4"><i class="fas fa-palette mr-2 text-purple-600"></i>Solid Colors</h2>
+                        <div class="grid grid-cols-6 gap-3">
+                            <button onclick="app.applyWallpaper('${roomId}', 'white')" class="aspect-square rounded-lg bg-white border-2 border-gray-300 hover:scale-105 transition"></button>
+                            <button onclick="app.applyWallpaper('${roomId}', 'gray')" class="aspect-square rounded-lg bg-gray-200 hover:scale-105 transition"></button>
+                            <button onclick="app.applyWallpaper('${roomId}', 'blue')" class="aspect-square rounded-lg bg-blue-100 hover:scale-105 transition"></button>
+                            <button onclick="app.applyWallpaper('${roomId}', 'green')" class="aspect-square rounded-lg bg-green-100 hover:scale-105 transition"></button>
+                            <button onclick="app.applyWallpaper('${roomId}', 'yellow')" class="aspect-square rounded-lg bg-yellow-100 hover:scale-105 transition"></button>
+                            <button onclick="app.applyWallpaper('${roomId}', 'pink')" class="aspect-square rounded-lg bg-pink-100 hover:scale-105 transition"></button>
+                        </div>
+                    </div>
+                    
+                    <!-- Default Option -->
+                    <button onclick="app.applyWallpaper('${roomId}', 'default')" class="w-full bg-white rounded-2xl shadow-lg p-4 flex items-center justify-between hover:bg-gray-50 transition">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-undo text-gray-600 text-xl"></i>
+                            <div>
+                                <div class="font-medium text-gray-800">Reset to Default</div>
+                                <div class="text-sm text-gray-500">Remove custom wallpaper</div>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-right text-gray-400"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    applyWallpaper(roomId, wallpaper) {
+        // Save wallpaper preference to localStorage
+        localStorage.setItem(`wallpaper_${roomId}`, wallpaper);
+        this.showToast('Wallpaper applied!', 'success');
+        
+        // Return to profile
+        setTimeout(() => {
+            const room = this.rooms.find(r => r.id === roomId);
+            this.showRoomProfile(roomId, room?.room_code || '');
+        }, 1000);
     }
 
     customNotificationSound(roomId) {
-        this.showToast('Custom notification sound coming soon!', 'info');
+        const room = this.rooms.find(r => r.id === roomId);
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.showRoomProfile('${roomId}', '${room?.room_code || ''}'')" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Notification Sound</h1>
+                    </div>
+                </div>
+                
+                <div class="max-w-4xl mx-auto p-4">
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <button onclick="app.applySound('${roomId}', 'default')" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-bell text-blue-600 text-xl"></i>
+                                <div>
+                                    <div class="font-medium text-gray-800">Default</div>
+                                    <div class="text-sm text-gray-500">System notification sound</div>
+                                </div>
+                            </div>
+                            <button onclick="event.stopPropagation(); app.previewSound('default')" class="p-2 hover:bg-gray-200 rounded-lg">
+                                <i class="fas fa-play text-gray-600"></i>
+                            </button>
+                        </button>
+                        <button onclick="app.applySound('${roomId}', 'ding')" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-bell text-green-600 text-xl"></i>
+                                <div>
+                                    <div class="font-medium text-gray-800">Ding</div>
+                                    <div class="text-sm text-gray-500">Classic notification</div>
+                                </div>
+                            </div>
+                            <button onclick="event.stopPropagation(); app.previewSound('ding')" class="p-2 hover:bg-gray-200 rounded-lg">
+                                <i class="fas fa-play text-gray-600"></i>
+                            </button>
+                        </button>
+                        <button onclick="app.applySound('${roomId}', 'chime')" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-bell text-purple-600 text-xl"></i>
+                                <div>
+                                    <div class="font-medium text-gray-800">Chime</div>
+                                    <div class="text-sm text-gray-500">Melodic tone</div>
+                                </div>
+                            </div>
+                            <button onclick="event.stopPropagation(); app.previewSound('chime')" class="p-2 hover:bg-gray-200 rounded-lg">
+                                <i class="fas fa-play text-gray-600"></i>
+                            </button>
+                        </button>
+                        <button onclick="app.applySound('${roomId}', 'pop')" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition border-b">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-bell text-orange-600 text-xl"></i>
+                                <div>
+                                    <div class="font-medium text-gray-800">Pop</div>
+                                    <div class="text-sm text-gray-500">Quick pop sound</div>
+                                </div>
+                            </div>
+                            <button onclick="event.stopPropagation(); app.previewSound('pop')" class="p-2 hover:bg-gray-200 rounded-lg">
+                                <i class="fas fa-play text-gray-600"></i>
+                            </button>
+                        </button>
+                        <button onclick="app.applySound('${roomId}', 'silent')" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-bell-slash text-gray-600 text-xl"></i>
+                                <div>
+                                    <div class="font-medium text-gray-800">Silent</div>
+                                    <div class="text-sm text-gray-500">No sound</div>
+                                </div>
+                            </div>
+                            <i class="fas fa-check text-gray-400"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="bg-blue-50 rounded-2xl p-4 mt-4 flex gap-3">
+                        <i class="fas fa-info-circle text-blue-600 text-xl flex-shrink-0 mt-1"></i>
+                        <div class="text-sm text-blue-800">
+                            <p class="font-medium mb-1">Custom Sounds</p>
+                            <p>Choose a unique notification sound for this chat to easily identify who's messaging you.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    previewSound(sound) {
+        // Play notification sound preview
+        const audio = new Audio();
+        switch(sound) {
+            case 'ding':
+                audio.src = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIGWi77eeeTRAMUKfj8LZjHAY4ktfyzHksBSR3x/DdkEAKFF606+uoVRQKRp/g8r5sIQUrgs7y2Yk2CBlou+3nnk0QDFC=';
+                break;
+            case 'chime':
+                audio.src = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU';
+                break;
+            case 'pop':
+                audio.src = 'data:audio/wav;base64,UklGRpIAAABXQVZFZm10IBAAAAABAAEAgD4AAIA+AAABAAgAZGF0YW4A';
+                break;
+            default:
+                audio.src = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQ==';
+        }
+        audio.play().catch(e => console.log('Audio play failed:', e));
+    }
+    
+    applySound(roomId, sound) {
+        // Save sound preference to localStorage
+        localStorage.setItem(`notification_sound_${roomId}`, sound);
+        this.showToast(`Notification sound set to ${sound}`, 'success');
+        
+        // Return to profile
+        setTimeout(() => {
+            const room = this.rooms.find(r => r.id === roomId);
+            this.showRoomProfile(roomId, room?.room_code || '');
+        }, 1000);
     }
 
     formatLastSeen(timestamp) {
