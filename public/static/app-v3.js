@@ -8845,31 +8845,6 @@ class SecureChatApp {
             this.showToast('Failed to toggle mute', 'error');
         }
     }
-                                <span class="font-medium">1 Week</span>
-                            </div>
-                            <i class="fas fa-chevron-right text-gray-400"></i>
-                        </button>
-                        <button onclick="app.muteFor('${roomId}', -1)" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-infinity text-red-600"></i>
-                                <span class="font-medium">Forever</span>
-                            </div>
-                            <i class="fas fa-chevron-right text-gray-400"></i>
-                        </button>
-                    </div>
-
-                    <!-- Info Card -->
-                    <div class="bg-yellow-50 rounded-2xl p-4 mt-4 flex gap-3">
-                        <i class="fas fa-bell-slash text-yellow-600 text-xl flex-shrink-0 mt-1"></i>
-                        <div class="text-sm text-yellow-800">
-                            <p class="font-medium mb-1">Muted Chats</p>
-                            <p>You'll still receive messages, but won't get notifications. You can unmute anytime from chat settings.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
 
     async muteFor(roomId, seconds) {
         let duration = '';
