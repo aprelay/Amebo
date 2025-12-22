@@ -643,6 +643,38 @@ class SecureChatApp {
         console.log('[NAV] Pushed:', pageName, '- History depth:', this.navigationHistory.length);
     }
 
+    // Wrapper for back button clicks
+    goBack() {
+        this.navigateBack();
+    }
+
+    // Mark current room as fully read before leaving
+    async markCurrentRoomAsRead() {
+        if (!this.currentRoom) return;
+        
+        try {
+            console.log('[MARK READ] Marking room', this.currentRoom.id, 'as fully read before leaving');
+            
+            // Fetch latest messages
+            const response = await fetch(`${API_BASE}/api/messages/${this.currentRoom.id}`);
+            const data = await response.json();
+            const messages = data.messages || [];
+            
+            if (messages.length > 0) {
+                const latestMessage = messages[messages.length - 1];
+                this.lastReadMessageIds.set(this.currentRoom.id, latestMessage.id);
+                this.saveLastReadMessages();
+                
+                // Set unread count to 0 immediately
+                this.unreadCounts.set(this.currentRoom.id, 0);
+                
+                console.log('[MARK READ] Room', this.currentRoom.id, 'marked as read. LastReadId:', latestMessage.id);
+            }
+        } catch (err) {
+            console.error('[MARK READ] Error marking room as read:', err);
+        }
+    }
+
     navigateBack() {
         if (this.navigationHistory.length > 0) {
             // Remove current page
@@ -653,6 +685,11 @@ class SecureChatApp {
             
             if (previous) {
                 console.log('[NAV] Going back to:', previous.page);
+                
+                // Mark current room as read if we're leaving a chat
+                if (this.currentRoom && previous.page === 'roomList') {
+                    this.markCurrentRoomAsRead();
+                }
                 
                 // Navigate to previous page
                 switch(previous.page) {
@@ -2371,7 +2408,7 @@ class SecureChatApp {
     }
     
     // Function to mark ALL chats as read (like Telegram "Read All")
-    markAllChatsAsRead() {
+    async markAllChatsAsRead() {
         console.log('[MARK ALL READ] ========================================');
         console.log('[MARK ALL READ] Marking all chats as read...');
         
@@ -2380,34 +2417,39 @@ class SecureChatApp {
             return;
         }
         
-        // For each room, set the last message as read
-        this.rooms.forEach(room => {
-            // Get the latest message ID from the room (we'll need to fetch this)
-            fetch(`${API_BASE}/api/messages/${room.id}`)
-                .then(r => r.json())
-                .then(data => {
-                    const messages = data.messages || [];
-                    if (messages.length > 0) {
-                        const latestMessage = messages[messages.length - 1];
-                        this.lastReadMessageIds.set(room.id, latestMessage.id);
-                        console.log(`[MARK ALL READ] Room ${room.id}: Set lastReadId to ${latestMessage.id}`);
-                    }
-                })
-                .catch(err => console.error('[MARK ALL READ] Error:', err));
+        // For each room, fetch latest message and set as read
+        const promises = this.rooms.map(async (room) => {
+            try {
+                const response = await fetch(`${API_BASE}/api/messages/${room.id}`);
+                const data = await response.json();
+                const messages = data.messages || [];
+                
+                if (messages.length > 0) {
+                    const latestMessage = messages[messages.length - 1];
+                    this.lastReadMessageIds.set(room.id, latestMessage.id);
+                    console.log(`[MARK ALL READ] Room ${room.id}: Set lastReadId to ${latestMessage.id}`);
+                }
+            } catch (err) {
+                console.error(`[MARK ALL READ] Error for room ${room.id}:`, err);
+            }
         });
+        
+        // Wait for all fetches
+        await Promise.all(promises);
         
         // Clear all unread counts
         this.unreadCounts.clear();
+        this.rooms.forEach(room => this.unreadCounts.set(room.id, 0));
         
         // Save to localStorage
         this.saveLastReadMessages();
         
         // Update UI
-        setTimeout(() => {
-            this.updateRoomListBadges();
-            console.log('[MARK ALL READ] Done! All chats marked as read.');
-            console.log('[MARK ALL READ] ========================================');
-        }, 2000); // Wait for all fetches to complete
+        this.updateRoomListBadges();
+        
+        console.log('[MARK ALL READ] Done! All chats marked as read.');
+        console.log('[MARK ALL READ] lastReadMessageIds:', Object.fromEntries(this.lastReadMessageIds));
+        console.log('[MARK ALL READ] ========================================');
     }
 
     async loadMessages() {
