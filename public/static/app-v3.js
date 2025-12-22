@@ -8114,6 +8114,7 @@ class SecureChatApp {
             if (muteResponse.ok) {
                 const muteData = await muteResponse.json();
                 isMuted = muteData.is_muted || false;
+                console.log('[MUTE] Profile loaded - isMuted:', isMuted, 'for room:', roomId);
             }
         } catch (error) {
             console.error('[MUTE] Error checking mute status:', error);
@@ -8296,6 +8297,7 @@ class SecureChatApp {
             if (muteResponse.ok) {
                 const muteData = await muteResponse.json();
                 isMuted = muteData.is_muted || false;
+                console.log('[MUTE] Profile loaded - isMuted:', isMuted, 'for room:', roomId);
             }
         } catch (error) {
             console.error('[MUTE] Error checking mute status:', error);
@@ -8836,21 +8838,24 @@ class SecureChatApp {
             // Get the toggle icon element
             const toggleIcon = document.getElementById('mute-toggle-icon');
             
-            // Check current mute status
+            // Check current mute status from database
             const checkResponse = await fetch(`${API_BASE}/api/profile/mute/${this.currentUser.id}/${roomId}`);
             let isMuted = false;
             if (checkResponse.ok) {
                 const data = await checkResponse.json();
                 isMuted = data.is_muted || false;
+                console.log('[MUTE] Toggle - Current state:', isMuted);
             }
 
             if (isMuted) {
-                // Unmute - delete mute
+                // Unmute - delete mute from database
                 const response = await fetch(`${API_BASE}/api/profile/mute/${this.currentUser.id}/${roomId}`, {
                     method: 'DELETE'
                 });
 
                 if (!response.ok) throw new Error('Failed to unmute');
+                
+                console.log('[MUTE] ✅ Unmuted successfully');
                 
                 // Update toggle icon immediately to gray (unmuted)
                 if (toggleIcon) {
@@ -8859,7 +8864,7 @@ class SecureChatApp {
                 
                 this.showToast('Notifications unmuted', 'success');
             } else {
-                // Mute forever
+                // Mute forever - save to database
                 const response = await fetch(`${API_BASE}/api/profile/mute`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -8872,6 +8877,8 @@ class SecureChatApp {
 
                 if (!response.ok) throw new Error('Failed to mute');
                 
+                console.log('[MUTE] ✅ Muted successfully');
+                
                 // Update toggle icon immediately to green (muted)
                 if (toggleIcon) {
                     toggleIcon.className = 'fas fa-toggle-on text-green-500 text-2xl';
@@ -8880,7 +8887,7 @@ class SecureChatApp {
                 this.showToast('Notifications muted', 'success');
             }
         } catch (error) {
-            console.error('[MUTE] Toggle error:', error);
+            console.error('[MUTE] ❌ Toggle error:', error);
             this.showToast('Failed to toggle mute', 'error');
         }
     }
