@@ -44,6 +44,7 @@ class SecureChatApp {
         this.recordingTimer = null;
         this.isRecording = false;
         this.isRecordingLocked = false; // Hands-free mode after slide up
+        this.shouldProcessRecording = true; // Flag to control onstop behavior
         
         // Touch/mouse tracking for slide gestures
         this.recordingStartX = 0;
@@ -3434,6 +3435,9 @@ class SecureChatApp {
         
         console.log('[VOICE] ❌ Recording CANCELLED');
         
+        // Set flag to prevent onstop from processing
+        this.shouldProcessRecording = false;
+        
         // Stop recording without sending
         this.isRecording = false;
         
@@ -3537,7 +3541,13 @@ class SecureChatApp {
             
             this.mediaRecorder.onstop = async () => {
                 console.log('[VOICE] Recording stopped, processing audio...');
-                await this.processRecording();
+                
+                // Only process if we should (not cancelled)
+                if (this.shouldProcessRecording) {
+                    await this.processRecording();
+                } else {
+                    console.log('[VOICE] Recording was cancelled, skipping processing');
+                }
                 
                 // Stop all tracks
                 stream.getTracks().forEach(track => track.stop());
@@ -3545,6 +3555,8 @@ class SecureChatApp {
             
             this.mediaRecorder.start();
             this.isRecording = true;
+            this.isRecordingLocked = false;
+            this.shouldProcessRecording = true; // Reset flag for new recording
             this.recordingStartTime = Date.now();
             
             // Update UI
