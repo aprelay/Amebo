@@ -262,6 +262,7 @@ class SecureChatApp {
         // Convert Map to plain object for storage
         const lastReadObj = Object.fromEntries(this.lastReadMessageIds);
         localStorage.setItem('lastReadMessages_' + this.currentUser.id, JSON.stringify(lastReadObj));
+        console.log('[SAVE] Saved lastReadMessages:', lastReadObj);
     }
 
     async updateUnreadCounts() {
@@ -313,8 +314,9 @@ class SecureChatApp {
             }
         }
         
-        this.saveUnreadCounts();
-        console.log('[UNREAD] Final counts:', Object.fromEntries(this.unreadCounts));
+        // DON'T save unread counts to localStorage - they should be recalculated fresh each login
+        // this.saveUnreadCounts();  // REMOVED
+        console.log('[UNREAD] Final counts (NOT saved to localStorage):', Object.fromEntries(this.unreadCounts));
     }
 
     playNotificationSound() {
@@ -1945,9 +1947,9 @@ class SecureChatApp {
     async openRoom(roomId, roomCode) {
         console.log('[V3] Opening encrypted room:', roomId);
         
-        // Clear unread count when opening room
+        // Clear unread count when opening room (in-memory only)
         this.unreadCounts.set(roomId, 0);
-        this.saveUnreadCounts();
+        // this.saveUnreadCounts();  // REMOVED - don't save to localStorage
         
         // Will mark messages as read after loading them
         
@@ -2273,11 +2275,11 @@ class SecureChatApp {
                     if (lastIndex !== -1 && lastIndex < decryptedMessages.length - 1) {
                         const newMessagesOnly = decryptedMessages.slice(lastIndex + 1);
                         
-                        // Increment unread count for closed rooms
+                        // Increment unread count for closed rooms (in-memory only)
                         if (document.hidden || !document.hasFocus()) {
                             const currentUnread = this.unreadCounts.get(this.currentRoom.id) || 0;
                             this.unreadCounts.set(this.currentRoom.id, currentUnread + newMessagesOnly.length);
-                            this.saveUnreadCounts();
+                            // this.saveUnreadCounts();  // REMOVED - don't save to localStorage
                             
                             newMessagesOnly.forEach(msg => {
                                 this.queueNotification(msg, this.currentRoom.room_name || this.currentRoom.room_code);
@@ -3543,10 +3545,12 @@ class SecureChatApp {
                 }
             }
             
-            // Save and update UI if there were changes
+            // Update UI if there were changes
             if (hasUpdates) {
-                this.saveUnreadCounts();
+                // DON'T save unread counts - they're calculated in-memory only
+                // this.saveUnreadCounts();  // REMOVED
                 this.updateRoomListBadges();
+                console.log('[UNREAD] Badges updated (NOT saved to localStorage)');
             }
         } catch (error) {
             console.error('[UNREAD] Error checking unread messages:', error);
