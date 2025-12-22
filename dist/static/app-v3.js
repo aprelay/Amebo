@@ -1913,23 +1913,23 @@ class SecureChatApp {
                             </div>
                         </div>
                         
-                        <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
-                            <button onclick="app.toggleEmojiPicker()" style="background: white; border: none; color: #54656f; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;" title="Emoji">
+                        <div style="display: flex; align-items: flex-end; gap: 8px; width: 100%;">
+                            <button onclick="app.toggleEmojiPicker()" style="background: white; border: none; color: #54656f; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; margin-bottom: 2px;" title="Emoji">
                                 <i class="fas fa-smile"></i>
                             </button>
-                            <button onclick="document.getElementById('fileInput').click()" style="background: white; border: none; color: #54656f; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;" title="Attach">
+                            <button onclick="document.getElementById('fileInput').click()" style="background: white; border: none; color: #54656f; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; margin-bottom: 2px;" title="Attach">
                                 <i class="fas fa-paperclip"></i>
                             </button>
                             <input type="file" id="fileInput" style="display: none;" onchange="app.handleFileSelect(event)" />
-                            <input 
-                                type="text" 
+                            <textarea 
                                 id="messageInput" 
                                 placeholder="Type a message"
-                                style="flex: 1; min-width: 0; padding: 10px 16px; border: none; border-radius: 24px; background: white; font-size: 15px; outline: none; max-width: 100%;"
-                                oninput="app.handleMessageInput()"
-                                onkeypress="if(event.key==='Enter') app.sendMessage()"
-                            />
-                            <button onclick="app.sendMessage()" style="background: #25d366; border: none; color: white; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.4); flex-shrink: 0;">
+                                rows="1"
+                                style="flex: 1; min-width: 0; padding: 12px 16px; border: none; border-radius: 20px; background: white; font-size: 16px; outline: none; max-width: 100%; resize: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; line-height: 1.5; max-height: 120px; overflow-y: auto;"
+                                oninput="app.autoResizeTextarea(this); app.handleMessageInput();"
+                                onkeypress="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); app.sendMessage(); }"
+                            ></textarea>
+                            <button onclick="app.sendMessage()" style="background: #25d366; border: none; color: white; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 2px 8px rgba(37, 211, 102, 0.4); flex-shrink: 0; align-self: flex-end; margin-bottom: 2px;">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>
@@ -1954,7 +1954,15 @@ class SecureChatApp {
     insertEmoji(emoji) {
         const input = document.getElementById('messageInput');
         input.value += emoji;
+        this.autoResizeTextarea(input);
         input.focus();
+    }
+
+    autoResizeTextarea(textarea) {
+        // Reset height to auto to get the correct scrollHeight
+        textarea.style.height = 'auto';
+        // Set height based on content, max 120px
+        textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
     }
 
     async handleFileSelect(event) {
