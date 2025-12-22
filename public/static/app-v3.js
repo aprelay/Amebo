@@ -573,8 +573,9 @@ class SecureChatApp {
                         }
                         break;
                     case 'userProfile':
+                        // Swipe back from user profile should go back to chat, not profile
                         if (previous.context.roomId && previous.context.roomCode) {
-                            this.showUserProfile(previous.context.roomId, previous.context.roomCode);
+                            this.openRoom(previous.context.roomId, previous.context.roomCode);
                         }
                         break;
                     case 'groupProfile':
@@ -1884,7 +1885,7 @@ class SecureChatApp {
                 </div>
 
                 <!-- WhatsApp-style Messages Area -->
-                <div style="flex: 1; overflow-y: auto; overflow-x: hidden; background: #efeae2; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; position: relative; transform: translateZ(0);" id="messages-scroll-container">
+                <div style="flex: 1; overflow-y: auto; overflow-x: hidden; ${this.getChatWallpaperStyle(roomId)} -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; position: relative; transform: translateZ(0);" id="messages-scroll-container">
                     <div id="messages" style="max-width: 800px; margin: 0 auto; padding: 20px 16px; min-height: 100%; will-change: auto;">
                         <div style="text-align: center; padding: 40px 20px; color: #667781;">
                             <i class="fas fa-spinner fa-spin" style="font-size: 32px; margin-bottom: 16px;"></i>
@@ -9692,16 +9693,38 @@ Enter number or description:`;
         `;
     }
     
+    getChatWallpaperStyle(roomId) {
+        const wallpaper = localStorage.getItem(`wallpaper_${roomId}`) || 'default';
+        
+        const wallpaperStyles = {
+            'default': 'background: #efeae2;',
+            'gradient-1': 'background: linear-gradient(to bottom right, #a855f7, #ec4899);',
+            'gradient-2': 'background: linear-gradient(to bottom right, #3b82f6, #06b6d4);',
+            'gradient-3': 'background: linear-gradient(to bottom right, #10b981, #14b8a6);',
+            'gradient-4': 'background: linear-gradient(to bottom right, #f97316, #ef4444);',
+            'gradient-5': 'background: linear-gradient(to bottom right, #6366f1, #a855f7);',
+            'gradient-6': 'background: linear-gradient(to bottom right, #374151, #111827);',
+            'white': 'background: #ffffff;',
+            'gray': 'background: #e5e7eb;',
+            'blue': 'background: #dbeafe;',
+            'green': 'background: #d1fae5;',
+            'yellow': 'background: #fef3c7;',
+            'pink': 'background: #fce7f3;'
+        };
+        
+        return wallpaperStyles[wallpaper] || wallpaperStyles['default'];
+    }
+    
     applyWallpaper(roomId, wallpaper) {
         // Save wallpaper preference to localStorage
         localStorage.setItem(`wallpaper_${roomId}`, wallpaper);
         this.showToast('Wallpaper applied!', 'success');
         
-        // Return to profile
+        // Return to chat to see changes immediately
         setTimeout(() => {
             const room = this.rooms.find(r => r.id === roomId);
-            this.showRoomProfile(roomId, room?.room_code || '');
-        }, 1000);
+            this.openRoom(roomId, room?.room_code || '');
+        }, 800);
     }
 
     customNotificationSound(roomId) {

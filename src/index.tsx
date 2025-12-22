@@ -1064,21 +1064,22 @@ app.get('/api/rooms/shared/:userId/:otherUserId', async (c) => {
     const userId = c.req.param('userId')
     const otherUserId = c.req.param('otherUserId')
     
-    // Find all groups where both users are members
+    // Find all groups where both users are members (using correct table name: chat_rooms)
     const sharedGroups = await c.env.DB.prepare(`
       SELECT DISTINCT r.id, r.room_code, r.room_name, r.created_at,
         (SELECT COUNT(*) FROM room_members rm2 WHERE rm2.room_id = r.id) as member_count
-      FROM rooms r
+      FROM chat_rooms r
       INNER JOIN room_members rm1 ON r.id = rm1.room_id AND rm1.user_id = ?
       INNER JOIN room_members rm2 ON r.id = rm2.room_id AND rm2.user_id = ?
       WHERE r.room_code NOT LIKE 'dm-%'
       ORDER BY r.created_at DESC
     `).bind(userId, otherUserId).all()
     
+    console.log(`[SHARED_GROUPS] Found ${sharedGroups.results?.length || 0} shared groups`)
     return c.json({ groups: sharedGroups.results || [] })
   } catch (error: any) {
     console.error('[SHARED_GROUPS] Error:', error)
-    return c.json({ error: 'Failed to load shared groups' }, 500)
+    return c.json({ error: 'Failed to load shared groups', details: error.message }, 500)
   }
 })
 
@@ -2192,8 +2193,8 @@ app.get('/', (c) => {
         <div id="app"></div>
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
-        <script src="/static/crypto-v2.js?v=ROOM-PROFILES-V9"></script>
-        <script src="/static/app-v3.js?v=COMPLETE-V15"></script>
+        <script src="/static/crypto-v2.js?v=ALL-FIXES-V1"></script>
+        <script src="/static/app-v3.js?v=ALL-FIXES-V1"></script>
         
         <script>
           // Register service worker for PWA
@@ -4359,14 +4360,22 @@ app.get('/api/ads/advertiser/:advertiserId/campaigns', async (c) => {
 app.post('/api/contacts/request', async (c) => {
   try {
     const userEmail = c.req.header('X-User-Email')
-    const { contact_id } = await c.req.json()
+    const body = await c.req.json()
+    const contact_id = body.contact_id || body.contactId  // Support both formats
+    const user_id = body.user_id || body.userId  // Support both formats
     
-    if (!userEmail || !contact_id) {
-      return c.json({ error: 'User email and contact ID required' }, 400)
+    if ((!userEmail && !user_id) || !contact_id) {
+      return c.json({ error: 'User ID and contact ID required' }, 400)
     }
     
-    // Get requesting user
-    const user = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(userEmail).first()
+    // Get requesting user (prefer user_id from body, fallback to email header)
+    let user
+    if (user_id) {
+      user = await c.env.DB.prepare(`SELECT id, username FROM users WHERE id = ?`).bind(user_id).first()
+    } else {
+      user = await c.env.DB.prepare(`SELECT id, username FROM users WHERE email = ?`).bind(userEmail).first()
+    }
+    
     if (!user) {
       return c.json({ error: 'User not found' }, 404)
     }
@@ -4393,11 +4402,6 @@ app.post('/api/contacts/request', async (c) => {
       VALUES (?, ?, 'pending', datetime('now'))
     `).bind(user.id, contact_id).run()
     
-    // Get requester username for notification
-    const requester = await c.env.DB.prepare(`
-      SELECT username FROM users WHERE id = ?
-    `).bind(user.id).first()
-    
     // Create notification for recipient with requester_id in data field
     await c.env.DB.prepare(`
       INSERT INTO notifications (id, user_id, type, title, message, data, read, created_at)
@@ -4407,8 +4411,8 @@ app.post('/api/contacts/request', async (c) => {
       contact_id,
       'contact_request',
       'New Contact Request',
-      `${requester?.username || 'Someone'} wants to connect with you`,
-      JSON.stringify({ requester_id: user.id, requester_username: requester?.username })
+      `${user.username || 'Someone'} wants to connect with you`,
+      JSON.stringify({ requester_id: user.id, requester_username: user.username })
     ).run()
     
     console.log(`[CONTACTS] Request sent from ${user.id} to ${contact_id}`)
@@ -5198,24 +5202,29 @@ app.get('/api/profile/export/:roomId', async (c) => {
   try {
     const roomId = c.req.param('roomId')
     
+    console.log(`[EXPORT] Exporting chat for room: ${roomId}`)
+    
     const messages = await c.env.DB.prepare(`
       SELECT 
         m.id, m.encrypted_content, m.iv, m.is_file, m.file_metadata, m.created_at,
-        u.username
+        u.username, u.id as sender_id
       FROM messages m
       JOIN users u ON m.sender_id = u.id
       WHERE m.room_id = ?
       ORDER BY m.created_at ASC
     `).bind(roomId).all()
     
+    console.log(`[EXPORT] Found ${messages.results?.length || 0} messages`)
+    
     return c.json({ 
       success: true, 
       messages: messages.results || [],
+      messageCount: messages.results?.length || 0,
       exportedAt: new Date().toISOString()
     })
   } catch (error: any) {
     console.error('[PROFILE] Export chat error:', error)
-    return c.json({ error: 'Failed to export chat' }, 500)
+    return c.json({ error: 'Failed to export chat', details: error.message }, 500)
   }
 })
 
