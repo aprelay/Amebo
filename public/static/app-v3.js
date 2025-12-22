@@ -52,6 +52,14 @@ class SecureChatApp {
         this.currentY = 0;
         this.slideIndicator = null; // Visual feedback element
         
+        // Store global event listeners for cleanup (prevent memory leaks)
+        this.globalGestureListeners = {
+            mousemove: null,
+            mouseup: null,
+            touchmove: null,
+            touchend: null
+        };
+        
         // Recursion guard for loadMessages
         this.isLoadingMessages = false;
         
@@ -2097,6 +2105,15 @@ class SecureChatApp {
     async openRoom(roomId, roomCode) {
         console.log('[V3] Opening encrypted room:', roomId);
         
+        // CRITICAL FIX: Cancel any active recording before switching rooms
+        if (this.isRecording) {
+            console.log('[VOICE] ⚠️ Cancelling active recording before room switch');
+            await this.cancelRecording();
+        }
+        
+        // CRITICAL FIX: Remove global gesture event listeners to prevent stacking
+        this.cleanupGlobalGestureListeners();
+        
         // Clear unread count when opening room (in-memory only)
         this.unreadCounts.set(roomId, 0);
         // this.saveUnreadCounts();  // REMOVED - don't save to localStorage
@@ -2246,6 +2263,9 @@ class SecureChatApp {
                 // - Slide up to lock (hands-free)
                 // - Release to send
                 
+                // CRITICAL FIX: Remove old global listeners before adding new ones
+                this.cleanupGlobalGestureListeners();
+                
                 // Click event for sending text messages (when button shows send icon)
                 newVoiceBtn.addEventListener('click', (e) => {
                     const hasText = document.getElementById('messageInput')?.value.trim().length > 0;
@@ -2264,17 +2284,22 @@ class SecureChatApp {
                     }
                 });
                 
-                document.addEventListener('mousemove', (e) => {
+                // Create and store global mouse gesture handlers
+                this.globalGestureListeners.mousemove = (e) => {
                     if (this.isRecording && !this.isRecordingLocked) {
                         this.updateVoiceRecordingGesture(e.clientX, e.clientY);
                     }
-                });
+                };
                 
-                document.addEventListener('mouseup', (e) => {
+                this.globalGestureListeners.mouseup = (e) => {
                     if (this.isRecording && !this.isRecordingLocked) {
                         this.endVoiceRecordingGesture();
                     }
-                });
+                };
+                
+                // Add global mouse listeners
+                document.addEventListener('mousemove', this.globalGestureListeners.mousemove);
+                document.addEventListener('mouseup', this.globalGestureListeners.mouseup);
                 
                 // Touch events (mobile) - for voice recording
                 newVoiceBtn.addEventListener('touchstart', (e) => {
@@ -2286,18 +2311,23 @@ class SecureChatApp {
                     }
                 });
                 
-                document.addEventListener('touchmove', (e) => {
+                // Create and store global touch gesture handlers
+                this.globalGestureListeners.touchmove = (e) => {
                     if (this.isRecording && !this.isRecordingLocked) {
                         const touch = e.touches[0];
                         this.updateVoiceRecordingGesture(touch.clientX, touch.clientY);
                     }
-                });
+                };
                 
-                document.addEventListener('touchend', (e) => {
+                this.globalGestureListeners.touchend = (e) => {
                     if (this.isRecording && !this.isRecordingLocked) {
                         this.endVoiceRecordingGesture();
                     }
-                });
+                };
+                
+                // Add global touch listeners
+                document.addEventListener('touchmove', this.globalGestureListeners.touchmove);
+                document.addEventListener('touchend', this.globalGestureListeners.touchend);
                 
                 // Set initial button state
                 this.handleMessageInput();
@@ -3253,6 +3283,31 @@ class SecureChatApp {
     // WhatsApp-Style Voice Recording Gestures
     // ========================================
     
+    cleanupGlobalGestureListeners() {
+        // Remove all global gesture event listeners to prevent memory leaks
+        console.log('[CLEANUP] Removing global gesture listeners');
+        
+        if (this.globalGestureListeners.mousemove) {
+            document.removeEventListener('mousemove', this.globalGestureListeners.mousemove);
+            this.globalGestureListeners.mousemove = null;
+        }
+        
+        if (this.globalGestureListeners.mouseup) {
+            document.removeEventListener('mouseup', this.globalGestureListeners.mouseup);
+            this.globalGestureListeners.mouseup = null;
+        }
+        
+        if (this.globalGestureListeners.touchmove) {
+            document.removeEventListener('touchmove', this.globalGestureListeners.touchmove);
+            this.globalGestureListeners.touchmove = null;
+        }
+        
+        if (this.globalGestureListeners.touchend) {
+            document.removeEventListener('touchend', this.globalGestureListeners.touchend);
+            this.globalGestureListeners.touchend = null;
+        }
+    }
+    
     async startVoiceRecordingGesture(x, y) {
         console.log('[VOICE] 🎤 Hold started at:', x, y);
         
@@ -3696,6 +3751,15 @@ class SecureChatApp {
 
     logout() {
         console.log('[V3] Logging out');
+        
+        // CRITICAL FIX: Cancel any active recording
+        if (this.isRecording) {
+            console.log('[VOICE] ⚠️ Cancelling active recording on logout');
+            this.cancelRecording(); // Sync function, safe to call
+        }
+        
+        // CRITICAL FIX: Cleanup global gesture listeners
+        this.cleanupGlobalGestureListeners();
         
         // Clear sensitive data
         if (this.currentUser) {
