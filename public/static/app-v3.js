@@ -268,6 +268,9 @@ class SecureChatApp {
         // Fetch latest message for each room and calculate unread count
         if (!this.rooms || this.rooms.length === 0) return;
         
+        console.log('[UNREAD] Starting update for', this.rooms.length, 'rooms');
+        console.log('[UNREAD] Last read message IDs:', Object.fromEntries(this.lastReadMessageIds));
+        
         for (const room of this.rooms) {
             try {
                 // Get messages for this room
@@ -279,25 +282,30 @@ class SecureChatApp {
                 
                 if (messages.length === 0) {
                     this.unreadCounts.set(room.id, 0);
+                    console.log(`[UNREAD] Room ${room.id}: 0 (no messages)`);
                     continue;
                 }
                 
                 // Get last read message ID for this room
                 const lastReadId = this.lastReadMessageIds.get(room.id);
+                console.log(`[UNREAD] Room ${room.id}: lastReadId=${lastReadId}, total messages=${messages.length}`);
                 
                 if (!lastReadId) {
                     // Never read any message in this room - all are unread
                     this.unreadCounts.set(room.id, messages.length);
+                    console.log(`[UNREAD] Room ${room.id}: ${messages.length} (never read)`);
                 } else {
                     // Count messages after last read
                     const lastReadIndex = messages.findIndex(m => m.id === lastReadId);
                     if (lastReadIndex === -1) {
                         // Last read message not found - all unread
                         this.unreadCounts.set(room.id, messages.length);
+                        console.log(`[UNREAD] Room ${room.id}: ${messages.length} (last read not found)`);
                     } else {
                         // Count messages after last read index
                         const unreadCount = messages.length - lastReadIndex - 1;
                         this.unreadCounts.set(room.id, Math.max(0, unreadCount));
+                        console.log(`[UNREAD] Room ${room.id}: ${unreadCount} (lastReadIndex=${lastReadIndex})`);
                     }
                 }
             } catch (error) {
@@ -306,7 +314,7 @@ class SecureChatApp {
         }
         
         this.saveUnreadCounts();
-        console.log('[UNREAD] Counts updated:', Object.fromEntries(this.unreadCounts));
+        console.log('[UNREAD] Final counts:', Object.fromEntries(this.unreadCounts));
     }
 
     playNotificationSound() {
@@ -775,8 +783,12 @@ class SecureChatApp {
             const lastReadData = localStorage.getItem('lastReadMessages_' + this.currentUser.id);
             if (lastReadData) {
                 const parsed = JSON.parse(lastReadData);
-                this.lastReadMessageIds = new Map(Object.entries(parsed));
+                // Convert string keys back to numbers to match room.id type
+                this.lastReadMessageIds = new Map(
+                    Object.entries(parsed).map(([key, value]) => [parseInt(key), value])
+                );
                 console.log('[LOGIN] Loaded last read message IDs:', Object.keys(parsed).length, 'rooms');
+                console.log('[LOGIN] Last read IDs:', Object.fromEntries(this.lastReadMessageIds));
             }
             
             // DON'T load stale unread counts from localStorage
