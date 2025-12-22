@@ -8413,17 +8413,20 @@ class SecureChatApp {
         alert('Language Settings' + String.fromCharCode(10) + String.fromCharCode(10) + 'Current: English' + String.fromCharCode(10) + String.fromCharCode(10) + 'More languages coming soon!');
     }
 
-    async showDataUsage() {
+    showDataUsage() {
+        console.log('[DATA USAGE] Starting showDataUsage function');
         this.closeProfileDrawer();
         this.pushNavigation('dataUsage');
         
-        // Get storage data from localStorage
+        // Get storage data directly (no async calls)
         const messagesCount = Object.keys(this.messageCache || {}).length;
-        const roomsCount = (await this.fetchAPI('/api/rooms')).length || 0;
+        const roomsCount = this.rooms ? this.rooms.length : 0;
         
         // Calculate approximate storage used
         const storageEstimate = messagesCount * 0.5; // ~0.5 KB per message average
         const cacheSize = JSON.stringify(this.messageCache || {}).length / 1024; // KB
+        
+        console.log('[DATA USAGE] Messages:', messagesCount, 'Rooms:', roomsCount, 'Cache:', cacheSize, 'KB');
         
         document.getElementById('app').innerHTML = `
             <div class="min-h-screen bg-gray-100">
@@ -8548,6 +8551,8 @@ class SecureChatApp {
                 </div>
             </div>
         `;
+        
+        console.log('[DATA USAGE] Page rendered successfully');
     }
 
     clearMessageCache() {
