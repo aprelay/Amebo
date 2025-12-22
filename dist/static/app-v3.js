@@ -44,6 +44,9 @@ class SecureChatApp {
         this.recordingTimer = null;
         this.isRecording = false;
         
+        // Recursion guard for loadMessages
+        this.isLoadingMessages = false;
+        
         console.log('[V3] App initialized - Industrial Grade Security + Tokens + Enhanced Notifications');
         
         // Initialize swipe gesture handling
@@ -2221,17 +2224,22 @@ class SecureChatApp {
             console.log('[INIT] Voice button element:', voiceBtn);
             
             if (voiceBtn) {
-                console.log('[INIT] ✅ Button found! Attaching click event listener');
+                console.log('[INIT] ✅ Button found! Removing old listeners and attaching new one');
                 
-                // Attach click handler that checks button state
-                voiceBtn.addEventListener('click', () => {
+                // CRITICAL FIX: Clone and replace the button to remove ALL old event listeners
+                // This prevents stacking listeners when opening the room multiple times
+                const newVoiceBtn = voiceBtn.cloneNode(true);
+                voiceBtn.parentNode.replaceChild(newVoiceBtn, voiceBtn);
+                
+                // Now attach the click handler to the fresh button (no stacked listeners!)
+                newVoiceBtn.addEventListener('click', () => {
                     console.log('[INIT] 🎯 Voice button clicked!');
                     this.handleButtonClick();
                 });
                 
                 // Set initial button state
                 this.handleMessageInput();
-                console.log('[INIT] ✅ Button initialized successfully');
+                console.log('[INIT] ✅ Button initialized successfully (old listeners removed)');
             } else {
                 console.error('[INIT] ❌ Voice button not found! Attempt:', attempts);
                 
@@ -2596,14 +2604,23 @@ class SecureChatApp {
     async loadMessages() {
         if (!this.currentRoom) return;
         
-        const container = document.getElementById('messages');
-        if (!container) {
-            console.error('[V3] Messages container not found!');
+        // Recursion guard - prevent stack overflow
+        if (this.isLoadingMessages) {
+            console.log('[LOAD] Already loading messages, skipping duplicate call');
             return;
         }
         
-        // Track if this is initial load or update
-        const isInitialLoad = !this.messages || this.messages.length === 0;
+        this.isLoadingMessages = true;
+        
+        try {
+            const container = document.getElementById('messages');
+            if (!container) {
+                console.error('[V3] Messages container not found!');
+                return;
+            }
+            
+            // Track if this is initial load or update
+            const isInitialLoad = !this.messages || this.messages.length === 0;
         
         // Check cache first (only on initial load)
         if (isInitialLoad) {
@@ -2768,6 +2785,9 @@ class SecureChatApp {
                     <p class="text-sm mt-2">${error.message}</p>
                 </div>
             `;
+        } finally {
+            // Always release the loading guard
+            this.isLoadingMessages = false;
         }
     }
 
