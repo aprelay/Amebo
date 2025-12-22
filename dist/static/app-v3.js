@@ -23,6 +23,7 @@ class SecureChatApp {
         
         // Last message tracking for notifications
         this.lastMessageIds = new Map(); // roomId -> last message ID
+        this.unreadCounts = new Map(); // roomId -> unread message count
         this.notificationSound = null;
         this.notificationsEnabled = true;
         this.badgeNotificationsEnabled = true; // Badge notifications for iOS PWA
@@ -244,6 +245,14 @@ class SecureChatApp {
             console.log('[BADGE] 3. Select "Add to Home Screen"');
             console.log('[BADGE] 4. Open from home screen icon');
         }
+    }
+
+    saveUnreadCounts() {
+        if (!this.currentUser) return;
+        
+        // Convert Map to plain object for storage
+        const unreadObj = Object.fromEntries(this.unreadCounts);
+        localStorage.setItem('unreadCounts_' + this.currentUser.id, JSON.stringify(unreadObj));
     }
 
     playNotificationSound() {
@@ -696,6 +705,13 @@ class SecureChatApp {
             const viewedFiles = localStorage.getItem('viewedOnceFiles');
             if (viewedFiles) {
                 this.viewedOnceFiles = new Set(JSON.parse(viewedFiles));
+            }
+            
+            // Load unread counts from localStorage
+            const unreadData = localStorage.getItem('unreadCounts_' + this.currentUser.id);
+            if (unreadData) {
+                const parsed = JSON.parse(unreadData);
+                this.unreadCounts = new Map(Object.entries(parsed));
             }
             
             // Start notification polling for mobile push notifications
@@ -1560,10 +1576,9 @@ class SecureChatApp {
                     `;
                 } else {
                     listEl.innerHTML = this.rooms.map(room => {
-                        // Get message count for this room
-                        const roomMessages = this.messages.filter(m => m.room_id === room.id);
-                        const messageCount = roomMessages.length;
-                        const showCount = messageCount > 0;
+                        // Get unread message count for this room
+                        const unreadCount = this.unreadCounts.get(room.id) || 0;
+                        const showCount = unreadCount > 0;
                         
                         return `
                         <div class="room-item-wrapper relative overflow-hidden" data-room-id="${room.id}">
@@ -1581,7 +1596,7 @@ class SecureChatApp {
                                         <p class="text-sm text-gray-600">Code: ${room.room_code}</p>
                                     </div>
                                     <div class="flex items-center gap-3">
-                                        ${showCount ? `<span class="bg-purple-600 text-white text-xs font-bold rounded-full px-2.5 py-1 min-w-[28px] text-center">${messageCount}</span>` : ''}
+                                        ${showCount ? `<span class="bg-purple-600 text-white text-xs font-bold rounded-full px-2.5 py-1 min-w-[28px] text-center">${unreadCount}</span>` : ''}
                                         <i class="fas fa-chevron-right text-gray-400"></i>
                                     </div>
                                 </div>
@@ -1842,6 +1857,10 @@ class SecureChatApp {
 
     async openRoom(roomId, roomCode) {
         console.log('[V3] Opening encrypted room:', roomId);
+        
+        // Clear unread count when opening room
+        this.unreadCounts.set(roomId, 0);
+        this.saveUnreadCounts();
         
         // Clear messages for fresh load (forces isInitialLoad = true)
         this.messages = [];
@@ -2165,7 +2184,12 @@ class SecureChatApp {
                     if (lastIndex !== -1 && lastIndex < decryptedMessages.length - 1) {
                         const newMessagesOnly = decryptedMessages.slice(lastIndex + 1);
                         
+                        // Increment unread count for closed rooms
                         if (document.hidden || !document.hasFocus()) {
+                            const currentUnread = this.unreadCounts.get(this.currentRoom.id) || 0;
+                            this.unreadCounts.set(this.currentRoom.id, currentUnread + newMessagesOnly.length);
+                            this.saveUnreadCounts();
+                            
                             newMessagesOnly.forEach(msg => {
                                 this.queueNotification(msg, this.currentRoom.room_name || this.currentRoom.room_code);
                             });
