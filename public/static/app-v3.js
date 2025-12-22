@@ -37,6 +37,13 @@ class SecureChatApp {
         this.notificationPermissionChecked = false;
         this.pendingNotifications = []; // Backup queue for retry
         
+        // Voice note recording
+        this.mediaRecorder = null;
+        this.audioChunks = [];
+        this.recordingStartTime = null;
+        this.recordingTimer = null;
+        this.isRecording = false;
+        
         console.log('[V3] App initialized - Industrial Grade Security + Tokens + Enhanced Notifications');
         
         // Initialize swipe gesture handling
@@ -2181,9 +2188,17 @@ class SecureChatApp {
                                 oninput="app.autoResizeTextarea(this); app.handleMessageInput();"
                                 onkeypress="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); app.sendMessage(); }"
                             ></textarea>
-                            <button onclick="app.sendMessage()" style="background: #25d366; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.3); flex-shrink: 0; align-self: flex-end; margin-bottom: 3px; transition: all 0.2s;" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 3px 8px rgba(37, 211, 102, 0.5)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 5px rgba(37, 211, 102, 0.3)'">
-                                <i class="fas fa-paper-plane"></i>
+                            
+                            <!-- Voice Note Button (changes to Send when typing) -->
+                            <button id="voiceNoteBtn" onclick="app.toggleVoiceRecording()" style="background: #25d366; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.3); flex-shrink: 0; align-self: flex-end; margin-bottom: 3px; transition: all 0.2s;" title="Voice Note" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 3px 8px rgba(37, 211, 102, 0.5)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 5px rgba(37, 211, 102, 0.3)'">
+                                <i class="fas fa-microphone"></i>
                             </button>
+                            
+                            <!-- Recording Timer (hidden by default) -->
+                            <div id="recordingTimer" style="display: none; position: absolute; bottom: 60px; right: 16px; background: rgba(255,255,255,0.95); padding: 8px 16px; border-radius: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-size: 14px; color: #dc2626; font-weight: 600; backdrop-filter: blur(5px);">
+                                <i class="fas fa-circle" style="font-size: 8px; animation: pulse 1.5s ease-in-out infinite; margin-right: 8px;"></i>
+                                <span id="recordingTime">0:00</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2215,6 +2230,26 @@ class SecureChatApp {
         textarea.style.height = 'auto';
         // Set height based on content, max 90px
         textarea.style.height = Math.min(textarea.scrollHeight, 90) + 'px';
+    }
+
+    handleMessageInput() {
+        const input = document.getElementById('messageInput');
+        const voiceBtn = document.getElementById('voiceNoteBtn');
+        
+        if (!input || !voiceBtn) return;
+        
+        const hasText = input.value.trim().length > 0;
+        
+        // Toggle between send and voice note button
+        if (hasText) {
+            voiceBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+            voiceBtn.onclick = () => this.sendMessage();
+            voiceBtn.title = 'Send';
+        } else {
+            voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+            voiceBtn.onclick = () => this.toggleVoiceRecording();
+            voiceBtn.title = 'Voice Note';
+        }
     }
 
     async handleFileSelect(event) {
@@ -2655,15 +2690,18 @@ class SecureChatApp {
         const isMine = msg.sender_id === this.currentUser.id;
         const time = new Date(msg.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
         
-        // Try to parse as file message
+        // Try to parse as file/voice message
         let fileData = null;
+        let voiceData = null;
         try {
             const parsed = JSON.parse(msg.decrypted || '{}');
             if (parsed.type === 'file') {
                 fileData = parsed;
+            } else if (parsed.type === 'voice') {
+                voiceData = parsed;
             }
         } catch (e) {
-            // Not a file message
+            // Not a file or voice message
         }
 
         // WhatsApp-style message bubble
@@ -2671,6 +2709,46 @@ class SecureChatApp {
         const textColor = isMine ? '#000000' : '#000000';
         const timeColor = isMine ? '#667781' : '#667781';
         const alignment = isMine ? 'flex-end' : 'flex-start';
+
+        // Voice message
+        if (voiceData) {
+            const duration = voiceData.duration || 0;
+            const minutes = Math.floor(duration / 60);
+            const seconds = duration % 60;
+            const durationText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            const audioId = 'audio_' + msg.id;
+            
+            return `
+                <div style="display: flex; justify-content: ${alignment}; margin-bottom: 4px;">
+                    <div style="max-width: 70%; min-width: 250px; background: ${bubbleColor}; border-radius: 12px; padding: 8px 12px; box-shadow: 0 1px 0.5px rgba(0,0,0,0.05); position: relative;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button onclick="app.toggleVoicePlayback('${audioId}')" style="background: ${isMine ? '#25d366' : '#7C3AED'}; border: none; color: white; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; transition: all 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                                <i class="fas fa-play" id="${audioId}_icon"></i>
+                            </button>
+                            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                                <div style="height: 24px; background: rgba(0,0,0,0.05); border-radius: 12px; position: relative; overflow: hidden;">
+                                    <div id="${audioId}_progress" style="height: 100%; background: ${isMine ? '#25d366' : '#7C3AED'}; width: 0%; transition: width 0.1s;"></div>
+                                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; padding: 0 8px;">
+                                        <div style="flex: 1; height: 2px; background: rgba(255,255,255,0.3); border-radius: 1px; position: relative;">
+                                            <div style="position: absolute; top: 50%; left: 0; right: 0; height: 100%; transform: translateY(-50%); display: flex; align-items: center; gap: 2px;">
+                                                ${Array(20).fill(0).map((_, i) => `<div style="flex: 1; height: ${Math.random() * 16 + 8}px; background: ${isMine ? 'rgba(37,211,102,0.4)' : 'rgba(124,58,237,0.4)'}; border-radius: 1px;"></div>`).join('')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-size: 12px; color: ${timeColor}; font-weight: 500;">
+                                        <i class="fas fa-microphone" style="font-size: 10px; margin-right: 4px;"></i>${durationText}
+                                    </span>
+                                    <span style="font-size: 10px; color: ${timeColor};">${time}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <audio id="${audioId}" src="${voiceData.data}" preload="metadata" style="display: none;"></audio>
+                    </div>
+                </div>
+            `;
+        }
 
         // File message
         if (fileData) {
@@ -2783,6 +2861,45 @@ class SecureChatApp {
         } catch (error) {
             console.error('[V3] Download error:', error);
             alert('Failed to download file: ' + error.message);
+        }
+    }
+
+    toggleVoicePlayback(audioId) {
+        const audio = document.getElementById(audioId);
+        const icon = document.getElementById(audioId + '_icon');
+        const progress = document.getElementById(audioId + '_progress');
+        
+        if (!audio || !icon) return;
+        
+        if (audio.paused) {
+            // Stop all other audio
+            document.querySelectorAll('audio').forEach(a => {
+                if (a.id !== audioId) {
+                    a.pause();
+                    a.currentTime = 0;
+                    const otherIcon = document.getElementById(a.id + '_icon');
+                    if (otherIcon) otherIcon.className = 'fas fa-play';
+                }
+            });
+            
+            // Play this audio
+            audio.play();
+            icon.className = 'fas fa-pause';
+            
+            // Update progress
+            audio.ontimeupdate = () => {
+                const percent = (audio.currentTime / audio.duration) * 100;
+                if (progress) progress.style.width = percent + '%';
+            };
+            
+            // Reset on end
+            audio.onended = () => {
+                icon.className = 'fas fa-play';
+                if (progress) progress.style.width = '0%';
+            };
+        } else {
+            audio.pause();
+            icon.className = 'fas fa-play';
         }
     }
 
@@ -2946,6 +3063,8 @@ class SecureChatApp {
 
             if (data.success) {
                 input.value = '';
+                // Reset button back to microphone
+                this.handleMessageInput();
                 // Invalidate cache to force reload with new message
                 this.messageCache.delete(this.currentRoom.id);
                 await this.loadMessages();
@@ -2960,6 +3079,227 @@ class SecureChatApp {
             }
         } catch (error) {
             console.error('[V3] Error sending message:', error);
+        }
+    }
+
+    // Voice Note Recording Functions
+    async toggleVoiceRecording() {
+        if (this.isRecording) {
+            await this.stopRecording();
+        } else {
+            await this.startRecording();
+        }
+    }
+
+    async startRecording() {
+        try {
+            console.log('[VOICE] Requesting microphone permission...');
+            
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    sampleRate: 44100
+                } 
+            });
+            
+            console.log('[VOICE] Microphone access granted');
+            
+            // Determine best audio format
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
+                ? 'audio/webm;codecs=opus'
+                : MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
+                ? 'audio/ogg;codecs=opus'
+                : 'audio/webm';
+            
+            this.mediaRecorder = new MediaRecorder(stream, { mimeType });
+            this.audioChunks = [];
+            
+            this.mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    this.audioChunks.push(event.data);
+                }
+            };
+            
+            this.mediaRecorder.onstop = async () => {
+                console.log('[VOICE] Recording stopped, processing audio...');
+                await this.processRecording();
+                
+                // Stop all tracks
+                stream.getTracks().forEach(track => track.stop());
+            };
+            
+            this.mediaRecorder.start();
+            this.isRecording = true;
+            this.recordingStartTime = Date.now();
+            
+            // Update UI
+            this.updateRecordingUI(true);
+            this.startRecordingTimer();
+            
+            console.log('[VOICE] Recording started');
+            
+        } catch (error) {
+            console.error('[VOICE] Error starting recording:', error);
+            alert('❌ Microphone access denied\n\nPlease allow microphone access to send voice notes.');
+        }
+    }
+
+    async stopRecording() {
+        if (!this.mediaRecorder || !this.isRecording) return;
+        
+        console.log('[VOICE] Stopping recording...');
+        
+        this.isRecording = false;
+        this.mediaRecorder.stop();
+        this.stopRecordingTimer();
+        this.updateRecordingUI(false);
+    }
+
+    startRecordingTimer() {
+        const timerDisplay = document.getElementById('recordingTime');
+        if (!timerDisplay) return;
+        
+        this.recordingTimer = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - this.recordingStartTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            // Auto-stop at 5 minutes
+            if (elapsed >= 300) {
+                this.stopRecording();
+                alert('⏱️ Maximum recording time reached (5 minutes)');
+            }
+        }, 100);
+    }
+
+    stopRecordingTimer() {
+        if (this.recordingTimer) {
+            clearInterval(this.recordingTimer);
+            this.recordingTimer = null;
+        }
+    }
+
+    updateRecordingUI(isRecording) {
+        const voiceBtn = document.getElementById('voiceNoteBtn');
+        const recordingTimer = document.getElementById('recordingTimer');
+        const messageInput = document.getElementById('messageInput');
+        
+        if (!voiceBtn) return;
+        
+        if (isRecording) {
+            // Show recording state
+            voiceBtn.style.background = '#dc2626';
+            voiceBtn.style.animation = 'pulse 1.5s ease-in-out infinite';
+            voiceBtn.innerHTML = '<i class="fas fa-stop"></i>';
+            voiceBtn.title = 'Stop Recording';
+            
+            if (recordingTimer) recordingTimer.style.display = 'block';
+            if (messageInput) messageInput.placeholder = '🎤 Recording voice note...';
+        } else {
+            // Reset to normal state
+            voiceBtn.style.background = '#25d366';
+            voiceBtn.style.animation = 'none';
+            voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+            voiceBtn.title = 'Voice Note';
+            
+            if (recordingTimer) recordingTimer.style.display = 'none';
+            if (messageInput) messageInput.placeholder = 'Type a message';
+        }
+    }
+
+    async processRecording() {
+        if (this.audioChunks.length === 0) {
+            console.log('[VOICE] No audio data recorded');
+            return;
+        }
+        
+        try {
+            // Create blob from recorded chunks
+            const audioBlob = new Blob(this.audioChunks, { type: this.mediaRecorder.mimeType });
+            const duration = Math.floor((Date.now() - this.recordingStartTime) / 1000);
+            
+            console.log('[VOICE] Audio blob created:', {
+                size: audioBlob.size,
+                type: audioBlob.type,
+                duration: duration + 's'
+            });
+            
+            // Convert to base64
+            const audioDataUrl = await this.blobToDataUrl(audioBlob);
+            
+            // Send as voice message
+            await this.sendVoiceMessage(audioDataUrl, duration, audioBlob.size);
+            
+            // Clear chunks
+            this.audioChunks = [];
+            
+        } catch (error) {
+            console.error('[VOICE] Error processing recording:', error);
+            alert('Failed to process voice note: ' + error.message);
+        }
+    }
+
+    blobToDataUrl(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    async sendVoiceMessage(audioDataUrl, duration, size) {
+        if (!this.currentRoom) return;
+        
+        console.log('[VOICE] Sending voice note:', { duration, size });
+        
+        try {
+            // Create voice message metadata
+            const voiceData = {
+                type: 'voice',
+                data: audioDataUrl,
+                duration: duration,
+                size: size
+            };
+            
+            const messageContent = JSON.stringify(voiceData);
+            
+            // Encrypt voice message
+            const roomKey = this.roomKeys.get(this.currentRoom.id);
+            const encrypted = await CryptoUtils.encryptMessage(messageContent, roomKey);
+            
+            const response = await fetch(`${API_BASE}/api/messages/send`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomId: this.currentRoom.id,
+                    senderId: this.currentUser.id,
+                    encryptedContent: encrypted.encrypted,
+                    iv: encrypted.iv
+                })
+            });
+            
+            const data = await response.json();
+            console.log('[VOICE] Send response:', data);
+            
+            if (data.success) {
+                // Invalidate cache and reload messages
+                this.messageCache.delete(this.currentRoom.id);
+                await this.loadMessages();
+                
+                // Scroll to bottom
+                setTimeout(() => {
+                    this.scrollToBottom(true);
+                }, 100);
+                
+                // Award tokens for voice note (2 tokens)
+                await this.awardTokens(2, 'voice_note');
+            }
+        } catch (error) {
+            console.error('[VOICE] Error sending voice note:', error);
+            alert('Failed to send voice note: ' + error.message);
         }
     }
 
