@@ -3584,22 +3584,29 @@ class SecureChatApp {
                     continue;
                 }
                 
-                // Fetch latest messages for this room
-                const response = await fetch(`${API_BASE}/api/messages/${room.id}`);
-                if (!response.ok) continue;
-                
-                const data = await response.json();
-                const messages = data.messages || [];
-                
-                if (messages.length === 0) {
-                    if (this.unreadCounts.get(room.id) !== 0) {
-                        this.unreadCounts.set(room.id, 0);
-                        hasUpdates = true;
+                try {
+                    // Fetch latest messages for this room
+                    const response = await fetch(`${API_BASE}/api/messages/${room.id}`);
+                    if (!response.ok) {
+                        // Silently skip rooms with API errors (502, 503, etc.)
+                        if (response.status >= 500) {
+                            console.log(`[UNREAD] Skipping room ${room.id} - API error ${response.status}`);
+                        }
+                        continue;
                     }
-                    continue;
-                }
-                
-                // Get last read message ID for this room
+                    
+                    const data = await response.json();
+                    const messages = data.messages || [];
+                    
+                    if (messages.length === 0) {
+                        if (this.unreadCounts.get(room.id) !== 0) {
+                            this.unreadCounts.set(room.id, 0);
+                            hasUpdates = true;
+                        }
+                        continue;
+                    }
+                    
+                    // Get last read message ID for this room
                 const lastReadId = this.lastReadMessageIds.get(room.id);
                 const latestMessageId = messages[messages.length - 1].id;
                 
@@ -3636,6 +3643,11 @@ class SecureChatApp {
                             }
                         }
                     }
+                }
+                } catch (roomError) {
+                    // Silently skip rooms with errors
+                    console.log(`[UNREAD] Skipped room ${room.id} due to error:`, roomError.message);
+                    continue;
                 }
             }
             
@@ -3783,12 +3795,21 @@ class SecureChatApp {
                 <div id="ad-banner" class="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-purple-200 shadow-lg z-50 animate-slide-up">
                     <div class="max-w-4xl mx-auto p-3 flex items-center gap-3">
                         <!-- Ad Image -->
+                        ${ad.ad_image_url ? `
                         <img 
                             src="${ad.ad_image_url}" 
                             alt="${ad.ad_title}"
                             class="w-16 h-16 object-cover rounded-lg shadow"
-                            onerror="this.src='https://via.placeholder.com/64x64/7C3AED/FFFFFF?text=Ad'"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"
                         />
+                        <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg shadow flex items-center justify-center text-white text-xs font-bold" style="display:none">
+                            AD
+                        </div>
+                        ` : `
+                        <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg shadow flex items-center justify-center text-white text-xs font-bold">
+                            AD
+                        </div>
+                        `}
                         
                         <!-- Ad Content -->
                         <div class="flex-1 min-w-0">
@@ -6144,7 +6165,13 @@ class SecureChatApp {
         
         document.getElementById('adPreview').innerHTML = `
             <div class="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-lg p-4">
-                ${image ? `<img src="${image}" alt="Ad" class="w-full h-24 object-cover rounded-lg mb-3" onerror="this.src='https://via.placeholder.com/320x100/7C3AED/FFFFFF?text=Ad+Image'">` : ''}
+                ${image ? `
+                <img src="${image}" alt="Ad" class="w-full h-24 object-cover rounded-lg mb-3" 
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                <div class="w-full h-24 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-lg mb-3 flex items-center justify-center text-white text-2xl font-bold" style="display:none">
+                    AD
+                </div>
+                ` : ''}
                 <div class="text-left">
                     <div class="font-bold text-gray-800">${title || 'Your Ad Title'}</div>
                     ${description ? `<div class="text-sm text-gray-600 mt-1">${description}</div>` : ''}
@@ -6506,8 +6533,17 @@ class SecureChatApp {
                             <h2 class="text-xl font-bold text-gray-800 mb-4">Current Ad Preview</h2>
                             <div id="editAdPreview" class="border-2 border-gray-200 rounded-lg p-4">
                                 <div class="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-lg p-4">
+                                    ${campaign.ad_image_url ? `
                                     <img src="${campaign.ad_image_url}" alt="Ad" class="w-full h-24 object-cover rounded-lg mb-3" 
-                                         onerror="this.src='https://via.placeholder.com/320x100/7C3AED/FFFFFF?text=Ad+Image'">
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                                    <div class="w-full h-24 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-lg mb-3 flex items-center justify-center text-white text-2xl font-bold" style="display:none">
+                                        AD
+                                    </div>
+                                    ` : `
+                                    <div class="w-full h-24 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-lg mb-3 flex items-center justify-center text-white text-2xl font-bold">
+                                        AD
+                                    </div>
+                                    `}
                                     <div class="text-left">
                                         <div class="font-bold text-gray-800" id="previewTitle">${campaign.ad_title}</div>
                                         <div class="text-sm text-gray-600 mt-1" id="previewDescription">${campaign.ad_description || ''}</div>
