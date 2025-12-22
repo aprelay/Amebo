@@ -269,8 +269,10 @@ class SecureChatApp {
         // Fetch latest message for each room and calculate unread count
         if (!this.rooms || this.rooms.length === 0) return;
         
+        console.log('[UNREAD] ========== UPDATE UNREAD COUNTS ==========');
         console.log('[UNREAD] Starting update for', this.rooms.length, 'rooms');
-        console.log('[UNREAD] Last read message IDs:', Object.fromEntries(this.lastReadMessageIds));
+        console.log('[UNREAD] Last read message IDs Map:', Object.fromEntries(this.lastReadMessageIds));
+        console.log('[UNREAD] Current unread counts Map:', Object.fromEntries(this.unreadCounts));
         
         for (const room of this.rooms) {
             try {
@@ -281,32 +283,47 @@ class SecureChatApp {
                 const data = await response.json();
                 const messages = data.messages || [];
                 
+                console.log(`[UNREAD] ===== Room ${room.id} (${room.room_name || room.room_code}) =====`);
+                console.log(`[UNREAD] Total messages: ${messages.length}`);
+                
                 if (messages.length === 0) {
                     this.unreadCounts.set(room.id, 0);
-                    console.log(`[UNREAD] Room ${room.id}: 0 (no messages)`);
+                    console.log(`[UNREAD] Result: 0 (no messages)`);
                     continue;
                 }
                 
                 // Get last read message ID for this room
                 const lastReadId = this.lastReadMessageIds.get(room.id);
-                console.log(`[UNREAD] Room ${room.id}: lastReadId=${lastReadId}, total messages=${messages.length}`);
+                console.log(`[UNREAD] Last read message ID: ${lastReadId} (type: ${typeof lastReadId})`);
+                console.log(`[UNREAD] Latest message ID: ${messages[messages.length - 1].id} (type: ${typeof messages[messages.length - 1].id})`);
                 
                 if (!lastReadId) {
                     // Never read any message in this room - all are unread
                     this.unreadCounts.set(room.id, messages.length);
-                    console.log(`[UNREAD] Room ${room.id}: ${messages.length} (never read)`);
+                    console.log(`[UNREAD] Result: ${messages.length} (never read any message)`);
                 } else {
                     // Count messages after last read
-                    const lastReadIndex = messages.findIndex(m => m.id === lastReadId);
+                    console.log(`[UNREAD] Searching for lastReadId in ${messages.length} messages...`);
+                    const lastReadIndex = messages.findIndex(m => {
+                        const matches = m.id === lastReadId;
+                        if (matches) {
+                            console.log(`[UNREAD] Found match at index ${messages.findIndex(msg => msg.id === lastReadId)}: ${m.id} === ${lastReadId}`);
+                        }
+                        return matches;
+                    });
+                    
+                    console.log(`[UNREAD] Last read index: ${lastReadIndex}`);
+                    
                     if (lastReadIndex === -1) {
                         // Last read message not found - all unread
                         this.unreadCounts.set(room.id, messages.length);
-                        console.log(`[UNREAD] Room ${room.id}: ${messages.length} (last read not found)`);
+                        console.log(`[UNREAD] Result: ${messages.length} (last read message NOT FOUND in list)`);
+                        console.log(`[UNREAD] Message IDs in room:`, messages.slice(-5).map(m => `${m.id} (${typeof m.id})`));
                     } else {
                         // Count messages after last read index
                         const unreadCount = messages.length - lastReadIndex - 1;
                         this.unreadCounts.set(room.id, Math.max(0, unreadCount));
-                        console.log(`[UNREAD] Room ${room.id}: ${unreadCount} (lastReadIndex=${lastReadIndex})`);
+                        console.log(`[UNREAD] Result: ${unreadCount} (messages after index ${lastReadIndex})`);
                     }
                 }
             } catch (error) {
@@ -316,7 +333,9 @@ class SecureChatApp {
         
         // DON'T save unread counts to localStorage - they should be recalculated fresh each login
         // this.saveUnreadCounts();  // REMOVED
-        console.log('[UNREAD] Final counts (NOT saved to localStorage):', Object.fromEntries(this.unreadCounts));
+        console.log('[UNREAD] ========== FINAL COUNTS (NOT SAVED) ==========');
+        console.log('[UNREAD]', Object.fromEntries(this.unreadCounts));
+        console.log('[UNREAD] ===============================================');
     }
 
     playNotificationSound() {
@@ -785,10 +804,8 @@ class SecureChatApp {
             const lastReadData = localStorage.getItem('lastReadMessages_' + this.currentUser.id);
             if (lastReadData) {
                 const parsed = JSON.parse(lastReadData);
-                // Convert string keys back to numbers to match room.id type
-                this.lastReadMessageIds = new Map(
-                    Object.entries(parsed).map(([key, value]) => [parseInt(key), value])
-                );
+                // Keep keys as-is (could be numbers OR UUID strings depending on room ID format)
+                this.lastReadMessageIds = new Map(Object.entries(parsed));
                 console.log('[LOGIN] Loaded last read message IDs:', Object.keys(parsed).length, 'rooms');
                 console.log('[LOGIN] Last read IDs:', Object.fromEntries(this.lastReadMessageIds));
             }
@@ -2171,6 +2188,68 @@ class SecureChatApp {
         }
     }
 
+    // Debug function to check localStorage
+    debugUnreadData() {
+        console.log('========== UNREAD DEBUG INFO ==========');
+        console.log('Current User:', this.currentUser?.id);
+        
+        // Check localStorage
+        console.log('\n--- localStorage Keys ---');
+        const allKeys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            allKeys.push(key);
+        }
+        console.log('All keys:', allKeys);
+        
+        // Check unread-related keys
+        const unreadKeys = allKeys.filter(k => k && (k.includes('unread') || k.includes('lastRead')));
+        console.log('Unread-related keys:', unreadKeys);
+        
+        unreadKeys.forEach(key => {
+            console.log(`${key}:`, localStorage.getItem(key));
+        });
+        
+        // Check in-memory data
+        console.log('\n--- In-Memory Maps ---');
+        console.log('lastReadMessageIds:', Object.fromEntries(this.lastReadMessageIds));
+        console.log('unreadCounts:', Object.fromEntries(this.unreadCounts));
+        console.log('lastMessageIds:', Object.fromEntries(this.lastMessageIds));
+        
+        console.log('=======================================');
+    }
+    
+    // Function to force clear all unread data
+    forceCleanUnreadData() {
+        console.log('[FORCE CLEAN] Clearing ALL unread data...');
+        
+        // Clear localStorage
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.includes('unread') || key.includes('lastRead') || key.includes('lastMessage'))) {
+                keysToRemove.push(key);
+            }
+        }
+        
+        keysToRemove.forEach(key => {
+            console.log('[FORCE CLEAN] Removing:', key);
+            localStorage.removeItem(key);
+        });
+        
+        // Clear Maps
+        this.unreadCounts.clear();
+        this.lastReadMessageIds.clear();
+        this.lastMessageIds.clear();
+        
+        console.log('[FORCE CLEAN] Done! Reload room list to see changes.');
+        
+        // Reload room list if available
+        if (this.currentUser) {
+            this.showRoomList();
+        }
+    }
+
     async loadMessages() {
         if (!this.currentRoom) return;
         
@@ -2680,11 +2759,26 @@ class SecureChatApp {
         
         // Clear sensitive data
         if (this.currentUser) {
-            localStorage.removeItem(`privateKey_${this.currentUser.id}`);
-            // Clear unread counts and last read messages for this user
-            localStorage.removeItem(`unreadCounts_${this.currentUser.id}`);
-            localStorage.removeItem(`lastReadMessages_${this.currentUser.id}`);
-            console.log('[LOGOUT] Cleared unread counts and last read messages');
+            const userId = this.currentUser.id;
+            localStorage.removeItem(`privateKey_${userId}`);
+            
+            // Clear ALL unread-related data for this user
+            localStorage.removeItem(`unreadCounts_${userId}`);
+            localStorage.removeItem(`lastReadMessages_${userId}`);
+            console.log('[LOGOUT] Cleared unread counts and last read messages for user:', userId);
+            
+            // Also clear any legacy keys that might exist
+            const keysToCheck = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('unread') || key.includes('lastRead'))) {
+                    keysToCheck.push(key);
+                }
+            }
+            keysToCheck.forEach(key => {
+                console.log('[LOGOUT] Removing legacy key:', key);
+                localStorage.removeItem(key);
+            });
         }
         
         localStorage.removeItem('currentUser');
@@ -2702,7 +2796,7 @@ class SecureChatApp {
         this.unreadCounts.clear();
         this.lastReadMessageIds.clear();
         this.lastMessageIds.clear();
-        console.log('[LOGOUT] Cleared all unread tracking data from memory');
+        console.log('[LOGOUT] Cleared all Maps - unreadCounts:', this.unreadCounts.size, 'lastReadMessageIds:', this.lastReadMessageIds.size);
         
         if (this.messagePoller) clearInterval(this.messagePoller);
         if (this.notificationPollInterval) {
