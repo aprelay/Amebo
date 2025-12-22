@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Load</title>
+</head>
+<body>
+    <h1>Testing JavaScript Load</h1>
+    <div id="status">Loading...</div>
+    
+    <script>
+        document.getElementById('status').textContent = 'Trying to load crypto-v2.js...';
+        
+        fetch('/static/crypto-v2.js?nocache=' + Date.now())
+            .then(r => r.text())
+            .then(text => {
+                document.getElementById('status').innerHTML = 
+                    'SUCCESS! Loaded ' + text.length + ' chars. First line:<br>' + 
+                    text.split('\n')[0];
+            })
+            .catch(e => {
+                document.getElementById('status').textContent = 'ERROR: ' + e.message;
+            });
+    </script>
+</body>
+</html>
