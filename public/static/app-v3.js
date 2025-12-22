@@ -1893,7 +1893,7 @@ class SecureChatApp {
 
                 <!-- WhatsApp-style Messages Area -->
                 <div style="flex: 1; overflow-y: auto; overflow-x: hidden; ${this.getChatWallpaperStyle(roomId)} -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; position: relative; transform: translateZ(0);" id="messages-scroll-container">
-                    <div id="messages" style="max-width: 800px; margin: 0 auto; padding: 20px 16px; min-height: 100%; will-change: auto;">
+                    <div id="messages" style="max-width: 800px; margin: 0 auto; padding: 20px 16px; min-height: 100%; will-change: auto; width: 100%; box-sizing: border-box;">
                         <div style="text-align: center; padding: 40px 20px; color: #667781;">
                             <i class="fas fa-spinner fa-spin" style="font-size: 32px; margin-bottom: 16px;"></i>
                             <div style="font-size: 14px;">Loading encrypted messages...</div>
@@ -1904,8 +1904,8 @@ class SecureChatApp {
                 </div>
 
                 <!-- WhatsApp-style Input Bar -->
-                <div style="background: #f0f0f0; padding: 8px 16px; box-shadow: 0 -2px 5px rgba(0,0,0,0.05); flex-shrink: 0;">
-                    <div style="max-width: 800px; margin: 0 auto;">
+                <div style="background: #f0f0f0; padding: 8px 16px; box-shadow: 0 -2px 5px rgba(0,0,0,0.05); flex-shrink: 0; width: 100%; box-sizing: border-box;">
+                    <div style="max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box;">
                         <!-- Emoji Picker -->
                         <div id="emojiPicker" class="hidden" style="background: white; margin-bottom: 8px; padding: 12px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
                             <div style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; max-height: 200px; overflow-y: auto;">
@@ -1913,11 +1913,11 @@ class SecureChatApp {
                             </div>
                         </div>
                         
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <button onclick="app.toggleEmojiPicker()" style="background: white; border: none; color: #54656f; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px;" title="Emoji">
+                        <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+                            <button onclick="app.toggleEmojiPicker()" style="background: white; border: none; color: #54656f; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;" title="Emoji">
                                 <i class="fas fa-smile"></i>
                             </button>
-                            <button onclick="document.getElementById('fileInput').click()" style="background: white; border: none; color: #54656f; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px;" title="Attach">
+                            <button onclick="document.getElementById('fileInput').click()" style="background: white; border: none; color: #54656f; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;" title="Attach">
                                 <i class="fas fa-paperclip"></i>
                             </button>
                             <input type="file" id="fileInput" style="display: none;" onchange="app.handleFileSelect(event)" />
@@ -1925,11 +1925,11 @@ class SecureChatApp {
                                 type="text" 
                                 id="messageInput" 
                                 placeholder="Type a message"
-                                style="flex: 1; padding: 10px 16px; border: none; border-radius: 24px; background: white; font-size: 15px; outline: none;"
+                                style="flex: 1; min-width: 0; padding: 10px 16px; border: none; border-radius: 24px; background: white; font-size: 15px; outline: none; max-width: 100%;"
                                 oninput="app.handleMessageInput()"
                                 onkeypress="if(event.key==='Enter') app.sendMessage()"
                             />
-                            <button onclick="app.sendMessage()" style="background: #25d366; border: none; color: white; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.4);">
+                            <button onclick="app.sendMessage()" style="background: #25d366; border: none; color: white; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.4); flex-shrink: 0;">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>
