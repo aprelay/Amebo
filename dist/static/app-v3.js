@@ -1559,7 +1559,13 @@ class SecureChatApp {
                         </div>
                     `;
                 } else {
-                    listEl.innerHTML = this.rooms.map(room => `
+                    listEl.innerHTML = this.rooms.map(room => {
+                        // Get message count for this room
+                        const roomMessages = this.messages.filter(m => m.room_id === room.id);
+                        const messageCount = roomMessages.length;
+                        const showCount = messageCount > 0;
+                        
+                        return `
                         <div class="room-item-wrapper relative overflow-hidden" data-room-id="${room.id}">
                             <div 
                                 class="room-item p-4 border border-gray-200 rounded-lg bg-white cursor-pointer transition-transform relative z-10"
@@ -1567,21 +1573,25 @@ class SecureChatApp {
                                 data-room-code="${room.room_code}"
                             >
                                 <div class="flex justify-between items-center">
-                                    <div>
+                                    <div class="flex-1">
                                         <h3 class="font-semibold flex items-center gap-2">
                                             <i class="fas fa-lock text-purple-600"></i>
                                             ${room.room_name || room.room_code}
                                         </h3>
                                         <p class="text-sm text-gray-600">Code: ${room.room_code}</p>
                                     </div>
-                                    <i class="fas fa-chevron-right text-gray-400"></i>
+                                    <div class="flex items-center gap-3">
+                                        ${showCount ? `<span class="bg-purple-600 text-white text-xs font-bold rounded-full px-2.5 py-1 min-w-[28px] text-center">${messageCount}</span>` : ''}
+                                        <i class="fas fa-chevron-right text-gray-400"></i>
+                                    </div>
                                 </div>
                             </div>
                             <div class="delete-button absolute right-0 top-0 h-full bg-red-600 text-white flex items-center justify-center rounded-r-lg z-0" style="width: 80px;">
                                 <i class="fas fa-trash text-xl"></i>
                             </div>
                         </div>
-                    `).join('');
+                        `;
+                    }).join('');
                     
                     // Add swipe gesture handlers to each room item
                     this.initRoomSwipeHandlers();
@@ -8228,7 +8238,7 @@ class SecureChatApp {
                                 <i class="fas fa-bell-slash text-gray-600 w-5"></i>
                                 <span>Mute Notifications</span>
                             </div>
-                            <i class="fas ${isMuted ? 'fa-toggle-on text-green-500' : 'fa-toggle-off text-gray-400'} text-2xl"></i>
+                            <i id="mute-toggle-icon" class="fas ${isMuted ? 'fa-toggle-on text-green-500' : 'fa-toggle-off text-gray-400'} text-2xl"></i>
                         </button>
                         <button onclick="app.blockUser('${roomId}', '${roomCode}', '${userData.username || roomName}')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
                             <i class="fas fa-ban text-red-600 w-5"></i>
@@ -8415,7 +8425,7 @@ class SecureChatApp {
                                 <i class="fas fa-bell-slash text-gray-600 w-5"></i>
                                 <span>Mute Notifications</span>
                             </div>
-                            <i class="fas ${isMuted ? 'fa-toggle-on text-green-500' : 'fa-toggle-off text-gray-400'} text-2xl"></i>
+                            <i id="mute-toggle-icon" class="fas ${isMuted ? 'fa-toggle-on text-green-500' : 'fa-toggle-off text-gray-400'} text-2xl"></i>
                         </button>
                         <button onclick="alert('Custom sound')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition">
                             <i class="fas fa-volume-up text-purple-600 w-5"></i>
@@ -8799,6 +8809,9 @@ class SecureChatApp {
 
     async toggleMuteChat(roomId) {
         try {
+            // Get the toggle icon element
+            const toggleIcon = document.getElementById('mute-toggle-icon');
+            
             // Check current mute status
             const checkResponse = await fetch(`${API_BASE}/api/profile/mute/${this.currentUser.id}/${roomId}`);
             let isMuted = false;
@@ -8815,6 +8828,11 @@ class SecureChatApp {
 
                 if (!response.ok) throw new Error('Failed to unmute');
                 
+                // Update toggle icon immediately to gray (unmuted)
+                if (toggleIcon) {
+                    toggleIcon.className = 'fas fa-toggle-off text-gray-400 text-2xl';
+                }
+                
                 this.showToast('Notifications unmuted', 'success');
             } else {
                 // Mute forever
@@ -8830,15 +8848,12 @@ class SecureChatApp {
 
                 if (!response.ok) throw new Error('Failed to mute');
                 
+                // Update toggle icon immediately to green (muted)
+                if (toggleIcon) {
+                    toggleIcon.className = 'fas fa-toggle-on text-green-500 text-2xl';
+                }
+                
                 this.showToast('Notifications muted', 'success');
-            }
-
-            // Refresh the profile to show updated toggle state
-            const room = this.rooms.find(r => r.id === roomId);
-            if (room) {
-                setTimeout(() => {
-                    this.showRoomProfile(roomId, room.room_code);
-                }, 500);
             }
         } catch (error) {
             console.error('[MUTE] Toggle error:', error);
