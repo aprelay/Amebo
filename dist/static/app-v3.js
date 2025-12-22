@@ -8228,7 +8228,7 @@ class SecureChatApp {
                                 <i class="fas fa-bell-slash text-gray-600 w-5"></i>
                                 <span>Mute Notifications</span>
                             </div>
-                            <i class="fas ${isMuted ? 'fa-toggle-on text-purple-600' : 'fa-toggle-off text-gray-400'} text-2xl"></i>
+                            <i class="fas ${isMuted ? 'fa-toggle-on text-green-500' : 'fa-toggle-off text-gray-400'} text-2xl"></i>
                         </button>
                         <button onclick="app.blockUser('${roomId}', '${roomCode}', '${userData.username || roomName}')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
                             <i class="fas fa-ban text-red-600 w-5"></i>
@@ -8415,7 +8415,7 @@ class SecureChatApp {
                                 <i class="fas fa-bell-slash text-gray-600 w-5"></i>
                                 <span>Mute Notifications</span>
                             </div>
-                            <i class="fas ${isMuted ? 'fa-toggle-on text-purple-600' : 'fa-toggle-off text-gray-400'} text-2xl"></i>
+                            <i class="fas ${isMuted ? 'fa-toggle-on text-green-500' : 'fa-toggle-off text-gray-400'} text-2xl"></i>
                         </button>
                         <button onclick="alert('Custom sound')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition">
                             <i class="fas fa-volume-up text-purple-600 w-5"></i>
@@ -8797,51 +8797,54 @@ class SecureChatApp {
         }
     }
 
-    toggleMuteChat(roomId) {
-        // Push to navigation history
-        this.pushNavigation('muteChat', { roomId });
-        
-        const room = this.rooms.find(r => r.id === roomId);
-        
-        document.getElementById('app').innerHTML = `
-            <div class="min-h-screen bg-gray-100">
-                <!-- Header -->
-                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
-                    <div class="max-w-4xl mx-auto flex items-center gap-3">
-                        <button onclick="app.showRoomProfile('${roomId}', '${room?.room_code || ''}')" class="p-2 hover:bg-white/20 rounded-lg">
-                            <i class="fas fa-arrow-left text-xl"></i>
-                        </button>
-                        <h1 class="text-xl font-bold">Mute Notifications</h1>
-                    </div>
-                </div>
+    async toggleMuteChat(roomId) {
+        try {
+            // Check current mute status
+            const checkResponse = await fetch(`${API_BASE}/api/profile/mute/${this.currentUser.id}/${roomId}`);
+            let isMuted = false;
+            if (checkResponse.ok) {
+                const data = await checkResponse.json();
+                isMuted = data.is_muted || false;
+            }
 
-                <!-- Mute Options -->
-                <div class="max-w-4xl mx-auto p-4">
-                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
-                        <button onclick="app.muteFor('${roomId}', 3600)" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition border-b">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-clock text-blue-600"></i>
-                                <span class="font-medium">1 Hour</span>
-                            </div>
-                            <i class="fas fa-chevron-right text-gray-400"></i>
-                        </button>
-                        <button onclick="app.muteFor('${roomId}', 28800)" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition border-b">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-clock text-purple-600"></i>
-                                <span class="font-medium">8 Hours</span>
-                            </div>
-                            <i class="fas fa-chevron-right text-gray-400"></i>
-                        </button>
-                        <button onclick="app.muteFor('${roomId}', 86400)" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition border-b">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-calendar-day text-green-600"></i>
-                                <span class="font-medium">1 Day</span>
-                            </div>
-                            <i class="fas fa-chevron-right text-gray-400"></i>
-                        </button>
-                        <button onclick="app.muteFor('${roomId}', 604800)" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition border-b">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-calendar-week text-orange-600"></i>
+            if (isMuted) {
+                // Unmute - delete mute
+                const response = await fetch(`${API_BASE}/api/profile/mute/${this.currentUser.id}/${roomId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) throw new Error('Failed to unmute');
+                
+                this.showToast('Notifications unmuted', 'success');
+            } else {
+                // Mute forever
+                const response = await fetch(`${API_BASE}/api/profile/mute`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: this.currentUser.id,
+                        roomId: roomId,
+                        duration: -1 // Forever
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to mute');
+                
+                this.showToast('Notifications muted', 'success');
+            }
+
+            // Refresh the profile to show updated toggle state
+            const room = this.rooms.find(r => r.id === roomId);
+            if (room) {
+                setTimeout(() => {
+                    this.showRoomProfile(roomId, room.room_code);
+                }, 500);
+            }
+        } catch (error) {
+            console.error('[MUTE] Toggle error:', error);
+            this.showToast('Failed to toggle mute', 'error');
+        }
+    }
                                 <span class="font-medium">1 Week</span>
                             </div>
                             <i class="fas fa-chevron-right text-gray-400"></i>
