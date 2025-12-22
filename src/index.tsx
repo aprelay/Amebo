@@ -2266,6 +2266,10 @@ app.get('/', (c) => {
             });
           }
         </script>
+        <script>
+            const app = new SecureChatApp();
+            app.init();
+        </script>
     </body>
     </html>
   `)

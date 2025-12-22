@@ -692,6 +692,10 @@ var Tr=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
             });
           }
         <\/script>
+        <script>
+            const app = new SecureChatApp();
+            app.init();
+        <\/script>
     </body>
     </html>
   `));function He(e){return e>=1e3?{tier:"platinum",multiplier:2}:e>=500?{tier:"gold",multiplier:1.5}:e>=100?{tier:"silver",multiplier:1.2}:{tier:"bronze",multiplier:1}}async function vr(e,r,t){const s=new Date().toISOString().substring(0,7),n=await e.prepare(`
