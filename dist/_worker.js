@@ -680,7 +680,7 @@ var Tr=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
         <script src="/static/crypto-v2.js?v=NOTIF-FIX-V2"><\/script>
-        <script src="/static/app-v3.js?v=SLEEK-INPUT-960"><\/script><\/script>
+        <script src="/static/app-v3.js?v=COMPACT-700"><\/script><\/script>
         
         <script>
           // Register service worker for PWA
@@ -1207,7 +1207,7 @@ var Tr=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
         <div id="app"></div>
         
         <script src="/static/crypto-v2.js?v=NOTIF-FIX-V2"><\/script>
-        <script src="/static/app-v3.js?v=SLEEK-INPUT-960"><\/script>
+        <script src="/static/app-v3.js?v=COMPACT-700"><\/script>
         <script>
             const app = new SecureChatApp();
             app.init();
