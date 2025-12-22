@@ -2256,7 +2256,6 @@ class SecureChatApp {
             return `
                 <div style="display: flex; justify-content: ${alignment}; margin-bottom: 4px;">
                     <div style="max-width: 70%; background: ${bubbleColor}; border-radius: 12px; padding: 8px 10px; box-shadow: 0 1px 0.5px rgba(0,0,0,0.05); position: relative;">
-                        ${!isMine ? `<div style="font-size: 12.5px; color: #667781; font-weight: 600; margin-bottom: 4px; line-height: 1;">${msg.sender_username || 'User'}</div>` : ''}
                         ${isViewOnce && isViewed ? `
                             <div style="text-align: center; padding: 20px; color: #667781;">
                                 <i class="fas fa-eye-slash" style="font-size: 28px; margin-bottom: 8px; opacity: 0.5;"></i>
@@ -2292,7 +2291,6 @@ class SecureChatApp {
         return `
             <div style="display: flex; justify-content: ${alignment}; margin-bottom: 2px;">
                 <div style="max-width: 70%; background: ${bubbleColor}; border-radius: 10px; padding: 5px 8px 3px 8px; box-shadow: 0 1px 0.5px rgba(0,0,0,0.05);">
-                    ${!isMine ? `<div style="font-size: 11px; color: #00897b; font-weight: 600; margin-bottom: 1px; line-height: 1;">${msg.sender_username || 'User'}</div>` : ''}
                     <div style="font-size: 13.5px; color: ${textColor}; word-wrap: break-word; white-space: pre-wrap; line-height: 1.3; margin-bottom: 1px;">
                         ${this.escapeHtml(msg.decrypted || '[Encrypted]')}
                     </div>
