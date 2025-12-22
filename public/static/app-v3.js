@@ -649,29 +649,23 @@ class SecureChatApp {
     }
 
     // Mark current room as fully read before leaving
-    async markCurrentRoomAsRead() {
+    markCurrentRoomAsReadSync() {
         if (!this.currentRoom) return;
         
-        try {
-            console.log('[MARK READ] Marking room', this.currentRoom.id, 'as fully read before leaving');
+        const roomId = this.currentRoom.id;
+        
+        // Get the latest message ID from current messages in memory
+        if (this.messages && this.messages.length > 0) {
+            const latestMessage = this.messages[this.messages.length - 1];
+            this.lastReadMessageIds.set(roomId, latestMessage.id);
+            this.saveLastReadMessages();
             
-            // Fetch latest messages
-            const response = await fetch(`${API_BASE}/api/messages/${this.currentRoom.id}`);
-            const data = await response.json();
-            const messages = data.messages || [];
+            // Set unread count to 0 immediately
+            this.unreadCounts.set(roomId, 0);
             
-            if (messages.length > 0) {
-                const latestMessage = messages[messages.length - 1];
-                this.lastReadMessageIds.set(this.currentRoom.id, latestMessage.id);
-                this.saveLastReadMessages();
-                
-                // Set unread count to 0 immediately
-                this.unreadCounts.set(this.currentRoom.id, 0);
-                
-                console.log('[MARK READ] Room', this.currentRoom.id, 'marked as read. LastReadId:', latestMessage.id);
-            }
-        } catch (err) {
-            console.error('[MARK READ] Error marking room as read:', err);
+            console.log('[MARK READ] Room', roomId, 'marked as read (SYNC). LastReadId:', latestMessage.id);
+        } else {
+            console.log('[MARK READ] No messages in memory for room', roomId);
         }
     }
 
@@ -688,7 +682,7 @@ class SecureChatApp {
                 
                 // Mark current room as read if we're leaving a chat
                 if (this.currentRoom && previous.page === 'roomList') {
-                    this.markCurrentRoomAsRead();
+                    this.markCurrentRoomAsReadSync();
                 }
                 
                 // Navigate to previous page
