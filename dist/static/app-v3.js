@@ -56,25 +56,35 @@ class SecureChatApp {
         // Store global event listeners for cleanup (prevent memory leaks)
         // CRITICAL: Create these ONCE in constructor and reuse them!
         // Creating new functions each time causes listener stacking
+        // Voice recording state
+        this.voiceRecordStartX = 0;
+        this.voiceRecordStartY = 0;
+        this.voiceRecordCurrentX = 0;
+        this.voiceRecordCurrentY = 0;
+        
         this.globalGestureListeners = {
             mousemove: (e) => {
                 if (this.isRecording && !this.isRecordingLocked) {
+                    e.preventDefault();
                     this.updateVoiceRecordingGesture(e.clientX, e.clientY);
                 }
             },
             mouseup: (e) => {
                 if (this.isRecording && !this.isRecordingLocked) {
+                    e.preventDefault();
                     this.endVoiceRecordingGesture();
                 }
             },
             touchmove: (e) => {
                 if (this.isRecording && !this.isRecordingLocked) {
+                    e.preventDefault();
                     const touch = e.touches[0];
                     this.updateVoiceRecordingGesture(touch.clientX, touch.clientY);
                 }
             },
             touchend: (e) => {
                 if (this.isRecording && !this.isRecordingLocked) {
+                    e.preventDefault();
                     this.endVoiceRecordingGesture();
                 }
             }
@@ -3351,10 +3361,10 @@ class SecureChatApp {
         console.log('[VOICE] 🎤 Hold started at:', x, y);
         
         // Save starting position
-        this.recordingStartX = x;
-        this.recordingStartY = y;
-        this.currentX = x;
-        this.currentY = y;
+        this.voiceRecordStartX = x;
+        this.voiceRecordStartY = y;
+        this.voiceRecordCurrentX = x;
+        this.voiceRecordCurrentY = y;
         
         // Start recording immediately
         await this.startRecording();
@@ -3366,30 +3376,31 @@ class SecureChatApp {
     updateVoiceRecordingGesture(x, y) {
         if (!this.isRecording || this.isRecordingLocked) return;
         
-        this.currentX = x;
-        this.currentY = y;
+        this.voiceRecordCurrentX = x;
+        this.voiceRecordCurrentY = y;
         
-        const deltaX = this.recordingStartX - x; // Left is positive
-        const deltaY = this.recordingStartY - y; // Up is positive
+        // Calculate movement from starting position
+        const deltaX = this.voiceRecordStartX - x; // Left movement is positive
+        const deltaY = this.voiceRecordStartY - y; // Up movement is positive
         
-        console.log('[VOICE] Gesture delta - X:', deltaX, 'Y:', deltaY);
+        console.log('[VOICE] Gesture - deltaX:', Math.round(deltaX), 'deltaY:', Math.round(deltaY));
         
-        // Check for slide left to CANCEL (>120px left)
-        if (deltaX > 120) {
-            console.log('[VOICE] ❌ Slide left detected - CANCELING');
+        // Update visual indicator
+        this.updateSlideIndicator(deltaX, deltaY);
+        
+        // CANCEL: Slide left more than 100px
+        if (deltaX > 100) {
+            console.log('[VOICE] ❌ CANCEL - Slid left:', Math.round(deltaX), 'px');
             this.cancelRecording();
             return;
         }
         
-        // Check for slide up to LOCK (>120px up)
-        if (deltaY > 120) {
-            console.log('[VOICE] 🔒 Slide up detected - LOCKING hands-free mode');
+        // LOCK: Slide up more than 100px  
+        if (deltaY > 100) {
+            console.log('[VOICE] 🔒 LOCK - Slid up:', Math.round(deltaY), 'px');
             this.lockRecording();
             return;
         }
-        
-        // Update slide indicator position
-        this.updateSlideIndicator(deltaX, deltaY);
     }
     
     async endVoiceRecordingGesture() {
@@ -3410,29 +3421,37 @@ class SecureChatApp {
         indicator.id = 'voiceSlideIndicator';
         indicator.style.cssText = `
             position: fixed;
-            bottom: 80px;
+            bottom: 100px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.85);
             color: white;
-            padding: 15px 25px;
-            border-radius: 25px;
+            padding: 16px 24px;
+            border-radius: 30px;
             font-size: 14px;
             z-index: 10000;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 15px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            gap: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+            pointer-events: none;
         `;
         
         indicator.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-chevron-left" style="color: #ef4444;"></i>
-                <span style="font-size: 13px; opacity: 0.9;">Slide to cancel</span>
+            <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                    <i class="fas fa-chevron-left" style="color: #ef4444; font-size: 16px;"></i>
+                    <span style="font-size: 13px; font-weight: 500;">Cancel</span>
+                </div>
+                <div style="width: 2px; height: 20px; background: rgba(255,255,255,0.3);"></div>
+                <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                    <i class="fas fa-chevron-up" style="color: #10b981; font-size: 16px;"></i>
+                    <span style="font-size: 13px; font-weight: 500;">Lock</span>
+                </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-chevron-up" style="color: #10b981;"></i>
-                <span style="font-size: 13px; opacity: 0.9;">Slide to lock</span>
+            <div id="slideProgress" style="width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden;">
+                <div id="slideProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #ef4444, #10b981); transition: width 0.1s;"></div>
             </div>
         `;
         
@@ -3442,6 +3461,29 @@ class SecureChatApp {
     
     updateSlideIndicator(deltaX, deltaY) {
         if (!this.slideIndicator) return;
+        
+        const progressBar = document.getElementById('slideProgressBar');
+        if (!progressBar) return;
+        
+        // Calculate progress (0-100%) based on whichever direction moved more
+        const cancelProgress = Math.min(100, (deltaX / 100) * 100);
+        const lockProgress = Math.min(100, (deltaY / 100) * 100);
+        const maxProgress = Math.max(cancelProgress, lockProgress);
+        
+        progressBar.style.width = `${maxProgress}%`;
+        
+        // Change color based on direction
+        if (deltaX > deltaY && deltaX > 20) {
+            // Moving left (cancel)
+            progressBar.style.background = '#ef4444';
+        } else if (deltaY > deltaX && deltaY > 20) {
+            // Moving up (lock)
+            progressBar.style.background = '#10b981';
+        } else {
+            // Neutral
+            progressBar.style.background = 'linear-gradient(90deg, #ef4444, #10b981)';
+        }
+    }
         
         // Update opacity based on gesture progress
         const cancelProgress = Math.min(deltaX / 120, 1);
