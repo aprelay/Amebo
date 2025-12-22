@@ -2288,15 +2288,15 @@ class SecureChatApp {
             `;
         }
 
-        // Text message - Telegram style (very compact)
+        // Text message - Telegram style (SUPER compact!)
         return `
             <div style="display: flex; justify-content: ${alignment}; margin-bottom: 2px;">
-                <div style="max-width: 70%; background: ${bubbleColor}; border-radius: 12px; padding: 6px 10px 4px 10px; box-shadow: 0 1px 0.5px rgba(0,0,0,0.05); position: relative;">
-                    ${!isMine ? `<div style="font-size: 12.5px; color: #00897b; font-weight: 600; margin-bottom: 2px; line-height: 1;">${msg.sender_username || 'User'}</div>` : ''}
-                    <div style="font-size: 14px; color: ${textColor}; word-wrap: break-word; white-space: pre-wrap; line-height: 1.35; margin-bottom: 2px;">
+                <div style="max-width: 70%; background: ${bubbleColor}; border-radius: 10px; padding: 5px 8px 3px 8px; box-shadow: 0 1px 0.5px rgba(0,0,0,0.05);">
+                    ${!isMine ? `<div style="font-size: 11px; color: #00897b; font-weight: 600; margin-bottom: 1px; line-height: 1;">${msg.sender_username || 'User'}</div>` : ''}
+                    <div style="font-size: 13.5px; color: ${textColor}; word-wrap: break-word; white-space: pre-wrap; line-height: 1.3; margin-bottom: 1px;">
                         ${this.escapeHtml(msg.decrypted || '[Encrypted]')}
                     </div>
-                    <div style="font-size: 11px; color: ${timeColor}; text-align: right; line-height: 1; margin-top: 2px;">
+                    <div style="font-size: 10px; color: ${timeColor}; text-align: right; line-height: 1; margin-top: 1px;">
                         ${time}
                     </div>
                 </div>
