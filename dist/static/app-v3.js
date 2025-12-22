@@ -434,8 +434,27 @@ class SecureChatApp {
         if (isNearBottom || force) {
             scrollContainer.scrollTop = scrollContainer.scrollHeight;
             console.log('[CHAT] ✅ Scrolled to bottom. ScrollHeight:', scrollContainer.scrollHeight, 'ScrollTop:', scrollContainer.scrollTop);
+            
+            // CRITICAL FIX: Mark messages as read when user scrolls to bottom
+            this.markCurrentRoomAsReadImmediate();
         } else {
             console.log('[CHAT] ⏸️ User is scrolling up, skipping auto-scroll');
+        }
+    }
+    
+    // Mark current room as read immediately (called when user is actively viewing)
+    markCurrentRoomAsReadImmediate() {
+        if (!this.currentRoom) return;
+        
+        const latestMessageId = this.lastMessageIds.get(this.currentRoom.id);
+        if (latestMessageId) {
+            this.lastReadMessageIds.set(this.currentRoom.id, latestMessageId);
+            this.saveLastReadMessages();
+            
+            // Clear unread count for this room
+            this.unreadCounts.set(this.currentRoom.id, 0);
+            
+            console.log('[READ] ✅ Marked room as read:', this.currentRoom.room_name || this.currentRoom.room_code);
         }
     }
 
@@ -2258,6 +2277,26 @@ class SecureChatApp {
         // Single scroll to bottom after messages load
         setTimeout(() => this.scrollToBottom(true), 100);
         
+        // Add scroll listener to mark as read when user scrolls to bottom
+        const scrollContainer = document.getElementById('messages-scroll-container');
+        if (scrollContainer) {
+            // Remove any existing listener first
+            scrollContainer.removeEventListener('scroll', this.handleScroll);
+            
+            // Add new scroll listener
+            this.handleScroll = () => {
+                const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+                const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+                
+                if (isAtBottom) {
+                    this.markCurrentRoomAsReadImmediate();
+                }
+            };
+            
+            scrollContainer.addEventListener('scroll', this.handleScroll);
+            console.log('[SCROLL] ✅ Added scroll listener to mark messages as read');
+        }
+        
         // Initialize button state and attach click handler
         // Try multiple times to ensure button is rendered
         let attempts = 0;
@@ -2852,9 +2891,16 @@ class SecureChatApp {
                     }
                     
                     this.lastMessageIds.set(this.currentRoom.id, latestMessageId);
-                    // Mark as read when viewing messages
-                    this.lastReadMessageIds.set(this.currentRoom.id, latestMessageId);
-                    this.saveLastReadMessages();
+                    
+                    // CRITICAL FIX: Only mark as read on INITIAL load, NOT during polling!
+                    // During polling, we want to show unread counts for new messages
+                    if (isInitialLoad) {
+                        console.log('[LOAD] ✅ Marking room as read (initial load)');
+                        this.lastReadMessageIds.set(this.currentRoom.id, latestMessageId);
+                        this.saveLastReadMessages();
+                    } else {
+                        console.log('[LOAD] 📊 Polling update - NOT marking as read (preserving unread count)');
+                    }
                 } else if (isInitialLoad) {
                     this.messages = decryptedMessages;
                     container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('');
