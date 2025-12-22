@@ -2270,6 +2270,7 @@ class SecureChatApp {
     
     // Function to force clear all unread data
     forceCleanUnreadData() {
+        console.log('[FORCE CLEAN] ========================================');
         console.log('[FORCE CLEAN] Clearing ALL unread data...');
         
         // Clear localStorage
@@ -2281,6 +2282,7 @@ class SecureChatApp {
             }
         }
         
+        console.log('[FORCE CLEAN] Found keys to remove:', keysToRemove);
         keysToRemove.forEach(key => {
             console.log('[FORCE CLEAN] Removing:', key);
             localStorage.removeItem(key);
@@ -2291,12 +2293,113 @@ class SecureChatApp {
         this.lastReadMessageIds.clear();
         this.lastMessageIds.clear();
         
-        console.log('[FORCE CLEAN] Done! Reload room list to see changes.');
+        console.log('[FORCE CLEAN] Cleared all Maps');
+        console.log('[FORCE CLEAN] unreadCounts size:', this.unreadCounts.size);
+        console.log('[FORCE CLEAN] lastReadMessageIds size:', this.lastReadMessageIds.size);
+        console.log('[FORCE CLEAN] lastMessageIds size:', this.lastMessageIds.size);
+        console.log('[FORCE CLEAN] Done! Reloading room list...');
+        console.log('[FORCE CLEAN] ========================================');
         
-        // Reload room list if available
+        // Reload room list WITHOUT calling updateUnreadCounts
+        // (because we just cleared lastReadMessageIds, so it would think everything is unread)
         if (this.currentUser) {
-            this.showRoomList();
+            // Fetch rooms but skip unread count calculation
+            fetch(`${API_BASE}/api/rooms/user/${this.currentUser.id}`)
+                .then(r => r.json())
+                .then(data => {
+                    this.rooms = data.rooms || [];
+                    console.log('[FORCE CLEAN] Loaded', this.rooms.length, 'rooms');
+                    
+                    // Manually render room list with 0 counts (don't call updateUnreadCounts)
+                    const listEl = document.getElementById('roomList');
+                    if (listEl && this.rooms.length > 0) {
+                        listEl.innerHTML = this.rooms.map(room => {
+                            // Force 0 unread count
+                            this.unreadCounts.set(room.id, 0);
+                            
+                            return `
+                            <div class="room-item-wrapper relative overflow-hidden" data-room-id="${room.id}">
+                                <div 
+                                    class="room-item p-4 border-b border-gray-200 bg-white cursor-pointer hover:bg-gray-50 transition-colors relative z-10"
+                                    data-room-id="${room.id}"
+                                    data-room-code="${room.room_code}"
+                                >
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                                            <i class="fas fa-${room.is_group ? 'users' : 'user'} text-white text-lg"></i>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex justify-between items-baseline mb-1">
+                                                <h3 class="font-semibold text-gray-900 truncate pr-2">
+                                                    ${room.room_name || room.room_code}
+                                                </h3>
+                                                <span class="text-xs text-gray-500 whitespace-nowrap">
+                                                    ${this.formatTimestamp(room.last_message_at || room.created_at)}
+                                                </span>
+                                            </div>
+                                            <div class="flex justify-between items-center gap-2">
+                                                <p class="text-sm text-gray-500 truncate flex-1">
+                                                    <i class="fas fa-lock text-purple-500 text-xs mr-1"></i>
+                                                    ${room.last_message_preview || 'No messages yet'}
+                                                </p>
+                                                <div class="unread-badge-container flex-shrink-0"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="delete-button absolute right-0 top-0 h-full bg-red-600 text-white flex items-center justify-center z-0" style="width: 80px;">
+                                    <i class="fas fa-trash text-xl"></i>
+                                </div>
+                            </div>
+                            `;
+                        }).join('');
+                        
+                        this.initRoomSwipeHandlers();
+                        console.log('[FORCE CLEAN] Room list rendered with 0 counts');
+                    }
+                })
+                .catch(err => console.error('[FORCE CLEAN] Error:', err));
         }
+    }
+    
+    // Function to mark ALL chats as read (like Telegram "Read All")
+    markAllChatsAsRead() {
+        console.log('[MARK ALL READ] ========================================');
+        console.log('[MARK ALL READ] Marking all chats as read...');
+        
+        if (!this.rooms || this.rooms.length === 0) {
+            console.log('[MARK ALL READ] No rooms to mark');
+            return;
+        }
+        
+        // For each room, set the last message as read
+        this.rooms.forEach(room => {
+            // Get the latest message ID from the room (we'll need to fetch this)
+            fetch(`${API_BASE}/api/messages/${room.id}`)
+                .then(r => r.json())
+                .then(data => {
+                    const messages = data.messages || [];
+                    if (messages.length > 0) {
+                        const latestMessage = messages[messages.length - 1];
+                        this.lastReadMessageIds.set(room.id, latestMessage.id);
+                        console.log(`[MARK ALL READ] Room ${room.id}: Set lastReadId to ${latestMessage.id}`);
+                    }
+                })
+                .catch(err => console.error('[MARK ALL READ] Error:', err));
+        });
+        
+        // Clear all unread counts
+        this.unreadCounts.clear();
+        
+        // Save to localStorage
+        this.saveLastReadMessages();
+        
+        // Update UI
+        setTimeout(() => {
+            this.updateRoomListBadges();
+            console.log('[MARK ALL READ] Done! All chats marked as read.');
+            console.log('[MARK ALL READ] ========================================');
+        }, 2000); // Wait for all fetches to complete
     }
 
     async loadMessages() {
