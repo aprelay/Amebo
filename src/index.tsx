@@ -95,11 +95,20 @@ app.post('/api/auth/register-email', async (c) => {
     
     // Check if email already exists
     const existing = await c.env.DB.prepare(`
-      SELECT id FROM users WHERE email = ?
+      SELECT id, email_verified FROM users WHERE email = ?
     `).bind(email).first()
     
     if (existing) {
-      return c.json({ error: 'Email already registered' }, 409)
+      if (existing.email_verified === 1) {
+        return c.json({ error: 'Email already registered. Please login instead.' }, 409)
+      } else {
+        // Account exists but not verified
+        return c.json({ 
+          error: 'Email already registered but not verified', 
+          message: 'This email is already registered but not verified. Please check your email for the verification link, or click "Resend Verification Email" on the login page.',
+          canResend: true
+        }, 409)
+      }
     }
     
     const userId = crypto.randomUUID()
@@ -2244,8 +2253,8 @@ app.get('/', (c) => {
         <div id="app"></div>
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
-        <script src="/static/crypto-v2.js?v=REG-FIX-V1"></script>
-        <script src="/static/app-v3.js?v=REG-FIX-V1"></script>
+        <script src="/static/crypto-v2.js?v=UNVERIFIED-FIX-V1"></script>
+        <script src="/static/app-v3.js?v=UNVERIFIED-FIX-V1"></script></script>
         
         <script>
           // Register service worker for PWA

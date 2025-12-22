@@ -996,7 +996,14 @@ class SecureChatApp {
                 this.showMessage(msgDiv, 'Account created! Check your email to verify.', 'success');
                 setTimeout(() => this.showEmailVerification(email), 2000);
             } else {
-                this.showMessage(msgDiv, data.error || 'Signup failed', 'error');
+                // Check if account exists but not verified
+                if (data.canResend) {
+                    this.showMessage(msgDiv, data.message || data.error, 'warning');
+                    // Show button to go to verification page
+                    setTimeout(() => this.showEmailVerification(email), 3000);
+                } else {
+                    this.showMessage(msgDiv, data.error || 'Signup failed', 'error');
+                }
             }
         } catch (error) {
             console.error('[V3] Signup error:', error);
