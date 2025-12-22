@@ -2985,23 +2985,11 @@ class SecureChatApp {
             const userId = this.currentUser.id;
             localStorage.removeItem(`privateKey_${userId}`);
             
-            // Clear ALL unread-related data for this user
+            // Clear ONLY unreadCounts (ephemeral data)
+            // KEEP lastReadMessages - this is the user's read status and should persist!
             localStorage.removeItem(`unreadCounts_${userId}`);
-            localStorage.removeItem(`lastReadMessages_${userId}`);
-            console.log('[LOGOUT] Cleared unread counts and last read messages for user:', userId);
-            
-            // Also clear any legacy keys that might exist
-            const keysToCheck = [];
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && (key.includes('unread') || key.includes('lastRead'))) {
-                    keysToCheck.push(key);
-                }
-            }
-            keysToCheck.forEach(key => {
-                console.log('[LOGOUT] Removing legacy key:', key);
-                localStorage.removeItem(key);
-            });
+            console.log('[LOGOUT] ✅ Cleared unreadCounts for user:', userId);
+            console.log('[LOGOUT] ✅ KEPT lastReadMessages (persists across sessions)');
         }
         
         localStorage.removeItem('currentUser');
