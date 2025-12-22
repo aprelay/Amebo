@@ -2158,7 +2158,7 @@ app.get('/', (c) => {
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
         <script src="/static/crypto-v2.js?v=ROOM-PROFILES-V9"></script>
-        <script src="/static/app-v3.js?v=PROFILE-FIX-V12"></script>
+        <script src="/static/app-v3.js?v=NAV-FIX-V13"></script>
         
         <script>
           // Register service worker for PWA

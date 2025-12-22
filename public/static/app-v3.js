@@ -560,8 +560,16 @@ class SecureChatApp {
                         this.showRoomList();
                         break;
                     case 'room':
-                        if (previous.context.roomCode) {
-                            this.joinRoom(previous.context.roomCode);
+                        if (previous.context.roomId && previous.context.roomCode) {
+                            this.openRoom(previous.context.roomId, previous.context.roomCode);
+                        } else if (previous.context.roomCode) {
+                            // Fallback: find room by code
+                            const room = this.rooms.find(r => r.room_code === previous.context.roomCode);
+                            if (room) {
+                                this.openRoom(room.id, room.room_code);
+                            } else {
+                                this.showRoomList();
+                            }
                         }
                         break;
                     case 'userProfile':
@@ -572,6 +580,27 @@ class SecureChatApp {
                     case 'groupProfile':
                         if (previous.context.roomId && previous.context.roomCode) {
                             this.showGroupProfile(previous.context.roomId, previous.context.roomCode);
+                        }
+                        break;
+                    case 'sharedMedia':
+                    case 'searchInChat':
+                    case 'setNickname':
+                    case 'muteChat':
+                    case 'editGroupInfo':
+                    case 'shareGroup':
+                    case 'groupQR':
+                    case 'addMembers':
+                    case 'groupPermissions':
+                    case 'groupPrivacy':
+                    case 'muteGroup':
+                        // These are sub-pages, go back to profile
+                        if (previous.context.roomId) {
+                            const room = this.rooms.find(r => r.id === previous.context.roomId);
+                            if (room) {
+                                this.showRoomProfile(previous.context.roomId, room.room_code);
+                            } else {
+                                this.showRoomList();
+                            }
                         }
                         break;
                     case 'profile':
@@ -1813,7 +1842,7 @@ class SecureChatApp {
         }
 
         // Push to navigation history
-        this.pushNavigation('room', { roomCode: roomCode || this.currentRoom.room_code });
+        this.pushNavigation('room', { roomId, roomCode: roomCode || this.currentRoom.room_code });
 
         // Generate/retrieve room encryption key from room code
         if (!this.roomKeys.has(roomId)) {
