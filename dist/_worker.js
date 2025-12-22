@@ -680,7 +680,7 @@ var Tr=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
         <script src="/static/crypto-v2.js?v=NOTIF-FIX-V2"><\/script>
-        <script src="/static/app-v3.js?v=MUTE-PERSIST-1766408347"><\/script>
+        <script src="/static/app-v3.js?v=BUGFIX-BOTH-1766409489"><\/script>
         
         <script>
           // Register service worker for PWA
@@ -1136,7 +1136,7 @@ var Tr=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
     `).bind(r,t,n,n).run(),e.json({success:!0,mutedUntil:n})}catch(r){return console.error("[PROFILE] Mute chat error:",r),e.json({error:"Failed to mute chat"},500)}});p.get("/api/profile/mute/:userId/:roomId",async e=>{try{const r=e.req.param("userId"),t=e.req.param("roomId"),s=await e.env.DB.prepare(`
       SELECT muted_until FROM muted_chats 
       WHERE user_id = ? AND room_id = ? AND muted_until > CURRENT_TIMESTAMP
-    `).bind(r,t).first();return e.json({isMuted:!!s,mutedUntil:(s==null?void 0:s.muted_until)||null})}catch(r){return console.error("[PROFILE] Check mute error:",r),e.json({error:"Failed to check mute status"},500)}});p.delete("/api/profile/mute/:userId/:roomId",async e=>{try{const r=e.req.param("userId"),t=e.req.param("roomId");return await e.env.DB.prepare(`
+    `).bind(r,t).first();return e.json({is_muted:!!s,isMuted:!!s,mutedUntil:(s==null?void 0:s.muted_until)||null})}catch(r){return console.error("[PROFILE] Check mute error:",r),e.json({error:"Failed to check mute status"},500)}});p.delete("/api/profile/mute/:userId/:roomId",async e=>{try{const r=e.req.param("userId"),t=e.req.param("roomId");return await e.env.DB.prepare(`
       DELETE FROM muted_chats WHERE user_id = ? AND room_id = ?
     `).bind(r,t).run(),e.json({success:!0})}catch(r){return console.error("[PROFILE] Unmute chat error:",r),e.json({error:"Failed to unmute chat"},500)}});p.get("/api/profile/media/:roomId",async e=>{try{const r=e.req.param("roomId"),t=e.req.query("type")||"all";let s="";t==="photos"?s="AND json_extract(file_metadata, '$.type') LIKE 'image/%'":t==="videos"?s="AND json_extract(file_metadata, '$.type') LIKE 'video/%'":t==="files"&&(s="AND json_extract(file_metadata, '$.type') NOT LIKE 'image/%' AND json_extract(file_metadata, '$.type') NOT LIKE 'video/%'");const n=await e.env.DB.prepare(`
       SELECT 
@@ -1214,7 +1214,7 @@ var Tr=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
         <div id="app"></div>
         
         <script src="/static/crypto-v2.js?v=NOTIF-FIX-V2"><\/script>
-        <script src="/static/app-v3.js?v=MUTE-PERSIST-1766408347"><\/script>
+        <script src="/static/app-v3.js?v=BUGFIX-BOTH-1766409489"><\/script>
         <script>
             const app = new SecureChatApp();
             app.init();

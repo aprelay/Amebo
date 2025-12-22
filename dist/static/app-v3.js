@@ -23,6 +23,7 @@ class SecureChatApp {
         
         // Last message tracking for notifications
         this.lastMessageIds = new Map(); // roomId -> last message ID
+        this.lastReadMessageIds = new Map(); // roomId -> last read message ID
         this.unreadCounts = new Map(); // roomId -> unread message count
         this.notificationSound = null;
         this.notificationsEnabled = true;
@@ -253,6 +254,59 @@ class SecureChatApp {
         // Convert Map to plain object for storage
         const unreadObj = Object.fromEntries(this.unreadCounts);
         localStorage.setItem('unreadCounts_' + this.currentUser.id, JSON.stringify(unreadObj));
+    }
+
+    saveLastReadMessages() {
+        if (!this.currentUser) return;
+        
+        // Convert Map to plain object for storage
+        const lastReadObj = Object.fromEntries(this.lastReadMessageIds);
+        localStorage.setItem('lastReadMessages_' + this.currentUser.id, JSON.stringify(lastReadObj));
+    }
+
+    async updateUnreadCounts() {
+        // Fetch latest message for each room and calculate unread count
+        if (!this.rooms || this.rooms.length === 0) return;
+        
+        for (const room of this.rooms) {
+            try {
+                // Get messages for this room
+                const response = await fetch(`${API_BASE}/api/messages/${room.id}`);
+                if (!response.ok) continue;
+                
+                const data = await response.json();
+                const messages = data.messages || [];
+                
+                if (messages.length === 0) {
+                    this.unreadCounts.set(room.id, 0);
+                    continue;
+                }
+                
+                // Get last read message ID for this room
+                const lastReadId = this.lastReadMessageIds.get(room.id);
+                
+                if (!lastReadId) {
+                    // Never read any message in this room - all are unread
+                    this.unreadCounts.set(room.id, messages.length);
+                } else {
+                    // Count messages after last read
+                    const lastReadIndex = messages.findIndex(m => m.id === lastReadId);
+                    if (lastReadIndex === -1) {
+                        // Last read message not found - all unread
+                        this.unreadCounts.set(room.id, messages.length);
+                    } else {
+                        // Count messages after last read index
+                        const unreadCount = messages.length - lastReadIndex - 1;
+                        this.unreadCounts.set(room.id, Math.max(0, unreadCount));
+                    }
+                }
+            } catch (error) {
+                console.error('[UNREAD] Error calculating unread for room:', room.id, error);
+            }
+        }
+        
+        this.saveUnreadCounts();
+        console.log('[UNREAD] Counts updated:', Object.fromEntries(this.unreadCounts));
     }
 
     playNotificationSound() {
@@ -705,6 +759,13 @@ class SecureChatApp {
             const viewedFiles = localStorage.getItem('viewedOnceFiles');
             if (viewedFiles) {
                 this.viewedOnceFiles = new Set(JSON.parse(viewedFiles));
+            }
+            
+            // Load last read message IDs from localStorage
+            const lastReadData = localStorage.getItem('lastReadMessages_' + this.currentUser.id);
+            if (lastReadData) {
+                const parsed = JSON.parse(lastReadData);
+                this.lastReadMessageIds = new Map(Object.entries(parsed));
             }
             
             // Load unread counts from localStorage
@@ -1564,6 +1625,9 @@ class SecureChatApp {
             console.log('[V3] Rooms loaded:', data);
             this.rooms = data.rooms || [];
 
+            // Update unread counts for all rooms
+            await this.updateUnreadCounts();
+
             // Only update DOM if roomList element exists (we're on room list page)
             const listEl = document.getElementById('roomList');
             if (listEl) {
@@ -1861,6 +1925,8 @@ class SecureChatApp {
         // Clear unread count when opening room
         this.unreadCounts.set(roomId, 0);
         this.saveUnreadCounts();
+        
+        // Will mark messages as read after loading them
         
         // Clear messages for fresh load (forces isInitialLoad = true)
         this.messages = [];
@@ -2237,6 +2303,9 @@ class SecureChatApp {
                     }
                     
                     this.lastMessageIds.set(this.currentRoom.id, latestMessageId);
+                    // Mark as read when viewing messages
+                    this.lastReadMessageIds.set(this.currentRoom.id, latestMessageId);
+                    this.saveLastReadMessages();
                 } else if (isInitialLoad) {
                     this.messages = decryptedMessages;
                     container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('');
