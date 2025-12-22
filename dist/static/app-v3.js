@@ -2126,14 +2126,14 @@ class SecureChatApp {
                                 const iv = msg.iv;
                                 
                                 if (!iv) {
-                                    return { ...msg, decrypted: encryptedContent };
+                                    return { ...msg, decrypted: encryptedContent, sender_username: msg.username || msg.sender_username };
                                 }
                                 
                                 const decrypted = await CryptoUtils.decryptMessage(encryptedContent, iv, roomKey);
-                                return { ...msg, decrypted };
+                                return { ...msg, decrypted, sender_username: msg.username || msg.sender_username };
                             } catch (error) {
                                 console.error('[V3] Decryption error:', error);
-                                return { ...msg, decrypted: '[Decryption failed]' };
+                                return { ...msg, decrypted: '[Decryption failed]', sender_username: msg.username || msg.sender_username };
                             }
                         })
                     );
@@ -2254,9 +2254,9 @@ class SecureChatApp {
             else if (fileData.fileType.startsWith('audio/')) fileIcon = 'fa-music';
 
             return `
-                <div style="display: flex; justify-content: ${alignment}; margin-bottom: 8px;">
-                    <div style="max-width: 65%; background: ${bubbleColor}; border-radius: 8px; padding: 6px 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); position: relative;">
-                        ${!isMine ? `<div style="font-size: 12px; color: #667781; font-weight: 600; margin-bottom: 4px;">${msg.sender_username || 'User'}</div>` : ''}
+                <div style="display: flex; justify-content: ${alignment}; margin-bottom: 6px;">
+                    <div style="max-width: 65%; background: ${bubbleColor}; border-radius: 7px; padding: 5px 7px; box-shadow: 0 1px 1px rgba(0,0,0,0.08); position: relative;">
+                        ${!isMine ? `<div style="font-size: 11px; color: #667781; font-weight: 600; margin-bottom: 3px;">${msg.sender_username || 'User'}</div>` : ''}
                         ${isViewOnce && isViewed ? `
                             <div style="text-align: center; padding: 20px; color: #667781;">
                                 <i class="fas fa-eye-slash" style="font-size: 28px; margin-bottom: 8px; opacity: 0.5;"></i>
@@ -2290,13 +2290,13 @@ class SecureChatApp {
 
         // Text message - WhatsApp style
         return `
-            <div style="display: flex; justify-content: ${alignment}; margin-bottom: 4px; animation: slideIn 0.2s ease-out;">
-                <div style="max-width: 65%; background: ${bubbleColor}; border-radius: 8px; padding: 6px 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); position: relative;">
-                    ${!isMine ? `<div style="font-size: 12px; color: #00897b; font-weight: 600; margin-bottom: 2px;">${msg.sender_username || 'User'}</div>` : ''}
-                    <div style="font-size: 14.2px; color: ${textColor}; word-wrap: break-word; white-space: pre-wrap; line-height: 1.4; padding-right: 50px;">
+            <div style="display: flex; justify-content: ${alignment}; margin-bottom: 3px; animation: slideIn 0.2s ease-out;">
+                <div style="max-width: 65%; background: ${bubbleColor}; border-radius: 7px; padding: 4px 7px; box-shadow: 0 1px 1px rgba(0,0,0,0.08); position: relative;">
+                    ${!isMine ? `<div style="font-size: 11px; color: #00897b; font-weight: 600; margin-bottom: 1px;">${msg.sender_username || 'User'}</div>` : ''}
+                    <div style="font-size: 14px; color: ${textColor}; word-wrap: break-word; white-space: pre-wrap; line-height: 1.3; padding-right: 45px;">
                         ${this.escapeHtml(msg.decrypted || '[Encrypted]')}
                     </div>
-                    <div style="font-size: 11px; color: ${timeColor}; text-align: right; margin-top: -18px; float: right;">
+                    <div style="font-size: 10px; color: ${timeColor}; text-align: right; margin-top: -16px; float: right;">
                         ${time}
                     </div>
                 </div>
