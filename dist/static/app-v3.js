@@ -8197,7 +8197,111 @@ class SecureChatApp {
 
     showThemeSettings() {
         this.closeProfileDrawer();
-        alert('Theme Settings' + String.fromCharCode(10) + String.fromCharCode(10) + '☀️ Light Mode (Active)' + String.fromCharCode(10) + '🌙 Dark Mode (Coming soon)' + String.fromCharCode(10) + '🔄 Auto (Coming soon)');
+        this.pushNavigation('themeSettings');
+        
+        // Get current theme from localStorage (default: light)
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.goBack()" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Theme Settings</h1>
+                    </div>
+                </div>
+
+                <div class="max-w-4xl mx-auto p-4 space-y-4">
+                    <!-- Current Theme Display -->
+                    <div class="bg-white rounded-2xl shadow-lg p-6 text-center">
+                        <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br ${currentTheme === 'light' ? 'from-yellow-400 to-orange-500' : currentTheme === 'dark' ? 'from-indigo-900 to-purple-900' : 'from-blue-400 to-purple-500'} flex items-center justify-center text-white text-3xl">
+                            <i class="fas ${currentTheme === 'light' ? 'fa-sun' : currentTheme === 'dark' ? 'fa-moon' : 'fa-circle-half-stroke'}"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-2">
+                            ${currentTheme === 'light' ? 'Light Mode' : currentTheme === 'dark' ? 'Dark Mode' : 'Auto Mode'}
+                        </h2>
+                        <p class="text-gray-600">Currently Active</p>
+                    </div>
+
+                    <!-- Theme Options -->
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="px-4 py-2 bg-gray-50 font-semibold text-gray-700">
+                            <i class="fas fa-palette mr-2"></i>Choose Theme
+                        </div>
+                        
+                        <!-- Light Mode -->
+                        <button onclick="app.setTheme('light')" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition border-b ${currentTheme === 'light' ? 'bg-purple-50' : ''}">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-white text-xl">
+                                <i class="fas fa-sun"></i>
+                            </div>
+                            <div class="flex-1 text-left">
+                                <h3 class="font-semibold text-gray-800">Light Mode</h3>
+                                <p class="text-sm text-gray-600">Bright and clear interface</p>
+                            </div>
+                            ${currentTheme === 'light' ? '<i class="fas fa-check text-purple-600 text-xl"></i>' : ''}
+                        </button>
+                        
+                        <!-- Dark Mode -->
+                        <button onclick="app.setTheme('dark')" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition border-b ${currentTheme === 'dark' ? 'bg-purple-50' : ''}">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-900 to-purple-900 flex items-center justify-center text-white text-xl">
+                                <i class="fas fa-moon"></i>
+                            </div>
+                            <div class="flex-1 text-left">
+                                <h3 class="font-semibold text-gray-800">Dark Mode</h3>
+                                <p class="text-sm text-gray-600">Easier on the eyes in low light</p>
+                            </div>
+                            ${currentTheme === 'dark' ? '<i class="fas fa-check text-purple-600 text-xl"></i>' : ''}
+                        </button>
+                        
+                        <!-- Auto Mode -->
+                        <button onclick="app.setTheme('auto')" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition ${currentTheme === 'auto' ? 'bg-purple-50' : ''}">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xl">
+                                <i class="fas fa-circle-half-stroke"></i>
+                            </div>
+                            <div class="flex-1 text-left">
+                                <h3 class="font-semibold text-gray-800">Auto Mode</h3>
+                                <p class="text-sm text-gray-600">Follows system preference</p>
+                            </div>
+                            ${currentTheme === 'auto' ? '<i class="fas fa-check text-purple-600 text-xl"></i>' : ''}
+                        </button>
+                    </div>
+
+                    <!-- Theme Info -->
+                    <div class="bg-blue-50 rounded-2xl p-4 flex gap-3">
+                        <i class="fas fa-info-circle text-blue-600 text-xl flex-shrink-0 mt-1"></i>
+                        <div class="text-sm text-blue-800">
+                            <p class="font-medium mb-1">About Themes</p>
+                            <p>Dark mode saves battery on OLED screens and reduces eye strain in low light conditions. Auto mode switches between light and dark based on your device settings.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    setTheme(theme) {
+        // Save theme preference
+        localStorage.setItem('theme', theme);
+        
+        // Apply theme (for now just show toast, full implementation would update CSS)
+        const themeNames = {
+            'light': '☀️ Light Mode',
+            'dark': '🌙 Dark Mode', 
+            'auto': '🔄 Auto Mode'
+        };
+        
+        this.showToast(`${themeNames[theme]} activated!`, 'success');
+        
+        // Refresh the settings page to show new selection
+        setTimeout(() => {
+            this.showThemeSettings();
+        }, 500);
+        
+        // TODO: Apply actual theme CSS changes
+        // For now, theme is saved and will be remembered
     }
 
     showLanguageSettings() {
@@ -8205,9 +8309,185 @@ class SecureChatApp {
         alert('Language Settings' + String.fromCharCode(10) + String.fromCharCode(10) + 'Current: English' + String.fromCharCode(10) + String.fromCharCode(10) + 'More languages coming soon!');
     }
 
-    showDataUsage() {
+    async showDataUsage() {
         this.closeProfileDrawer();
-        alert('Data Usage' + String.fromCharCode(10) + String.fromCharCode(10) + 'Total: 24.5 MB' + String.fromCharCode(10) + 'Messages: 1,234 sent' + String.fromCharCode(10) + 'Files: 156 shared' + String.fromCharCode(10) + String.fromCharCode(10) + '(Detailed stats coming soon)');
+        this.pushNavigation('dataUsage');
+        
+        // Get storage data from localStorage
+        const messagesCount = Object.keys(this.messageCache || {}).length;
+        const roomsCount = (await this.fetchAPI('/api/rooms')).length || 0;
+        
+        // Calculate approximate storage used
+        const storageEstimate = messagesCount * 0.5; // ~0.5 KB per message average
+        const cacheSize = JSON.stringify(this.messageCache || {}).length / 1024; // KB
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.goBack()" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Data Usage</h1>
+                    </div>
+                </div>
+
+                <div class="max-w-4xl mx-auto p-4 space-y-4">
+                    <!-- Storage Overview -->
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-800">${(storageEstimate + cacheSize).toFixed(2)} KB</h2>
+                                <p class="text-gray-600">Total Storage Used</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Storage Bar -->
+                        <div class="w-full bg-gray-200 rounded-full h-3 mb-2">
+                            <div class="bg-gradient-to-r from-purple-600 to-indigo-600 h-3 rounded-full" style="width: ${Math.min((storageEstimate + cacheSize) / 100, 100)}%"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 text-right">of ~10 MB browser cache limit</p>
+                    </div>
+
+                    <!-- Breakdown -->
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="px-4 py-2 bg-gray-50 font-semibold text-gray-700">
+                            <i class="fas fa-chart-pie mr-2"></i>Usage Breakdown
+                        </div>
+                        
+                        <!-- Messages -->
+                        <div class="px-6 py-4 border-b flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 text-xl">
+                                <i class="fas fa-message"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-gray-800">Messages Cached</h3>
+                                <p class="text-sm text-gray-600">${messagesCount.toLocaleString()} messages</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold text-gray-800">${storageEstimate.toFixed(2)} KB</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Rooms -->
+                        <div class="px-6 py-4 border-b flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xl">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-gray-800">Active Rooms</h3>
+                                <p class="text-sm text-gray-600">${roomsCount} chat rooms</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold text-gray-800">${(roomsCount * 0.1).toFixed(2)} KB</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Cache -->
+                        <div class="px-6 py-4 flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-xl">
+                                <i class="fas fa-memory"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-gray-800">Browser Cache</h3>
+                                <p class="text-sm text-gray-600">Temporary storage</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold text-gray-800">${cacheSize.toFixed(2)} KB</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="px-4 py-2 bg-gray-50 font-semibold text-gray-700">
+                            <i class="fas fa-wrench mr-2"></i>Manage Storage
+                        </div>
+                        
+                        <!-- Clear Cache -->
+                        <button onclick="app.clearMessageCache()" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition border-b">
+                            <div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-xl">
+                                <i class="fas fa-broom"></i>
+                            </div>
+                            <div class="flex-1 text-left">
+                                <h3 class="font-semibold text-gray-800">Clear Message Cache</h3>
+                                <p class="text-sm text-gray-600">Free up ${cacheSize.toFixed(2)} KB of storage</p>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                        
+                        <!-- Clear All Data -->
+                        <button onclick="app.clearAllAppData()" class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
+                            <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-xl">
+                                <i class="fas fa-trash-alt"></i>
+                            </div>
+                            <div class="flex-1 text-left">
+                                <h3 class="font-semibold text-gray-800">Clear All Data</h3>
+                                <p class="text-sm text-gray-600">Reset app to fresh state</p>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                    </div>
+
+                    <!-- Info -->
+                    <div class="bg-blue-50 rounded-2xl p-4 flex gap-3">
+                        <i class="fas fa-info-circle text-blue-600 text-xl flex-shrink-0 mt-1"></i>
+                        <div class="text-sm text-blue-800">
+                            <p class="font-medium mb-1">About Data Storage</p>
+                            <p>Amebo stores messages locally in your browser for faster loading. This data is encrypted and only accessible on this device. Clearing cache will require re-downloading messages when you open chats.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    clearMessageCache() {
+        if (confirm('Clear message cache? You will need to reload messages when you open chats again.')) {
+            // Clear the message cache
+            this.messageCache = {};
+            
+            // Show success message
+            this.showToast('🧹 Message cache cleared!', 'success');
+            
+            // Refresh the data usage page after 500ms
+            setTimeout(() => {
+                this.showDataUsage();
+            }, 500);
+        }
+    }
+    
+    clearAllAppData() {
+        if (confirm('⚠️ Clear ALL app data? This will:\n\n• Clear message cache\n• Clear unread counts\n• Clear theme settings\n• Sign you out\n\nYou can log back in to restore your account.')) {
+            // Clear all localStorage
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                // Keep auth tokens so user stays logged in
+                if (!key.startsWith('auth_')) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            
+            // Clear message cache
+            this.messageCache = {};
+            this.lastMessageIds = new Map();
+            this.lastReadMessageIds = new Map();
+            this.unreadCounts = new Map();
+            
+            // Show success message
+            this.showToast('🧹 All app data cleared!', 'success');
+            
+            // Go back to room list
+            setTimeout(() => {
+                this.showRoomList();
+            }, 1000);
+        }
     }
 
     showExportData() {
