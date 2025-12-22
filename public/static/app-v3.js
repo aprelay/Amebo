@@ -3333,15 +3333,21 @@ class SecureChatApp {
 
     showInAppNotification(notification) {
         const notifDiv = document.createElement('div');
-        notifDiv.className = 'fixed top-20 right-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-4 rounded-lg shadow-2xl z-50 max-w-sm animate-slideIn';
+        notifDiv.className = 'fixed top-20 right-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-4 rounded-lg shadow-2xl z-50 max-w-sm animate-slideIn cursor-pointer hover:shadow-3xl transition';
+        notifDiv.onclick = () => {
+            // Open dropdown when clicking notification
+            notifDiv.remove();
+            this.toggleNotificationDropdown();
+        };
         notifDiv.innerHTML = `
             <div class="flex items-start gap-3">
-                <i class="fas fa-gift text-2xl"></i>
+                <i class="fas ${this.getNotificationIcon(notification.type)} text-2xl"></i>
                 <div class="flex-1">
                     <h4 class="font-bold mb-1">${this.escapeHtml(notification.title)}</h4>
                     <p class="text-sm opacity-90">${this.escapeHtml(notification.message)}</p>
+                    <p class="text-xs opacity-75 mt-1">Click to view</p>
                 </div>
-                <button onclick="this.parentElement.parentElement.remove()" class="text-white/70 hover:text-white">
+                <button onclick="event.stopPropagation(); this.parentElement.parentElement.remove()" class="text-white/70 hover:text-white">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -3349,15 +3355,15 @@ class SecureChatApp {
         
         document.body.appendChild(notifDiv);
         
-        // Mark as read
-        this.markNotificationRead(notification.id);
+        // DON'T mark as read automatically - let user handle it from dropdown
+        // this.markNotificationRead(notification.id);
         
-        // Auto-remove after 5 seconds
+        // Auto-remove after 8 seconds (increased time)
         setTimeout(() => {
             if (notifDiv.parentElement) {
                 notifDiv.remove();
             }
-        }, 5000);
+        }, 8000);
     }
 
     async markNotificationRead(notificationId) {
@@ -10016,6 +10022,12 @@ Enter number or description:`;
             const response = await fetch(`${API_BASE}/api/notifications/${this.currentUser.id}`);
             const data = await response.json();
             notifications = data.notifications || [];
+            
+            // Sort: unread first, then by date
+            notifications.sort((a, b) => {
+                if (a.read !== b.read) return a.read - b.read; // Unread (0) before read (1)
+                return new Date(b.created_at) - new Date(a.created_at); // Newest first
+            });
         } catch (error) {
             console.error('[NOTIFICATIONS] Fetch error:', error);
         }
@@ -10024,10 +10036,14 @@ Enter number or description:`;
         const dropdown = document.createElement('div');
         dropdown.id = 'notification-dropdown';
         dropdown.className = 'fixed top-16 right-4 w-96 max-h-[500px] bg-white rounded-lg shadow-2xl border border-gray-200 z-50 overflow-hidden';
+        
+        const unreadCount = notifications.filter(n => !n.read).length;
+        
         dropdown.innerHTML = `
             <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 flex items-center justify-between">
                 <h3 class="font-bold text-lg">
                     <i class="fas fa-bell mr-2"></i>Notifications
+                    ${unreadCount > 0 ? `<span class="ml-2 bg-white/20 px-2 py-0.5 rounded-full text-xs">${unreadCount} new</span>` : ''}
                 </h3>
                 <div class="flex gap-2">
                     <button onclick="app.markAllNotificationsRead()" class="px-3 py-1 bg-white/20 hover:bg-white/30 rounded text-xs transition">
@@ -10044,7 +10060,7 @@ Enter number or description:`;
                         <i class="fas fa-bell-slash text-4xl mb-2 text-gray-300"></i>
                         <p class="text-sm">No notifications</p>
                     </div>
-                ` : notifications.slice(0, 5).map(notif => `
+                ` : notifications.slice(0, 10).map(notif => `
                     <div class="p-4 border-b border-gray-100 hover:bg-gray-50 transition ${notif.read ? 'opacity-60' : 'bg-purple-50'}">
                         <div class="flex items-start gap-3">
                             <div class="flex-shrink-0">
@@ -10094,7 +10110,7 @@ Enter number or description:`;
                     </div>
                 `).join('')}
             </div>
-            ${notifications.length > 5 ? `
+            ${notifications.length > 10 ? `
                 <div class="p-3 bg-gray-50 text-center">
                     <button onclick="app.showNotifications()" class="text-purple-600 hover:text-purple-700 text-sm font-medium">
                         View all ${notifications.length} notifications →
