@@ -2213,13 +2213,19 @@ class SecureChatApp {
         // Initialize button state and attach click handler
         setTimeout(() => {
             const voiceBtn = document.getElementById('voiceNoteBtn');
+            console.log('[INIT] Voice button element:', voiceBtn);
             if (voiceBtn) {
+                console.log('[INIT] Attaching click event listener to voice button');
                 // Attach click handler that checks button state
                 voiceBtn.addEventListener('click', () => {
+                    console.log('[INIT] Voice button clicked!');
                     this.handleButtonClick();
                 });
                 // Set initial button state
                 this.handleMessageInput();
+                console.log('[INIT] Button initialized successfully');
+            } else {
+                console.error('[INIT] Voice button not found!');
             }
         }, 50);
         
@@ -2284,28 +2290,32 @@ class SecureChatApp {
     }
 
     handleButtonClick() {
+        console.log('[CLICK] handleButtonClick called!');
         const voiceBtn = document.getElementById('voiceNoteBtn');
         const input = document.getElementById('messageInput');
         
-        if (!voiceBtn || !input) return;
+        if (!voiceBtn || !input) {
+            console.error('[CLICK] Missing elements! voiceBtn:', voiceBtn, 'input:', input);
+            return;
+        }
         
         const mode = voiceBtn.getAttribute('data-mode');
         const hasText = input.value.trim().length > 0;
         
-        console.log('[UI] Button clicked. Mode:', mode, 'Has text:', hasText);
+        console.log('[CLICK] Button clicked. Mode:', mode, 'Has text:', hasText, 'isRecording:', this.isRecording);
         
         // Determine action based on current state
         if (this.isRecording) {
             // Stop recording
-            console.log('[UI] Stopping recording...');
+            console.log('[CLICK] Action: Stopping recording...');
             this.stopRecording();
         } else if (hasText || mode === 'send') {
             // Send text message
-            console.log('[UI] Sending text message...');
+            console.log('[CLICK] Action: Sending text message...');
             this.sendMessage();
         } else {
             // Start voice recording
-            console.log('[UI] Starting voice recording...');
+            console.log('[CLICK] Action: Starting voice recording...');
             this.toggleVoiceRecording();
         }
     }

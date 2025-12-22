@@ -5316,8 +5316,8 @@ app.get('*', (c) => {
     <body class="bg-gray-100">
         <div id="app"></div>
         
-        <script src="/static/crypto-v2.js?v=NOTIF-FIX-V2"></script>
-        <script src="/static/app-v3.js?v=REALTIME-UNREAD-1766411021"></script>
+        <script src="/static/crypto-v2.js?v=VOICE-NOTE-FIX"></script>
+        <script src="/static/app-v3.js?v=VOICE-NOTE-SEND-BTN-FIX"></script>
         <script>
             const app = new SecureChatApp();
             app.init();
