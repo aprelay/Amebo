@@ -8073,6 +8073,18 @@ class SecureChatApp {
         const room = this.rooms.find(r => r.id === roomId);
         const roomName = room?.room_name || 'User';
         
+        // Check mute status
+        let isMuted = false;
+        try {
+            const muteResponse = await fetch(`${API_BASE}/api/profile/mute/${this.currentUser.id}/${roomId}`);
+            if (muteResponse.ok) {
+                const muteData = await muteResponse.json();
+                isMuted = muteData.is_muted || false;
+            }
+        } catch (error) {
+            console.error('[MUTE] Error checking mute status:', error);
+        }
+        
         // Fetch real user data
         let userData = { username: roomName, bio: 'Hey there! I\'m using Amebo.', status: 'offline', avatar: null };
         try {
@@ -8216,7 +8228,7 @@ class SecureChatApp {
                                 <i class="fas fa-bell-slash text-gray-600 w-5"></i>
                                 <span>Mute Notifications</span>
                             </div>
-                            <i class="fas fa-toggle-off text-gray-400 text-2xl"></i>
+                            <i class="fas ${isMuted ? 'fa-toggle-on text-purple-600' : 'fa-toggle-off text-gray-400'} text-2xl"></i>
                         </button>
                         <button onclick="app.blockUser('${roomId}', '${roomCode}', '${userData.username || roomName}')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
                             <i class="fas fa-ban text-red-600 w-5"></i>
@@ -8242,6 +8254,18 @@ class SecureChatApp {
         
         const room = this.rooms.find(r => r.id === roomId);
         const groupName = room?.room_name || 'Group';
+        
+        // Check mute status
+        let isMuted = false;
+        try {
+            const muteResponse = await fetch(`${API_BASE}/api/profile/mute/${this.currentUser.id}/${roomId}`);
+            if (muteResponse.ok) {
+                const muteData = await muteResponse.json();
+                isMuted = muteData.is_muted || false;
+            }
+        } catch (error) {
+            console.error('[MUTE] Error checking mute status:', error);
+        }
         
         document.getElementById('app').innerHTML = `
             <div class="min-h-screen bg-gray-100">
@@ -8391,7 +8415,7 @@ class SecureChatApp {
                                 <i class="fas fa-bell-slash text-gray-600 w-5"></i>
                                 <span>Mute Notifications</span>
                             </div>
-                            <i class="fas fa-toggle-off text-gray-400 text-2xl"></i>
+                            <i class="fas ${isMuted ? 'fa-toggle-on text-purple-600' : 'fa-toggle-off text-gray-400'} text-2xl"></i>
                         </button>
                         <button onclick="alert('Custom sound')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition">
                             <i class="fas fa-volume-up text-purple-600 w-5"></i>
