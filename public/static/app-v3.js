@@ -2211,23 +2211,40 @@ class SecureChatApp {
         setTimeout(() => this.scrollToBottom(true), 100);
         
         // Initialize button state and attach click handler
-        setTimeout(() => {
+        // Try multiple times to ensure button is rendered
+        let attempts = 0;
+        const initButton = () => {
+            attempts++;
+            console.log(`[INIT] Attempt ${attempts} to initialize voice button`);
+            
             const voiceBtn = document.getElementById('voiceNoteBtn');
             console.log('[INIT] Voice button element:', voiceBtn);
+            
             if (voiceBtn) {
-                console.log('[INIT] Attaching click event listener to voice button');
+                console.log('[INIT] ✅ Button found! Attaching click event listener');
+                
                 // Attach click handler that checks button state
                 voiceBtn.addEventListener('click', () => {
-                    console.log('[INIT] Voice button clicked!');
+                    console.log('[INIT] 🎯 Voice button clicked!');
                     this.handleButtonClick();
                 });
+                
                 // Set initial button state
                 this.handleMessageInput();
-                console.log('[INIT] Button initialized successfully');
+                console.log('[INIT] ✅ Button initialized successfully');
             } else {
-                console.error('[INIT] Voice button not found!');
+                console.error('[INIT] ❌ Voice button not found! Attempt:', attempts);
+                
+                // Try again if button not found and we haven't tried too many times
+                if (attempts < 5) {
+                    console.log('[INIT] Retrying in 100ms...');
+                    setTimeout(initButton, 100);
+                }
             }
-        }, 50);
+        };
+        
+        // Start initialization attempts
+        setTimeout(initButton, 50);
         
         this.startPolling();
     }

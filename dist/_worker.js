@@ -1214,7 +1214,7 @@ var Tr=Object.defineProperty;var We=e=>{throw TypeError(e)};var Sr=(e,r,t)=>r in
         <div id="app"></div>
         
         <script src="/static/crypto-v2.js?v=VOICE-NOTE-FIX"><\/script>
-        <script src="/static/app-v3.js?v=VOICE-NOTE-SEND-BTN-FIX"><\/script>
+        <script src="/static/app-v3.js?v=VOICE-BTN-RETRY-INIT"><\/script>
         <script>
             const app = new SecureChatApp();
             app.init();
