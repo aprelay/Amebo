@@ -53,11 +53,30 @@ class SecureChatApp {
         this.slideIndicator = null; // Visual feedback element
         
         // Store global event listeners for cleanup (prevent memory leaks)
+        // CRITICAL: Create these ONCE in constructor and reuse them!
+        // Creating new functions each time causes listener stacking
         this.globalGestureListeners = {
-            mousemove: null,
-            mouseup: null,
-            touchmove: null,
-            touchend: null
+            mousemove: (e) => {
+                if (this.isRecording && !this.isRecordingLocked) {
+                    this.updateVoiceRecordingGesture(e.clientX, e.clientY);
+                }
+            },
+            mouseup: (e) => {
+                if (this.isRecording && !this.isRecordingLocked) {
+                    this.endVoiceRecordingGesture();
+                }
+            },
+            touchmove: (e) => {
+                if (this.isRecording && !this.isRecordingLocked) {
+                    const touch = e.touches[0];
+                    this.updateVoiceRecordingGesture(touch.clientX, touch.clientY);
+                }
+            },
+            touchend: (e) => {
+                if (this.isRecording && !this.isRecordingLocked) {
+                    this.endVoiceRecordingGesture();
+                }
+            }
         };
         
         // Recursion guard for loadMessages
@@ -2284,20 +2303,7 @@ class SecureChatApp {
                     }
                 });
                 
-                // Create and store global mouse gesture handlers
-                this.globalGestureListeners.mousemove = (e) => {
-                    if (this.isRecording && !this.isRecordingLocked) {
-                        this.updateVoiceRecordingGesture(e.clientX, e.clientY);
-                    }
-                };
-                
-                this.globalGestureListeners.mouseup = (e) => {
-                    if (this.isRecording && !this.isRecordingLocked) {
-                        this.endVoiceRecordingGesture();
-                    }
-                };
-                
-                // Add global mouse listeners
+                // Add global mouse listeners (using pre-created functions from constructor)
                 document.addEventListener('mousemove', this.globalGestureListeners.mousemove);
                 document.addEventListener('mouseup', this.globalGestureListeners.mouseup);
                 
@@ -2311,21 +2317,7 @@ class SecureChatApp {
                     }
                 });
                 
-                // Create and store global touch gesture handlers
-                this.globalGestureListeners.touchmove = (e) => {
-                    if (this.isRecording && !this.isRecordingLocked) {
-                        const touch = e.touches[0];
-                        this.updateVoiceRecordingGesture(touch.clientX, touch.clientY);
-                    }
-                };
-                
-                this.globalGestureListeners.touchend = (e) => {
-                    if (this.isRecording && !this.isRecordingLocked) {
-                        this.endVoiceRecordingGesture();
-                    }
-                };
-                
-                // Add global touch listeners
+                // Add global touch listeners (using pre-created functions from constructor)
                 document.addEventListener('touchmove', this.globalGestureListeners.touchmove);
                 document.addEventListener('touchend', this.globalGestureListeners.touchend);
                 
