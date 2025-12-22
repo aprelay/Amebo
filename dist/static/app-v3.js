@@ -564,6 +564,16 @@ class SecureChatApp {
                             this.joinRoom(previous.context.roomCode);
                         }
                         break;
+                    case 'userProfile':
+                        if (previous.context.roomId && previous.context.roomCode) {
+                            this.showUserProfile(previous.context.roomId, previous.context.roomCode);
+                        }
+                        break;
+                    case 'groupProfile':
+                        if (previous.context.roomId && previous.context.roomCode) {
+                            this.showGroupProfile(previous.context.roomId, previous.context.roomCode);
+                        }
+                        break;
                     case 'profile':
                         this.showProfile();
                         break;
@@ -8008,8 +8018,37 @@ class SecureChatApp {
     }
 
     async showUserProfile(roomId, roomCode) {
+        // Push to navigation history
+        this.pushNavigation('userProfile', { roomId, roomCode });
+        
         const room = this.rooms.find(r => r.id === roomId);
         const roomName = room?.room_name || 'User';
+        
+        // Fetch real user data
+        let userData = { username: roomName, bio: 'Hey there! I\'m using Amebo.', status: 'offline', avatar: null };
+        try {
+            // Extract user ID from DM room code (dm-user1id-user2id)
+            if (room?.room_code?.startsWith('dm-')) {
+                const parts = room.room_code.split('-');
+                const otherUserId = parts[1] === this.currentUser.id ? parts[2] : parts[1];
+                
+                const response = await fetch(`${API_BASE}/api/users/${otherUserId}`);
+                if (response.ok) {
+                    userData = await response.json();
+                }
+            }
+        } catch (error) {
+            console.error('[PROFILE] Error fetching user:', error);
+        }
+        
+        const avatarHtml = userData.avatar 
+            ? `<img src="${userData.avatar}" class="w-24 h-24 rounded-full object-cover mx-auto mb-4">`
+            : `<div class="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold">
+                ${(userData.username || roomName).charAt(0).toUpperCase()}
+               </div>`;
+        
+        const statusColor = userData.status === 'online' ? 'text-green-500' : 'text-gray-400';
+        const statusText = userData.status === 'online' ? 'Online' : userData.last_seen ? `Last seen ${this.formatLastSeen(userData.last_seen)}` : 'Offline';
         
         document.getElementById('app').innerHTML = `
             <div class="min-h-screen bg-gray-100">
@@ -8026,16 +8065,14 @@ class SecureChatApp {
                 <div class="max-w-4xl mx-auto p-4 space-y-4">
                     <!-- Profile Header -->
                     <div class="bg-white rounded-2xl shadow-lg p-6 text-center">
-                        <div class="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold">
-                            ${roomName.charAt(0).toUpperCase()}
-                        </div>
-                        <h2 class="text-2xl font-bold text-gray-800">${roomName}</h2>
-                        <p class="text-gray-500">@${roomName.toLowerCase()}</p>
+                        ${avatarHtml}
+                        <h2 class="text-2xl font-bold text-gray-800">${userData.display_name || userData.username || roomName}</h2>
+                        <p class="text-gray-500">@${userData.username || roomName.toLowerCase()}</p>
                         <div class="flex items-center justify-center gap-2 mt-2">
-                            <i class="fas fa-circle text-green-500 text-xs"></i>
-                            <span class="text-sm text-gray-600">Online</span>
+                            <i class="fas fa-circle ${statusColor} text-xs"></i>
+                            <span class="text-sm text-gray-600">${statusText}</span>
                         </div>
-                        <p class="text-gray-600 mt-3">Hey there! I'm using Amebo.</p>
+                        <p class="text-gray-600 mt-3">${userData.bio || 'Hey there! I\'m using Amebo.'}</p>
                     </div>
 
                     <!-- Quick Actions -->
@@ -8065,17 +8102,17 @@ class SecureChatApp {
                         <div class="px-4 py-2 bg-gray-50 font-semibold text-gray-700">
                             <i class="fas fa-users mr-2"></i>Relationship
                         </div>
-                        <button onclick="alert('Add to contacts')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
+                        <button onclick="app.addToContacts('${roomId}', '${roomCode}')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
                             <i class="fas fa-user-plus text-green-600 w-5"></i>
                             <span>Add to Contacts</span>
                         </button>
-                        <button onclick="alert('View shared groups')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
+                        <button onclick="app.viewSharedGroups('${roomId}')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
                             <i class="fas fa-users text-blue-600 w-5"></i>
                             <span>View Shared Groups</span>
                         </button>
-                        <button onclick="alert('Create group with user')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition">
+                        <button onclick="app.createGroupWithUser('${roomId}', '${userData.username || roomName}')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition">
                             <i class="fas fa-plus-circle text-purple-600 w-5"></i>
-                            <span>Create Group with ${roomName}</span>
+                            <span>Create Group with ${userData.username || roomName}</span>
                         </button>
                     </div>
 
@@ -8095,7 +8132,7 @@ class SecureChatApp {
                             <i class="fas fa-search text-blue-600 w-5"></i>
                             <span>Search in Chat</span>
                         </button>
-                        <button onclick="alert('Export chat')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition">
+                        <button onclick="app.exportChatHistory('${roomId}')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition">
                             <i class="fas fa-download text-teal-600 w-5"></i>
                             <span>Export Chat</span>
                         </button>
@@ -8110,11 +8147,11 @@ class SecureChatApp {
                             <i class="fas fa-tag text-orange-600 w-5"></i>
                             <span>Set Custom Nickname</span>
                         </button>
-                        <button onclick="alert('Change wallpaper')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
+                        <button onclick="app.changeChatWallpaper('${roomId}')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
                             <i class="fas fa-image text-purple-600 w-5"></i>
                             <span>Change Chat Wallpaper</span>
                         </button>
-                        <button onclick="alert('Custom notification sound')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition">
+                        <button onclick="app.customNotificationSound('${roomId}')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition">
                             <i class="fas fa-bell text-yellow-600 w-5"></i>
                             <span>Custom Notification Sound</span>
                         </button>
@@ -8132,15 +8169,15 @@ class SecureChatApp {
                             </div>
                             <i class="fas fa-toggle-off text-gray-400 text-2xl"></i>
                         </button>
-                        <button onclick="confirm('Block ${roomName}?') && alert('User blocked')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
+                        <button onclick="app.blockUser('${roomId}', '${roomCode}', '${userData.username || roomName}')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
                             <i class="fas fa-ban text-red-600 w-5"></i>
                             <span class="text-red-600">Block User</span>
                         </button>
-                        <button onclick="alert('Report user')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
+                        <button onclick="app.reportUser('${roomId}', '${userData.id || roomId}')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b">
                             <i class="fas fa-flag text-red-600 w-5"></i>
                             <span class="text-red-600">Report User</span>
                         </button>
-                        <button onclick="confirm('Clear all chat history with ${roomName}?') && alert('Chat history cleared')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition">
+                        <button onclick="app.clearChatHistory('${roomId}', '${userData.username || roomName}')" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition">
                             <i class="fas fa-trash-alt text-red-600 w-5"></i>
                             <span class="text-red-600">Clear Chat History</span>
                         </button>
@@ -8151,6 +8188,9 @@ class SecureChatApp {
     }
 
     async showGroupProfile(roomId, roomCode) {
+        // Push to navigation history
+        this.pushNavigation('groupProfile', { roomId, roomCode });
+        
         const room = this.rooms.find(r => r.id === roomId);
         const groupName = room?.room_name || 'Group';
         
@@ -8332,6 +8372,9 @@ class SecureChatApp {
 
     // Profile action functions with full modals
     showSharedMedia(roomId) {
+        // Push to navigation history
+        this.pushNavigation('sharedMedia', { roomId });
+        
         const room = this.rooms.find(r => r.id === roomId);
         const roomName = room?.room_name || 'Chat';
         
@@ -8448,6 +8491,9 @@ class SecureChatApp {
     }
 
     searchInChat(roomId) {
+        // Push to navigation history
+        this.pushNavigation('searchInChat', { roomId });
+        
         const room = this.rooms.find(r => r.id === roomId);
         
         document.getElementById('app').innerHTML = `
@@ -8584,6 +8630,9 @@ class SecureChatApp {
     }
 
     setCustomNickname(roomId) {
+        // Push to navigation history
+        this.pushNavigation('setNickname', { roomId });
+        
         const room = this.rooms.find(r => r.id === roomId);
         const currentNickname = room?.room_name || '';
         
@@ -8676,6 +8725,9 @@ class SecureChatApp {
     }
 
     toggleMuteChat(roomId) {
+        // Push to navigation history
+        this.pushNavigation('muteChat', { roomId });
+        
         const room = this.rooms.find(r => r.id === roomId);
         
         document.getElementById('app').innerHTML = `
@@ -8778,6 +8830,9 @@ class SecureChatApp {
     }
 
     editGroupInfo(roomId) {
+        // Push to navigation history
+        this.pushNavigation('editGroupInfo', { roomId });
+        
         const room = this.rooms.find(r => r.id === roomId);
         const groupName = room?.room_name || 'Group';
         
@@ -8890,6 +8945,9 @@ class SecureChatApp {
     }
 
     shareGroup(roomId) {
+        // Push to navigation history
+        this.pushNavigation('shareGroup', { roomId });
+        
         const room = this.rooms.find(r => r.id === roomId);
         const groupName = room?.room_name || 'Group';
         const inviteLink = `https://amebo.app/join/${roomId}`;
@@ -9260,6 +9318,207 @@ class SecureChatApp {
 
     muteGroupNotifications(roomId) {
         this.toggleMuteChat(roomId); // Reuse the same mute UI
+    }
+
+    // User profile action functions
+    async addToContacts(roomId, roomCode) {
+        try {
+            // Extract other user ID from DM room code
+            const room = this.rooms.find(r => r.id === roomId);
+            if (!room?.room_code?.startsWith('dm-')) {
+                this.showToast('Can only add direct message contacts', 'error');
+                return;
+            }
+            
+            const parts = room.room_code.split('-');
+            const contactId = parts[1] === this.currentUser.id ? parts[2] : parts[1];
+            
+            const response = await fetch(`${API_BASE}/api/contacts/request`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: this.currentUser.id,
+                    contactId: contactId
+                })
+            });
+            
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to send contact request');
+            }
+            
+            this.showToast('Contact request sent!', 'success');
+        } catch (error) {
+            console.error('[CONTACTS] Add error:', error);
+            this.showToast(error.message || 'Failed to add contact', 'error');
+        }
+    }
+
+    async viewSharedGroups(roomId) {
+        this.showToast('Shared groups feature coming soon!', 'info');
+    }
+
+    async createGroupWithUser(roomId, username) {
+        const groupName = prompt(`Create group with ${username}?\\n\\nEnter group name:`);
+        if (!groupName) return;
+        
+        this.showToast(`Group "${groupName}" creation coming soon!`, 'info');
+    }
+
+    async blockUser(roomId, roomCode, username) {
+        if (!confirm(`Block ${username}?\\n\\nThey won't be able to message you or see your online status.`)) {
+            return;
+        }
+        
+        try {
+            const room = this.rooms.find(r => r.id === roomId);
+            if (!room?.room_code?.startsWith('dm-')) {
+                this.showToast('Can only block direct message users', 'error');
+                return;
+            }
+            
+            const parts = room.room_code.split('-');
+            const blockedUserId = parts[1] === this.currentUser.id ? parts[2] : parts[1];
+            
+            const response = await fetch(`${API_BASE}/api/users/block`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: this.currentUser.id,
+                    blockedUserId: blockedUserId,
+                    reason: 'Blocked from profile'
+                })
+            });
+            
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to block user');
+            }
+            
+            this.showToast(`${username} has been blocked`, 'success');
+            
+            // Return to room list
+            setTimeout(() => this.showRoomList(), 1000);
+        } catch (error) {
+            console.error('[BLOCK] Error:', error);
+            this.showToast(error.message || 'Failed to block user', 'error');
+        }
+    }
+
+    async reportUser(roomId, userId) {
+        const reason = prompt('Report reason:\\n\\n1. Spam\\n2. Harassment\\n3. Inappropriate content\\n4. Fake account\\n5. Other\\n\\nEnter number or description:');
+        if (!reason) return;
+        
+        const description = prompt('Additional details (optional):');
+        
+        try {
+            const room = this.rooms.find(r => r.id === roomId);
+            let reportedUserId = userId;
+            
+            if (room?.room_code?.startsWith('dm-')) {
+                const parts = room.room_code.split('-');
+                reportedUserId = parts[1] === this.currentUser.id ? parts[2] : parts[1];
+            }
+            
+            const response = await fetch(`${API_BASE}/api/profile/report/user`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    reporterId: this.currentUser.id,
+                    reportedUserId: reportedUserId,
+                    reason: reason,
+                    description: description
+                })
+            });
+            
+            if (!response.ok) throw new Error('Failed to submit report');
+            
+            this.showToast('User reported. Thank you for keeping Amebo safe!', 'success');
+        } catch (error) {
+            console.error('[REPORT] Error:', error);
+            this.showToast('Failed to submit report', 'error');
+        }
+    }
+
+    async clearChatHistory(roomId, username) {
+        if (!confirm(`Clear all chat history with ${username}?\\n\\nThis cannot be undone. Messages will only be deleted for you.`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${API_BASE}/api/profile/clear/${this.currentUser.id}/${roomId}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) throw new Error('Failed to clear chat');
+            
+            this.showToast('Chat history cleared', 'success');
+            
+            // Reload the chat to show empty state
+            setTimeout(() => this.openRoom(roomId, this.rooms.find(r => r.id === roomId)?.room_code), 1000);
+        } catch (error) {
+            console.error('[CLEAR] Error:', error);
+            this.showToast('Failed to clear chat history', 'error');
+        }
+    }
+
+    async exportChatHistory(roomId) {
+        try {
+            this.showToast('Exporting chat history...', 'info');
+            
+            const response = await fetch(`${API_BASE}/api/profile/export/${roomId}`);
+            if (!response.ok) throw new Error('Failed to export chat');
+            
+            const data = await response.json();
+            
+            // Create downloadable file
+            const chatData = {
+                roomId: roomId,
+                exportedAt: data.exportedAt,
+                messageCount: data.messages.length,
+                messages: data.messages
+            };
+            
+            const blob = new Blob([JSON.stringify(chatData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `chat-export-${roomId}-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            this.showToast('Chat exported successfully!', 'success');
+        } catch (error) {
+            console.error('[EXPORT] Error:', error);
+            this.showToast('Failed to export chat', 'error');
+        }
+    }
+
+    changeChatWallpaper(roomId) {
+        this.showToast('Chat wallpaper customization coming soon!', 'info');
+    }
+
+    customNotificationSound(roomId) {
+        this.showToast('Custom notification sound coming soon!', 'info');
+    }
+
+    formatLastSeen(timestamp) {
+        const now = new Date();
+        const lastSeen = new Date(timestamp);
+        const diffMs = now - lastSeen;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+        
+        if (diffMins < 1) return 'just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays === 1) return 'yesterday';
+        if (diffDays < 7) return `${diffDays}d ago`;
+        
+        return lastSeen.toLocaleDateString();
     }
 
     async reportGroup(roomId) {
