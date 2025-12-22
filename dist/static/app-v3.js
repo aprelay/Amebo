@@ -771,19 +771,18 @@ class SecureChatApp {
                 this.viewedOnceFiles = new Set(JSON.parse(viewedFiles));
             }
             
-            // Load last read message IDs from localStorage
+            // Load last read message IDs from localStorage (source of truth)
             const lastReadData = localStorage.getItem('lastReadMessages_' + this.currentUser.id);
             if (lastReadData) {
                 const parsed = JSON.parse(lastReadData);
                 this.lastReadMessageIds = new Map(Object.entries(parsed));
+                console.log('[LOGIN] Loaded last read message IDs:', Object.keys(parsed).length, 'rooms');
             }
             
-            // Load unread counts from localStorage
-            const unreadData = localStorage.getItem('unreadCounts_' + this.currentUser.id);
-            if (unreadData) {
-                const parsed = JSON.parse(unreadData);
-                this.unreadCounts = new Map(Object.entries(parsed));
-            }
+            // DON'T load stale unread counts from localStorage
+            // They will be recalculated fresh by updateUnreadCounts() based on lastReadMessageIds
+            // This ensures counts are always accurate after reading messages
+            console.log('[LOGIN] Unread counts will be recalculated fresh')
             
             // Start notification polling for mobile push notifications
             this.startNotificationPolling();
@@ -2668,6 +2667,10 @@ class SecureChatApp {
         // Clear sensitive data
         if (this.currentUser) {
             localStorage.removeItem(`privateKey_${this.currentUser.id}`);
+            // Clear unread counts and last read messages for this user
+            localStorage.removeItem(`unreadCounts_${this.currentUser.id}`);
+            localStorage.removeItem(`lastReadMessages_${this.currentUser.id}`);
+            console.log('[LOGOUT] Cleared unread counts and last read messages');
         }
         
         localStorage.removeItem('currentUser');
@@ -2680,6 +2683,12 @@ class SecureChatApp {
         this.roomKeys.clear();
         this.viewedOnceFiles.clear();
         this.userPrivateKey = null;
+        
+        // Clear unread tracking
+        this.unreadCounts.clear();
+        this.lastReadMessageIds.clear();
+        this.lastMessageIds.clear();
+        console.log('[LOGOUT] Cleared all unread tracking data from memory');
         
         if (this.messagePoller) clearInterval(this.messagePoller);
         if (this.notificationPollInterval) {
