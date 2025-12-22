@@ -688,6 +688,12 @@ class SecureChatApp {
                     case 'advertiserDashboard':
                         this.showAdvertiserDashboard(previous.context.advertiserId);
                         break;
+                    case 'themeSettings':
+                        this.showThemeSettings();
+                        break;
+                    case 'dataUsage':
+                        this.showDataUsage();
+                        break;
                     default:
                         this.showRoomList();
                 }
@@ -703,6 +709,10 @@ class SecureChatApp {
 
     async init() {
         console.log('[V3] Init started');
+        
+        // Apply saved theme immediately on app load
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        this.applyThemeOnLoad(savedTheme);
         
         // Register Service Worker for PWA
         if ('serviceWorker' in navigator) {
@@ -8282,11 +8292,108 @@ class SecureChatApp {
         `;
     }
     
+    applyThemeOnLoad(theme) {
+        // Silent theme application without toast/refresh (for app startup)
+        let useDarkMode = false;
+        if (theme === 'dark') {
+            useDarkMode = true;
+        } else if (theme === 'auto') {
+            useDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        }
+        
+        if (useDarkMode) {
+            document.documentElement.classList.add('dark');
+            document.body.classList.add('dark-mode');
+        } else {
+            document.documentElement.classList.remove('dark');
+            document.body.classList.remove('dark-mode');
+        }
+        
+        // Inject dark mode CSS
+        if (!document.getElementById('dark-mode-styles')) {
+            const darkStyles = document.createElement('style');
+            darkStyles.id = 'dark-mode-styles';
+            darkStyles.textContent = `
+                .dark-mode {
+                    background-color: #1a1a2e !important;
+                    color: #e4e4e7 !important;
+                }
+                .dark-mode .bg-gray-100 { background-color: #1a1a2e !important; }
+                .dark-mode .bg-gray-50 { background-color: #16213e !important; }
+                .dark-mode .bg-white { background-color: #0f3460 !important; }
+                .dark-mode .text-gray-800 { color: #e4e4e7 !important; }
+                .dark-mode .text-gray-700 { color: #d4d4d8 !important; }
+                .dark-mode .text-gray-600 { color: #a1a1aa !important; }
+                .dark-mode .text-gray-500 { color: #71717a !important; }
+                .dark-mode .border-gray-200 { border-color: #3f3f46 !important; }
+                .dark-mode .border-gray-300 { border-color: #52525b !important; }
+                .dark-mode .hover\\:bg-gray-50:hover { background-color: #1e2746 !important; }
+                .dark-mode .hover\\:bg-gray-100:hover { background-color: #243156 !important; }
+                .dark-mode input, .dark-mode textarea, .dark-mode select {
+                    background-color: #16213e !important;
+                    color: #e4e4e7 !important;
+                    border-color: #3f3f46 !important;
+                }
+                .dark-mode .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5) !important; }
+            `;
+            document.head.appendChild(darkStyles);
+        }
+        
+        console.log('[THEME] Applied theme on load:', theme, 'Dark mode:', useDarkMode);
+    }
+    
     setTheme(theme) {
         // Save theme preference
         localStorage.setItem('theme', theme);
         
-        // Apply theme (for now just show toast, full implementation would update CSS)
+        // Determine if we should use dark mode
+        let useDarkMode = false;
+        if (theme === 'dark') {
+            useDarkMode = true;
+        } else if (theme === 'auto') {
+            // Check system preference
+            useDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        }
+        
+        // Apply dark mode to document
+        if (useDarkMode) {
+            document.documentElement.classList.add('dark');
+            document.body.classList.add('dark-mode');
+        } else {
+            document.documentElement.classList.remove('dark');
+            document.body.classList.remove('dark-mode');
+        }
+        
+        // Inject dark mode CSS if not already present
+        if (!document.getElementById('dark-mode-styles')) {
+            const darkStyles = document.createElement('style');
+            darkStyles.id = 'dark-mode-styles';
+            darkStyles.textContent = `
+                .dark-mode {
+                    background-color: #1a1a2e !important;
+                    color: #e4e4e7 !important;
+                }
+                .dark-mode .bg-gray-100 { background-color: #1a1a2e !important; }
+                .dark-mode .bg-gray-50 { background-color: #16213e !important; }
+                .dark-mode .bg-white { background-color: #0f3460 !important; }
+                .dark-mode .text-gray-800 { color: #e4e4e7 !important; }
+                .dark-mode .text-gray-700 { color: #d4d4d8 !important; }
+                .dark-mode .text-gray-600 { color: #a1a1aa !important; }
+                .dark-mode .text-gray-500 { color: #71717a !important; }
+                .dark-mode .border-gray-200 { border-color: #3f3f46 !important; }
+                .dark-mode .border-gray-300 { border-color: #52525b !important; }
+                .dark-mode .hover\\:bg-gray-50:hover { background-color: #1e2746 !important; }
+                .dark-mode .hover\\:bg-gray-100:hover { background-color: #243156 !important; }
+                .dark-mode input, .dark-mode textarea, .dark-mode select {
+                    background-color: #16213e !important;
+                    color: #e4e4e7 !important;
+                    border-color: #3f3f46 !important;
+                }
+                .dark-mode .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5) !important; }
+            `;
+            document.head.appendChild(darkStyles);
+        }
+        
         const themeNames = {
             'light': '☀️ Light Mode',
             'dark': '🌙 Dark Mode', 
@@ -8299,9 +8406,6 @@ class SecureChatApp {
         setTimeout(() => {
             this.showThemeSettings();
         }, 500);
-        
-        // TODO: Apply actual theme CSS changes
-        // For now, theme is saved and will be remembered
     }
 
     showLanguageSettings() {
