@@ -2210,6 +2210,9 @@ class SecureChatApp {
         // Single scroll to bottom after messages load
         setTimeout(() => this.scrollToBottom(true), 100);
         
+        // Initialize button state (microphone by default)
+        setTimeout(() => this.handleMessageInput(), 50);
+        
         this.startPolling();
     }
 
@@ -2222,6 +2225,7 @@ class SecureChatApp {
         const input = document.getElementById('messageInput');
         input.value += emoji;
         this.autoResizeTextarea(input);
+        this.handleMessageInput(); // Update button state
         input.focus();
     }
 
@@ -2236,19 +2240,36 @@ class SecureChatApp {
         const input = document.getElementById('messageInput');
         const voiceBtn = document.getElementById('voiceNoteBtn');
         
-        if (!input || !voiceBtn) return;
+        if (!input || !voiceBtn) {
+            console.log('[UI] Button elements not found yet');
+            return;
+        }
         
         const hasText = input.value.trim().length > 0;
         
+        // Don't change button if currently recording
+        if (this.isRecording) {
+            console.log('[UI] Recording in progress, not changing button');
+            return;
+        }
+        
         // Toggle between send and voice note button
         if (hasText) {
+            // Send button (paper plane icon)
+            console.log('[UI] Switching to SEND button (has text)');
             voiceBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
             voiceBtn.onclick = () => this.sendMessage();
-            voiceBtn.title = 'Send';
+            voiceBtn.title = 'Send Message';
+            voiceBtn.style.background = '#25d366';
+            voiceBtn.style.animation = 'none';
         } else {
+            // Voice note button (microphone icon)
+            console.log('[UI] Switching to MICROPHONE button (no text)');
             voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
             voiceBtn.onclick = () => this.toggleVoiceRecording();
-            voiceBtn.title = 'Voice Note';
+            voiceBtn.title = 'Record Voice Note';
+            voiceBtn.style.background = '#25d366';
+            voiceBtn.style.animation = 'none';
         }
     }
 
