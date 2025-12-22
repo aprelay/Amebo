@@ -1461,9 +1461,9 @@ class SecureChatApp {
                                 </button>
                             </div>
                         </div>
-                        <button onclick="app.showNotifications()" class="relative p-2 hover:bg-white/20 rounded-lg transition">
+                        <button onclick="app.toggleNotificationDropdown()" class="relative p-2 hover:bg-white/20 rounded-lg transition" id="notification-bell">
                             <i class="fas fa-bell text-xl"></i>
-                            ${this.unreadNotifications > 0 ? `<span class="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">${this.unreadNotifications}</span>` : ''}
+                            ${this.unreadNotifications > 0 ? `<span class="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center" id="notificationBadge">${this.unreadNotifications}</span>` : '<span class="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 hidden items-center justify-center" id="notificationBadge"></span>'}
                         </button>
                     </div>
                 </div>
@@ -9999,6 +9999,215 @@ Enter number or description:`;
             
             alert(message);
         }
+    }
+
+    async toggleNotificationDropdown() {
+        const existingDropdown = document.getElementById('notification-dropdown');
+        
+        // Close if already open
+        if (existingDropdown) {
+            existingDropdown.remove();
+            return;
+        }
+        
+        // Fetch notifications
+        let notifications = [];
+        try {
+            const response = await fetch(`${API_BASE}/api/notifications/${this.currentUser.id}`);
+            const data = await response.json();
+            notifications = data.notifications || [];
+        } catch (error) {
+            console.error('[NOTIFICATIONS] Fetch error:', error);
+        }
+        
+        // Create dropdown
+        const dropdown = document.createElement('div');
+        dropdown.id = 'notification-dropdown';
+        dropdown.className = 'fixed top-16 right-4 w-96 max-h-[500px] bg-white rounded-lg shadow-2xl border border-gray-200 z-50 overflow-hidden';
+        dropdown.innerHTML = `
+            <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 flex items-center justify-between">
+                <h3 class="font-bold text-lg">
+                    <i class="fas fa-bell mr-2"></i>Notifications
+                </h3>
+                <div class="flex gap-2">
+                    <button onclick="app.markAllNotificationsRead()" class="px-3 py-1 bg-white/20 hover:bg-white/30 rounded text-xs transition">
+                        Mark all read
+                    </button>
+                    <button onclick="app.showNotifications()" class="px-3 py-1 bg-white/20 hover:bg-white/30 rounded text-xs transition">
+                        View all
+                    </button>
+                </div>
+            </div>
+            <div class="overflow-y-auto max-h-[400px]">
+                ${notifications.length === 0 ? `
+                    <div class="p-8 text-center text-gray-500">
+                        <i class="fas fa-bell-slash text-4xl mb-2 text-gray-300"></i>
+                        <p class="text-sm">No notifications</p>
+                    </div>
+                ` : notifications.slice(0, 5).map(notif => `
+                    <div class="p-4 border-b border-gray-100 hover:bg-gray-50 transition ${notif.read ? 'opacity-60' : 'bg-purple-50'}">
+                        <div class="flex items-start gap-3">
+                            <div class="flex-shrink-0">
+                                <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                                    <i class="fas ${this.getNotificationIcon(notif.type)} text-purple-600"></i>
+                                </div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h4 class="font-semibold text-gray-900 text-sm">${this.escapeHtml(notif.title)}</h4>
+                                <p class="text-gray-600 text-xs mt-1">${this.escapeHtml(notif.message)}</p>
+                                <p class="text-xs text-gray-400 mt-1">${this.formatTimeAgo(notif.created_at)}</p>
+                                
+                                ${notif.type === 'contact_request' && notif.data && !notif.read ? (() => {
+                                    try {
+                                        const data = JSON.parse(notif.data);
+                                        return `
+                                            <div class="flex gap-2 mt-2">
+                                                <button 
+                                                    onclick="app.acceptFromDropdown('${notif.id}', '${data.requester_id}', '${data.requester_username || 'User'}')"
+                                                    class="flex-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-medium transition"
+                                                >
+                                                    <i class="fas fa-check mr-1"></i>Accept & Chat
+                                                </button>
+                                                <button 
+                                                    onclick="app.rejectFromDropdown('${notif.id}', '${data.requester_id}')"
+                                                    class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-medium transition"
+                                                >
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        `;
+                                    } catch (e) {
+                                        return '';
+                                    }
+                                })() : ''}
+                            </div>
+                            ${!notif.read ? `
+                                <button 
+                                    onclick="app.markNotificationReadFromDropdown('${notif.id}')"
+                                    class="text-gray-400 hover:text-purple-600 transition"
+                                    title="Mark as read"
+                                >
+                                    <i class="fas fa-check text-xs"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            ${notifications.length > 5 ? `
+                <div class="p-3 bg-gray-50 text-center">
+                    <button onclick="app.showNotifications()" class="text-purple-600 hover:text-purple-700 text-sm font-medium">
+                        View all ${notifications.length} notifications →
+                    </button>
+                </div>
+            ` : ''}
+        `;
+        
+        document.body.appendChild(dropdown);
+        
+        // Close dropdown when clicking outside
+        setTimeout(() => {
+            document.addEventListener('click', function closeDropdown(e) {
+                if (!dropdown.contains(e.target) && !document.getElementById('notification-bell').contains(e.target)) {
+                    dropdown.remove();
+                    document.removeEventListener('click', closeDropdown);
+                }
+            });
+        }, 100);
+    }
+    
+    async acceptFromDropdown(notificationId, requesterId, requesterUsername) {
+        try {
+            this.showToast('Accepting contact request...', 'info');
+            
+            // Accept the contact request
+            const response = await fetch(`${API_BASE}/api/contacts/accept`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-User-Email': this.currentUser.email
+                },
+                body: JSON.stringify({ requester_id: requesterId })
+            });
+            
+            if (response.ok) {
+                // Mark notification as read
+                await this.markNotificationRead(notificationId);
+                
+                // Close dropdown
+                const dropdown = document.getElementById('notification-dropdown');
+                if (dropdown) dropdown.remove();
+                
+                // Update badge
+                this.unreadNotifications = Math.max(0, this.unreadNotifications - 1);
+                this.updateNotificationBadge();
+                
+                this.showToast('Contact accepted! Opening chat...', 'success');
+                
+                // Start direct message
+                await this.startDirectMessage(requesterId, requesterUsername);
+            } else {
+                const data = await response.json();
+                this.showToast(data.error || 'Failed to accept contact', 'error');
+            }
+        } catch (error) {
+            console.error('[DROPDOWN] Accept error:', error);
+            this.showToast('Failed to accept contact', 'error');
+        }
+    }
+    
+    async rejectFromDropdown(notificationId, requesterId) {
+        try {
+            // Reject the contact request
+            const response = await fetch(`${API_BASE}/api/contacts/reject`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-User-Email': this.currentUser.email
+                },
+                body: JSON.stringify({ requester_id: requesterId })
+            });
+            
+            if (response.ok) {
+                // Mark notification as read
+                await this.markNotificationRead(notificationId);
+                
+                // Close and refresh dropdown
+                const dropdown = document.getElementById('notification-dropdown');
+                if (dropdown) {
+                    dropdown.remove();
+                    // Reopen to show updated list
+                    await this.toggleNotificationDropdown();
+                }
+                
+                // Update badge
+                this.unreadNotifications = Math.max(0, this.unreadNotifications - 1);
+                this.updateNotificationBadge();
+                
+                this.showToast('Contact request rejected', 'success');
+            } else {
+                const data = await response.json();
+                this.showToast(data.error || 'Failed to reject contact', 'error');
+            }
+        } catch (error) {
+            console.error('[DROPDOWN] Reject error:', error);
+            this.showToast('Failed to reject contact', 'error');
+        }
+    }
+    
+    async markNotificationReadFromDropdown(notificationId) {
+        await this.markNotificationRead(notificationId);
+        
+        // Refresh dropdown
+        const dropdown = document.getElementById('notification-dropdown');
+        if (dropdown) {
+            dropdown.remove();
+            await this.toggleNotificationDropdown();
+        }
+        
+        // Update badge
+        this.unreadNotifications = Math.max(0, this.unreadNotifications - 1);
+        this.updateNotificationBadge();
     }
 
     async showNotifications() {

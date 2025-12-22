@@ -2253,8 +2253,8 @@ app.get('/', (c) => {
         <div id="app"></div>
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
-        <script src="/static/crypto-v2.js?v=UNVERIFIED-FIX-V1"></script>
-        <script src="/static/app-v3.js?v=UNVERIFIED-FIX-V1"></script></script>
+        <script src="/static/crypto-v2.js?v=NOTIF-DROPDOWN-V1"></script>
+        <script src="/static/app-v3.js?v=NOTIF-DROPDOWN-V1"></script></script>
         
         <script>
           // Register service worker for PWA
@@ -5308,8 +5308,8 @@ app.get('*', (c) => {
     <body class="bg-gray-100">
         <div id="app"></div>
         
-        <script src="/static/crypto-v2.js?v=UNVERIFIED-FIX-V1"></script>
-        <script src="/static/app-v3.js?v=UNVERIFIED-FIX-V1"></script>
+        <script src="/static/crypto-v2.js?v=NOTIF-DROPDOWN-V1"></script>
+        <script src="/static/app-v3.js?v=NOTIF-DROPDOWN-V1"></script>
         <script>
             const app = new SecureChatApp();
             app.init();
