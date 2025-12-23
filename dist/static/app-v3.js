@@ -11316,7 +11316,8 @@ class SecureChatApp {
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to upload avatar');
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to upload avatar');
                 }
 
                 // Update preview
@@ -11332,8 +11333,18 @@ class SecureChatApp {
             };
             reader.readAsDataURL(file);
         } catch (error) {
-            console.error('Avatar upload error:', error);
-            this.showToast('Failed to upload avatar', 'error');
+            console.error('[GROUP] Avatar upload error:', error);
+            this.showToast(error.message || 'Failed to upload avatar', 'error');
+            
+            // Reset preview on error
+            const preview = document.getElementById('group-avatar-preview');
+            if (preview) {
+                const room = this.rooms.find(r => r.id === roomId);
+                const groupName = room?.room_name || 'Group';
+                preview.innerHTML = room?.avatar 
+                    ? `<img src="${room.avatar}" class="w-full h-full object-cover" alt="Group Avatar">` 
+                    : `<div class="w-full h-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-3xl font-bold">${groupName.charAt(0).toUpperCase()}</div>`;
+            }
         }
     }
 
