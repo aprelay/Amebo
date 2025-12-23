@@ -1,6 +1,6 @@
 // Service Worker for PWA - Auto-Update Version
 // Increment this version number when you want to force an update
-const CACHE_VERSION = 4; // Change this number to force update
+const CACHE_VERSION = 5; // Change this number to force update
 const CACHE_NAME = `amebo-v${CACHE_VERSION}`;
 const urlsToCache = [
   '/',
@@ -57,6 +57,12 @@ self.addEventListener('fetch', (event) => {
           
           // Only cache 'basic' responses (same-origin)
           if (response.type !== 'basic') {
+            return response;
+          }
+
+          // ✅ CRITICAL FIX: Only cache GET requests (POST/PUT/DELETE not allowed)
+          if (event.request.method !== 'GET') {
+            console.log('[SW] Skipping cache for non-GET request:', event.request.method, event.request.url);
             return response;
           }
 
