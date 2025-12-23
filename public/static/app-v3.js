@@ -2088,18 +2088,35 @@ class SecureChatApp {
     }
     
     async confirmDeleteRoom(roomId, roomCode) {
+        console.log('[DELETE] Confirm delete called for:', { roomId, roomCode });
+        
         const room = this.rooms.find(r => r.id === roomId);
         const roomName = room?.room_name || roomCode;
         
+        console.log('[DELETE] Room found:', room);
+        
         const confirmed = confirm(`Delete "${roomName}"?\n\nThis will:\n• Remove the chat from your list\n• You can rejoin with the room code later\n• Messages will remain for other members`);
+        
+        console.log('[DELETE] User confirmed:', confirmed);
         
         if (confirmed) {
             await this.deleteRoom(roomId);
+        } else {
+            console.log('[DELETE] Delete cancelled by user');
         }
     }
     
     async deleteRoom(roomId) {
         try {
+            console.log('[DELETE] Attempting to delete room:', roomId);
+            console.log('[DELETE] Current user email:', this.currentUser?.email);
+            
+            if (!this.currentUser?.email) {
+                console.error('[DELETE] No user email found!');
+                this.showToast('Error: Not logged in', 'error');
+                return;
+            }
+            
             this.showToast('Deleting chat...', 'info');
             
             const response = await fetch(`/api/rooms/${roomId}/leave`, {
@@ -2110,17 +2127,26 @@ class SecureChatApp {
                 }
             });
             
+            console.log('[DELETE] Response status:', response.status);
+            
             if (response.ok) {
+                const data = await response.json();
+                console.log('[DELETE] Success:', data);
                 this.showToast('Chat deleted!', 'success');
-                // Reload rooms
+                
+                // Remove room from local array
+                this.rooms = this.rooms.filter(r => r.id !== roomId);
+                
+                // Reload rooms to refresh UI
                 await this.loadRooms();
             } else {
                 const data = await response.json();
+                console.error('[DELETE] Failed:', data);
                 this.showToast(data.error || 'Failed to delete chat', 'error');
             }
         } catch (error) {
             console.error('[DELETE] Error deleting room:', error);
-            this.showToast('Error deleting chat', 'error');
+            this.showToast('Error deleting chat: ' + error.message, 'error');
         }
     }
 
