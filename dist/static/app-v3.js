@@ -59,8 +59,7 @@ class SecureChatApp {
         // Voice recording state
         this.voiceRecordStartX = 0;
         this.voiceRecordStartY = 0;
-        this.voiceRecordCurrentX = 0;
-        this.voiceRecordCurrentY = 0;
+        this.voiceRecordingLocked = false;
         
         this.globalGestureListeners = {
             mousemove: (e) => {
@@ -3363,40 +3362,34 @@ class SecureChatApp {
         // Save starting position
         this.voiceRecordStartX = x;
         this.voiceRecordStartY = y;
-        this.voiceRecordCurrentX = x;
-        this.voiceRecordCurrentY = y;
+        this.voiceRecordingLocked = false;
         
         // Start recording immediately
         await this.startRecording();
         
         // Create slide indicator overlay
-        this.createSlideIndicator();
+        this.createSlideIndicator(x, y);
     }
     
-    updateVoiceRecordingGesture(x, y) {
+    updateVoiceRecordingGesture(currentX, currentY) {
         if (!this.isRecording || this.isRecordingLocked) return;
         
-        this.voiceRecordCurrentX = x;
-        this.voiceRecordCurrentY = y;
-        
         // Calculate movement from starting position
-        const deltaX = this.voiceRecordStartX - x; // Left movement is positive
-        const deltaY = this.voiceRecordStartY - y; // Up movement is positive
+        const deltaX = this.voiceRecordStartX - currentX; // Left movement is positive
+        const deltaY = this.voiceRecordStartY - currentY; // Up movement is positive
         
-        console.log('[VOICE] Gesture - deltaX:', Math.round(deltaX), 'deltaY:', Math.round(deltaY));
+        // Update visual indicator position
+        this.updateSlideIndicatorPosition(currentX, currentY, deltaX, deltaY);
         
-        // Update visual indicator
-        this.updateSlideIndicator(deltaX, deltaY);
-        
-        // CANCEL: Slide left more than 100px
-        if (deltaX > 100) {
+        // CANCEL: Slide left more than 120px
+        if (deltaX > 120) {
             console.log('[VOICE] ❌ CANCEL - Slid left:', Math.round(deltaX), 'px');
             this.cancelRecording();
             return;
         }
         
-        // LOCK: Slide up more than 100px  
-        if (deltaY > 100) {
+        // LOCK: Slide up more than 120px  
+        if (deltaY > 120) {
             console.log('[VOICE] 🔒 LOCK - Slid up:', Math.round(deltaY), 'px');
             this.lockRecording();
             return;
@@ -3413,75 +3406,136 @@ class SecureChatApp {
         this.removeSlideIndicator();
     }
     
-    createSlideIndicator() {
+    createSlideIndicator(startX, startY) {
         // Remove any existing indicator
         this.removeSlideIndicator();
         
-        const indicator = document.createElement('div');
-        indicator.id = 'voiceSlideIndicator';
-        indicator.style.cssText = `
+        // Create overlay container
+        const overlay = document.createElement('div');
+        overlay.id = 'voiceRecordingOverlay';
+        overlay.style.cssText = `
             position: fixed;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.85);
-            color: white;
-            padding: 16px 24px;
-            border-radius: 30px;
-            font-size: 14px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             z-index: 10000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 12px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
             pointer-events: none;
         `;
         
-        indicator.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
-                <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
-                    <i class="fas fa-chevron-left" style="color: #ef4444; font-size: 16px;"></i>
-                    <span style="font-size: 13px; font-weight: 500;">Cancel</span>
-                </div>
-                <div style="width: 2px; height: 20px; background: rgba(255,255,255,0.3);"></div>
-                <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
-                    <i class="fas fa-chevron-up" style="color: #10b981; font-size: 16px;"></i>
-                    <span style="font-size: 13px; font-weight: 500;">Lock</span>
-                </div>
-            </div>
-            <div id="slideProgress" style="width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden;">
-                <div id="slideProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #ef4444, #10b981); transition: width 0.1s;"></div>
-            </div>
+        // Create sliding element that follows finger
+        const slider = document.createElement('div');
+        slider.id = 'voiceSlider';
+        slider.style.cssText = `
+            position: absolute;
+            left: ${startX}px;
+            top: ${startY}px;
+            transform: translate(-50%, -50%);
+            background: rgba(37, 211, 102, 0.95);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            transition: background 0.2s, transform 0.05s;
         `;
         
-        document.body.appendChild(indicator);
-        this.slideIndicator = indicator;
+        slider.innerHTML = `
+            <i class="fas fa-microphone" style="font-size: 16px;"></i>
+            <span id="slideText">Slide to Cancel</span>
+        `;
+        
+        // Lock icon (appears at top)
+        const lockIcon = document.createElement('div');
+        lockIcon.id = 'lockIcon';
+        lockIcon.style.cssText = `
+            position: absolute;
+            left: ${startX}px;
+            top: 100px;
+            transform: translateX(-50%);
+            background: rgba(16, 185, 129, 0.95);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            transition: opacity 0.2s;
+        `;
+        lockIcon.innerHTML = '<i class="fas fa-lock" style="font-size: 20px;"></i>';
+        
+        // Cancel zone indicator (appears on left)
+        const cancelZone = document.createElement('div');
+        cancelZone.id = 'cancelZone';
+        cancelZone.style.cssText = `
+            position: absolute;
+            left: 50px;
+            top: ${startY}px;
+            transform: translateY(-50%);
+            background: rgba(239, 68, 68, 0.95);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            transition: opacity 0.2s;
+        `;
+        cancelZone.innerHTML = '<i class="fas fa-times" style="font-size: 16px;"></i> Cancel';
+        
+        overlay.appendChild(slider);
+        overlay.appendChild(lockIcon);
+        overlay.appendChild(cancelZone);
+        document.body.appendChild(overlay);
+        
+        this.slideIndicator = overlay;
+        this.voiceSlider = slider;
     }
     
-    updateSlideIndicator(deltaX, deltaY) {
-        if (!this.slideIndicator) return;
+    updateSlideIndicatorPosition(currentX, currentY, deltaX, deltaY) {
+        if (!this.voiceSlider) return;
         
-        const progressBar = document.getElementById('slideProgressBar');
-        if (!progressBar) return;
+        // Move slider with finger/mouse
+        this.voiceSlider.style.left = `${currentX}px`;
+        this.voiceSlider.style.top = `${currentY}px`;
         
-        // Calculate progress (0-100%) based on whichever direction moved more
-        const cancelProgress = Math.min(100, (deltaX / 100) * 100);
-        const lockProgress = Math.min(100, (deltaY / 100) * 100);
-        const maxProgress = Math.max(cancelProgress, lockProgress);
+        const slideText = document.getElementById('slideText');
+        const lockIcon = document.getElementById('lockIcon');
+        const cancelZone = document.getElementById('cancelZone');
         
-        progressBar.style.width = `${maxProgress}%`;
-        
-        // Change color based on direction
-        if (deltaX > deltaY && deltaX > 20) {
-            // Moving left (cancel)
-            progressBar.style.background = '#ef4444';
-        } else if (deltaY > deltaX && deltaY > 20) {
-            // Moving up (lock)
-            progressBar.style.background = '#10b981';
+        // Show lock icon when sliding up
+        if (deltaY > 30) {
+            if (lockIcon) lockIcon.style.opacity = '1';
+            if (slideText) slideText.textContent = 'Release to Lock';
+            this.voiceSlider.style.background = 'rgba(16, 185, 129, 0.95)';
         } else {
-            // Neutral
-            progressBar.style.background = 'linear-gradient(90deg, #ef4444, #10b981)';
+            if (lockIcon) lockIcon.style.opacity = '0';
+        }
+        
+        // Show cancel zone when sliding left
+        if (deltaX > 30) {
+            if (cancelZone) cancelZone.style.opacity = '1';
+            if (slideText && deltaY <= 30) slideText.textContent = '← Cancel';
+            if (deltaY <= 30) this.voiceSlider.style.background = 'rgba(239, 68, 68, 0.95)';
+        } else {
+            if (cancelZone) cancelZone.style.opacity = '0';
+        }
+        
+        // Default state
+        if (deltaX <= 30 && deltaY <= 30) {
+            if (slideText) slideText.textContent = 'Slide to Cancel';
+            this.voiceSlider.style.background = 'rgba(37, 211, 102, 0.95)';
         }
     }
     
