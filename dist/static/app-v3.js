@@ -2221,11 +2221,21 @@ class SecureChatApp {
         const isDirectMessage = this.currentRoom?.room_type === 'direct' || this.currentRoom?.room_code?.startsWith('dm-');
         const otherUser = this.currentRoom?.other_user;
         
+        console.log('[DM] Room check:', {
+            roomId: this.currentRoom?.id,
+            roomCode: this.currentRoom?.room_code,
+            roomType: this.currentRoom?.room_type,
+            isDirectMessage,
+            hasOtherUser: !!otherUser,
+            otherUser: otherUser
+        });
+        
         let displayName, displayAvatar, displayStatus;
         
         if (isDirectMessage && otherUser) {
             // Show other user's info in direct messages
             displayName = otherUser.display_name || otherUser.username || 'User';
+            console.log('[DM] Using other user name:', displayName);
             displayAvatar = otherUser.avatar 
                 ? `<img src="${otherUser.avatar}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" alt="${displayName}">`
                 : `<div style="width: 40px; height: 40px; border-radius: 50%; background: #25d366; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">${displayName.charAt(0).toUpperCase()}</div>`;
@@ -2248,6 +2258,7 @@ class SecureChatApp {
         } else {
             // Show group info for group chats
             displayName = this.currentRoom?.room_name || 'Chat Room';
+            console.log('[CHAT] Using room name:', displayName);
             displayAvatar = this.currentRoom?.avatar
                 ? `<img src="${this.currentRoom.avatar}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" alt="${displayName}">`
                 : `<div style="width: 40px; height: 40px; border-radius: 50%; background: #25d366; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">${displayName.charAt(0).toUpperCase()}</div>`;
@@ -2335,6 +2346,8 @@ class SecureChatApp {
             </div>
         `;
 
+        // Small delay to ensure DOM is fully rendered before loading messages
+        await new Promise(resolve => setTimeout(resolve, 50));
         await this.loadMessages();
         
         // Single scroll to bottom after messages load
