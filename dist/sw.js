@@ -1,6 +1,6 @@
 // Service Worker for PWA - Auto-Update Version
 // Increment this version number when you want to force an update
-const CACHE_VERSION = 3; // Change this number to force update
+const CACHE_VERSION = 4; // Change this number to force update
 const CACHE_NAME = `amebo-v${CACHE_VERSION}`;
 const urlsToCache = [
   '/',
@@ -29,6 +29,12 @@ self.addEventListener('install', (event) => {
 
 // Fetch from cache, fallback to network
 self.addEventListener('fetch', (event) => {
+  // Only cache GET requests
+  if (event.request.method !== 'GET') {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+  
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
