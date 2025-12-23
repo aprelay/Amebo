@@ -7761,6 +7761,30 @@ class SecureChatApp {
                             </div>
                         </div>
 
+                        <!-- File Upload -->
+                        <div class="mb-6">
+                            <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                                <i class="fas fa-upload text-purple-500"></i>
+                                Upload Your Photo
+                            </h3>
+                            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-purple-500 transition">
+                                <input 
+                                    type="file" 
+                                    id="avatarFileInput" 
+                                    accept="image/*" 
+                                    class="hidden" 
+                                    onchange="app.handleUserAvatarUpload(event)"
+                                />
+                                <button 
+                                    onclick="document.getElementById('avatarFileInput').click()"
+                                    class="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition font-semibold"
+                                >
+                                    <i class="fas fa-cloud-upload-alt mr-2"></i>Choose File
+                                </button>
+                                <p class="text-sm text-gray-500 mt-3">JPG, PNG or GIF (Max 5MB)</p>
+                            </div>
+                        </div>
+
                         <!-- Emoji Selection -->
                         <div class="mb-6">
                             <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
@@ -7822,6 +7846,64 @@ class SecureChatApp {
                 </div>
             </div>
         `;
+    }
+
+    async handleUserAvatarUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const msgDiv = document.getElementById('avatar-message');
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            this.showMessage(msgDiv, 'Please select an image file', 'error');
+            return;
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            this.showMessage(msgDiv, 'Image size must be less than 5MB', 'error');
+            return;
+        }
+
+        this.showMessage(msgDiv, 'Uploading avatar...', 'info');
+
+        try {
+            // Read file as base64
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const avatarDataUrl = e.target.result;
+
+                const response = await fetch(`${API_BASE}/api/users/update-avatar`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: this.currentUser.id,
+                        avatar: avatarDataUrl
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    this.currentUser.avatar = avatarDataUrl;
+                    localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+                    this.showMessage(msgDiv, 'Avatar uploaded successfully! ✓', 'success');
+                    
+                    // Update preview
+                    document.getElementById('currentAvatarPreview').innerHTML = 
+                        `<img src="${avatarDataUrl}" class="w-32 h-32 rounded-full object-cover border-4 border-purple-200" alt="Current Avatar">`;
+                    
+                    setTimeout(() => this.showRoomList(), 1500);
+                } else {
+                    this.showMessage(msgDiv, data.error || 'Failed to upload avatar', 'error');
+                }
+            };
+            reader.readAsDataURL(file);
+        } catch (error) {
+            console.error('Avatar upload error:', error);
+            this.showMessage(msgDiv, 'Failed to upload avatar', 'error');
+        }
     }
 
     async selectEmojiAvatar(emoji) {
@@ -10956,12 +11038,27 @@ class SecureChatApp {
                             <i class="fas fa-camera text-purple-600 mr-2"></i>Group Avatar
                         </label>
                         <div class="flex items-center gap-4">
-                            <div class="w-20 h-20 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-3xl font-bold">
-                                ${groupName.charAt(0).toUpperCase()}
+                            <div id="group-avatar-preview" class="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden">
+                                ${room?.avatar 
+                                    ? `<img src="${room.avatar}" class="w-full h-full object-cover" alt="Group Avatar">` 
+                                    : `<div class="w-full h-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-3xl font-bold">${groupName.charAt(0).toUpperCase()}</div>`
+                                }
                             </div>
-                            <button onclick="alert('Change avatar')" class="px-4 py-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition font-medium">
-                                <i class="fas fa-upload mr-2"></i>Change Photo
-                            </button>
+                            <div class="flex-1 space-y-2">
+                                <input type="file" id="group-avatar-file" accept="image/*" class="hidden" onchange="app.handleGroupAvatarUpload(event, '${roomId}')">
+                                <div class="flex gap-2">
+                                    <button onclick="document.getElementById('group-avatar-file').click()" class="px-4 py-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition font-medium">
+                                        <i class="fas fa-upload mr-2"></i>Upload Photo
+                                    </button>
+                                    <button onclick="app.showGroupEmojiAvatarPicker('${roomId}')" class="px-4 py-2 bg-yellow-100 text-yellow-600 rounded-lg hover:bg-yellow-200 transition font-medium">
+                                        <i class="fas fa-smile mr-2"></i>Choose Emoji
+                                    </button>
+                                    ${room?.avatar ? `<button onclick="app.removeGroupAvatar('${roomId}')" class="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition font-medium">
+                                        <i class="fas fa-trash mr-2"></i>Remove
+                                    </button>` : ''}
+                                </div>
+                                <p class="text-xs text-gray-500">Recommended: Square image, min 200x200px</p>
+                            </div>
                         </div>
                     </div>
 
@@ -11041,6 +11138,197 @@ class SecureChatApp {
         } catch (error) {
             console.error('[GROUP] Error:', error);
             this.showToast(error.message || 'Failed to update group', 'error');
+        }
+    }
+
+    async handleGroupAvatarUpload(event, roomId) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            this.showToast('Please select an image file', 'error');
+            return;
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            this.showToast('Image size must be less than 5MB', 'error');
+            return;
+        }
+
+        try {
+            // Show loading
+            const preview = document.getElementById('group-avatar-preview');
+            preview.innerHTML = '<div class="w-full h-full bg-gray-200 flex items-center justify-center"><i class="fas fa-spinner fa-spin text-gray-400"></i></div>';
+
+            // Read file as base64
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const avatarDataUrl = e.target.result;
+
+                // Update backend
+                const response = await fetch(`${API_BASE}/api/profile/group/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        roomId: roomId,
+                        userId: this.currentUser.id,
+                        avatar: avatarDataUrl
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to upload avatar');
+                }
+
+                // Update preview
+                preview.innerHTML = `<img src="${avatarDataUrl}" class="w-full h-full object-cover" alt="Group Avatar">`;
+                
+                // Update local room data
+                const room = this.rooms.find(r => r.id === roomId);
+                if (room) {
+                    room.avatar = avatarDataUrl;
+                }
+
+                this.showToast('Group avatar updated!', 'success');
+            };
+            reader.readAsDataURL(file);
+        } catch (error) {
+            console.error('Avatar upload error:', error);
+            this.showToast('Failed to upload avatar', 'error');
+        }
+    }
+
+    showGroupEmojiAvatarPicker(roomId) {
+        const emojis = ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇',
+                        '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
+                        '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🥸',
+                        '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️',
+                        '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯',
+                        '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🦆', '🦅',
+                        '🌸', '🌺', '🌻', '🌹', '🥀', '🌷', '🌼', '💐', '🌾', '🌿',
+                        '🍀', '🍁', '🍂', '🍃', '🌾', '💮', '🏵️', '🥀', '🌹', '🌺',
+                        '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱',
+                        '🎮', '🎯', '🎲', '🎰', '🎳', '🎪', '🎨', '🎭', '🎬', '🎤'];
+
+        const room = this.rooms.find(r => r.id === roomId);
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.editGroupInfo('${roomId}')" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Choose Group Emoji</h1>
+                    </div>
+                </div>
+
+                <div class="max-w-4xl mx-auto p-4">
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <div class="grid grid-cols-8 gap-3 max-h-96 overflow-y-auto">
+                            ${emojis.map(emoji => `
+                                <button 
+                                    onclick="app.setGroupEmojiAvatar('${roomId}', '${emoji}')"
+                                    class="text-5xl p-3 hover:bg-purple-50 rounded-xl transition transform hover:scale-110 active:scale-95"
+                                >
+                                    ${emoji}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    async setGroupEmojiAvatar(roomId, emoji) {
+        try {
+            // Convert emoji to data URL
+            const canvas = document.createElement('canvas');
+            canvas.width = 200;
+            canvas.height = 200;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw background
+            ctx.fillStyle = '#f3f4f6';
+            ctx.fillRect(0, 0, 200, 200);
+            
+            // Draw emoji
+            ctx.font = '120px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(emoji, 100, 100);
+            
+            const avatarDataUrl = canvas.toDataURL('image/png');
+
+            // Update backend
+            const response = await fetch(`${API_BASE}/api/profile/group/update`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomId: roomId,
+                    userId: this.currentUser.id,
+                    avatar: avatarDataUrl
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update avatar');
+            }
+
+            // Update local room data
+            const room = this.rooms.find(r => r.id === roomId);
+            if (room) {
+                room.avatar = avatarDataUrl;
+            }
+
+            this.showToast('Group avatar updated!', 'success');
+            
+            // Return to edit page after 1 second
+            setTimeout(() => {
+                this.editGroupInfo(roomId);
+            }, 1000);
+        } catch (error) {
+            console.error('Avatar update error:', error);
+            this.showToast('Failed to update avatar', 'error');
+        }
+    }
+
+    async removeGroupAvatar(roomId) {
+        if (!confirm('Remove group avatar?')) return;
+
+        try {
+            const response = await fetch(`${API_BASE}/api/profile/group/update`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomId: roomId,
+                    userId: this.currentUser.id,
+                    avatar: null
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to remove avatar');
+            }
+
+            // Update local room data
+            const room = this.rooms.find(r => r.id === roomId);
+            if (room) {
+                room.avatar = null;
+            }
+
+            this.showToast('Group avatar removed', 'success');
+            
+            // Refresh edit page
+            setTimeout(() => {
+                this.editGroupInfo(roomId);
+            }, 800);
+        } catch (error) {
+            console.error('Remove avatar error:', error);
+            this.showToast('Failed to remove avatar', 'error');
         }
     }
 
