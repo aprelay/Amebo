@@ -252,7 +252,7 @@ app.post('/api/auth/login-email', async (c) => {
       .join('')
     
     const user = await c.env.DB.prepare(`
-      SELECT id, username, email, email_verified, tokens, token_tier, avatar, created_at 
+      SELECT id, username, email, email_verified, tokens, token_tier, avatar, display_name, bio, created_at 
       FROM users 
       WHERE email = ? AND public_key = ?
     `).bind(email, passwordHash).first()
@@ -277,6 +277,8 @@ app.post('/api/auth/login-email', async (c) => {
         username: user.username,
         email: user.email,
         avatar: user.avatar || null,
+        display_name: user.display_name || null,
+        bio: user.bio || null,
         tokens: user.tokens || 0,
         tier: user.token_tier || 'bronze',
         emailVerified: user.email_verified === 1
