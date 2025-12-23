@@ -3410,20 +3410,27 @@ class SecureChatApp {
                 audio: {
                     echoCancellation: true,
                     noiseSuppression: true,
-                    sampleRate: 44100
+                    sampleRate: 16000  // Reduced from 44100 to 16000 (voice quality)
                 } 
             });
             
             console.log('[VOICE] Microphone access granted');
             
-            // Determine best audio format
-            const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
-                ? 'audio/webm;codecs=opus'
-                : MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
-                ? 'audio/ogg;codecs=opus'
-                : 'audio/webm';
+            // Determine best audio format with bitrate limit
+            let mimeType = 'audio/webm';
+            let options = {};
             
-            this.mediaRecorder = new MediaRecorder(stream, { mimeType });
+            if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                mimeType = 'audio/webm;codecs=opus';
+                options = { mimeType, audioBitsPerSecond: 24000 }; // 24kbps for voice
+            } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+                mimeType = 'audio/ogg;codecs=opus';
+                options = { mimeType, audioBitsPerSecond: 24000 };
+            } else {
+                options = { mimeType };
+            }
+            
+            this.mediaRecorder = new MediaRecorder(stream, options);
             this.audioChunks = [];
             
             this.mediaRecorder.ondataavailable = (event) => {
@@ -3628,11 +3635,25 @@ class SecureChatApp {
                 size: size
             };
             
+            console.log('[VOICE] Step 1: Created voice data object');
+            
             const messageContent = JSON.stringify(voiceData);
+            console.log('[VOICE] Step 2: Stringified - Length:', messageContent.length, 'bytes');
+            
+            // Check if message is too large (over 5MB will likely fail)
+            const estimatedSize = messageContent.length;
+            if (estimatedSize > 5 * 1024 * 1024) {
+                throw new Error(`Voice note too large: ${Math.round(estimatedSize / 1024 / 1024)}MB. Please record shorter messages.`);
+            }
+            
+            console.log('[VOICE] Step 3: Starting encryption...');
             
             // Encrypt voice message
             const roomKey = this.roomKeys.get(this.currentRoom.id);
             const encrypted = await CryptoUtils.encryptMessage(messageContent, roomKey);
+            
+            console.log('[VOICE] Step 4: Encryption complete - Encrypted length:', encrypted.encrypted.length);
+            console.log('[VOICE] Step 5: Sending to server...');
             
             const response = await fetch(`${API_BASE}/api/messages/send`, {
                 method: 'POST',
@@ -3644,6 +3665,8 @@ class SecureChatApp {
                     iv: encrypted.iv
                 })
             });
+            
+            console.log('[VOICE] Step 6: Server responded with status:', response.status);
             
             const data = await response.json();
             console.log('[VOICE] Send response:', data);
