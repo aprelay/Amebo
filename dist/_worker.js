@@ -213,7 +213,7 @@ var Tr=Object.defineProperty;var $e=e=>{throw TypeError(e)};var Dr=(e,r,t)=>r in
     `).bind(o,r,t,s,n).run();try{const i=await e.env.DB.prepare(`
         SELECT username FROM users WHERE id = ?
       `).bind(t).first(),d=await e.env.DB.prepare(`
-        SELECT room_name, room_code FROM rooms WHERE id = ?
+        SELECT room_name, room_code FROM chat_rooms WHERE id = ?
       `).bind(r).first(),{results:u}=await e.env.DB.prepare(`
         SELECT user_id FROM room_members WHERE room_id = ? AND user_id != ?
       `).bind(r,t).all(),c=(d==null?void 0:d.room_name)||(d==null?void 0:d.room_code)||"Unknown Room",m=(i==null?void 0:i.username)||"Someone";for(const f of u||[]){const E=crypto.randomUUID();await e.env.DB.prepare(`
@@ -1212,13 +1212,13 @@ var Tr=Object.defineProperty;var $e=e=>{throw TypeError(e)};var Dr=(e,r,t)=>r in
       ORDER BY m.created_at DESC
       LIMIT 50
     `).bind(r).all();return e.json({results:s.results||[]})}catch(r){return console.error("[PROFILE] Search error:",r),e.json({error:"Failed to search messages"},500)}});p.post("/api/profile/group/update",async e=>{try{const{roomId:r,userId:t,roomName:s,description:n,avatar:a}=await e.req.json();if(!r||!t)return e.json({error:"Room ID and user ID required"},400);const o=await e.env.DB.prepare(`
-      SELECT created_by FROM rooms WHERE id = ?
-    `).bind(r).first();return!o||o.created_by!==t?e.json({error:"Only group admin can update info"},403):(await e.env.DB.prepare(`
-      UPDATE rooms 
-      SET room_name = ?, description = ?, avatar = ?, updated_at = CURRENT_TIMESTAMP
+      SELECT created_by FROM chat_rooms WHERE id = ?
+    `).bind(r).first();if(!o||o.created_by!==t)return e.json({error:"Only group admin can update info"},403);const i=[],d=[];return s!==void 0&&(i.push("room_name = ?"),d.push(s)),n!==void 0&&(i.push("description = ?"),d.push(n||null)),a!==void 0&&(i.push("avatar = ?"),d.push(a||null)),i.length===0?e.json({error:"No fields to update"},400):(i.push("updated_at = CURRENT_TIMESTAMP"),d.push(r),await e.env.DB.prepare(`
+      UPDATE chat_rooms 
+      SET ${i.join(", ")}
       WHERE id = ?
-    `).bind(s,n||null,a||null,r).run(),e.json({success:!0}))}catch(r){return console.error("[PROFILE] Update group error:",r),e.json({error:"Failed to update group"},500)}});p.post("/api/profile/group/permissions",async e=>{try{const{roomId:r,userId:t,permission:s,value:n}=await e.req.json();if(!r||!t||!s)return e.json({error:"Missing required fields"},400);const a=await e.env.DB.prepare(`
-      SELECT created_by FROM rooms WHERE id = ?
+    `).bind(...d).run(),e.json({success:!0}))}catch(r){return console.error("[PROFILE] Update group error:",r),e.json({error:"Failed to update group"},500)}});p.post("/api/profile/group/permissions",async e=>{try{const{roomId:r,userId:t,permission:s,value:n}=await e.req.json();if(!r||!t||!s)return e.json({error:"Missing required fields"},400);const a=await e.env.DB.prepare(`
+      SELECT created_by FROM chat_rooms WHERE id = ?
     `).bind(r).first();return!a||a.created_by!==t?e.json({error:"Only group admin can change permissions"},403):(await e.env.DB.prepare(`
       INSERT INTO group_permissions (room_id, permission_type, permission_value, created_at)
       VALUES (?, ?, ?, CURRENT_TIMESTAMP)
@@ -1229,9 +1229,9 @@ var Tr=Object.defineProperty;var $e=e=>{throw TypeError(e)};var Dr=(e,r,t)=>r in
       FROM group_permissions 
       WHERE room_id = ?
     `).bind(t).all(),n={messages:"everyone",add_members:"admins",edit_info:"admins"};return(r=s.results)==null||r.forEach(a=>{n[a.permission_type]=a.permission_value}),e.json({permissions:n})}catch(t){return console.error("[PROFILE] Get permissions error:",t),e.json({error:"Failed to get permissions"},500)}});p.post("/api/profile/group/privacy",async e=>{try{const{roomId:r,userId:t,privacy:s}=await e.req.json();if(!r||!t||!s)return e.json({error:"Missing required fields"},400);const n=await e.env.DB.prepare(`
-      SELECT created_by FROM rooms WHERE id = ?
+      SELECT created_by FROM chat_rooms WHERE id = ?
     `).bind(r).first();return!n||n.created_by!==t?e.json({error:"Only group admin can change privacy"},403):(await e.env.DB.prepare(`
-      UPDATE rooms SET privacy = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+      UPDATE chat_rooms SET privacy = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
     `).bind(s,r).run(),e.json({success:!0}))}catch(r){return console.error("[PROFILE] Set privacy error:",r),e.json({error:"Failed to set privacy"},500)}});p.post("/api/profile/report/user",async e=>{try{const{reporterId:r,reportedUserId:t,reason:s,description:n}=await e.req.json();if(!r||!t||!s)return e.json({error:"Missing required fields"},400);const a=crypto.randomUUID();return await e.env.DB.prepare(`
       INSERT INTO reports (id, reporter_id, reported_user_id, reason, description, status, created_at)
       VALUES (?, ?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP)

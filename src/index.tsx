@@ -1315,7 +1315,7 @@ app.post('/api/messages/send', async (c) => {
       
       // Get room info
       const room = await c.env.DB.prepare(`
-        SELECT room_name, room_code FROM rooms WHERE id = ?
+        SELECT room_name, room_code FROM chat_rooms WHERE id = ?
       `).bind(roomId).first()
       
       // Get all room members except sender
@@ -5195,18 +5195,42 @@ app.post('/api/profile/group/update', async (c) => {
     
     // Check if user is admin (creator)
     const room = await c.env.DB.prepare(`
-      SELECT created_by FROM rooms WHERE id = ?
+      SELECT created_by FROM chat_rooms WHERE id = ?
     `).bind(roomId).first()
     
     if (!room || room.created_by !== userId) {
       return c.json({ error: 'Only group admin can update info' }, 403)
     }
     
+    // Build update query dynamically based on provided fields
+    const updates = []
+    const params = []
+    
+    if (roomName !== undefined) {
+      updates.push('room_name = ?')
+      params.push(roomName)
+    }
+    if (description !== undefined) {
+      updates.push('description = ?')
+      params.push(description || null)
+    }
+    if (avatar !== undefined) {
+      updates.push('avatar = ?')
+      params.push(avatar || null)
+    }
+    
+    if (updates.length === 0) {
+      return c.json({ error: 'No fields to update' }, 400)
+    }
+    
+    updates.push('updated_at = CURRENT_TIMESTAMP')
+    params.push(roomId)
+    
     await c.env.DB.prepare(`
-      UPDATE rooms 
-      SET room_name = ?, description = ?, avatar = ?, updated_at = CURRENT_TIMESTAMP
+      UPDATE chat_rooms 
+      SET ${updates.join(', ')}
       WHERE id = ?
-    `).bind(roomName, description || null, avatar || null, roomId).run()
+    `).bind(...params).run()
     
     return c.json({ success: true })
   } catch (error: any) {
@@ -5228,7 +5252,7 @@ app.post('/api/profile/group/permissions', async (c) => {
     
     // Check if user is admin
     const room = await c.env.DB.prepare(`
-      SELECT created_by FROM rooms WHERE id = ?
+      SELECT created_by FROM chat_rooms WHERE id = ?
     `).bind(roomId).first()
     
     if (!room || room.created_by !== userId) {
@@ -5289,7 +5313,7 @@ app.post('/api/profile/group/privacy', async (c) => {
     
     // Check if user is admin
     const room = await c.env.DB.prepare(`
-      SELECT created_by FROM rooms WHERE id = ?
+      SELECT created_by FROM chat_rooms WHERE id = ?
     `).bind(roomId).first()
     
     if (!room || room.created_by !== userId) {
@@ -5297,7 +5321,7 @@ app.post('/api/profile/group/privacy', async (c) => {
     }
     
     await c.env.DB.prepare(`
-      UPDATE rooms SET privacy = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+      UPDATE chat_rooms SET privacy = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
     `).bind(privacy, roomId).run()
     
     return c.json({ success: true })
