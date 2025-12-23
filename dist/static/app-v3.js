@@ -9447,11 +9447,38 @@ class SecureChatApp {
         `;
     }
 
-    saveProfileChanges() {
-        const displayName = document.getElementById('displayName').value;
-        const bio = document.getElementById('bio').value;
-        alert('Profile updated!' + String.fromCharCode(10) + String.fromCharCode(10) + 'Display Name: ' + displayName + String.fromCharCode(10) + 'Bio: ' + bio);
-        this.showRoomList();
+    async saveProfileChanges() {
+        const displayName = document.getElementById('displayName').value.trim();
+        const bio = document.getElementById('bio').value.trim();
+
+        try {
+            const response = await fetch(`${API_BASE}/api/users/update-profile`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: this.currentUser.id,
+                    displayName: displayName,
+                    bio: bio
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Update local user data
+                this.currentUser.display_name = displayName;
+                this.currentUser.bio = bio;
+                localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+                
+                alert('Profile updated successfully! ✓');
+                this.showRoomList();
+            } else {
+                alert('Failed to update profile: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Profile update error:', error);
+            alert('Failed to update profile. Please try again.');
+        }
     }
 
     showAccountStatus() {

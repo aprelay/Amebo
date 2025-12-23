@@ -751,6 +751,26 @@ app.post('/api/users/update-username', async (c) => {
   }
 })
 
+// Update profile (display name and bio)
+app.post('/api/users/update-profile', async (c) => {
+  try {
+    const { userId, displayName, bio } = await c.req.json()
+    
+    if (!userId) {
+      return c.json({ error: 'User ID required' }, 400)
+    }
+
+    await c.env.DB.prepare(`
+      UPDATE users SET display_name = ?, bio = ? WHERE id = ?
+    `).bind(displayName || null, bio || null, userId).run()
+
+    return c.json({ success: true, message: 'Profile updated', displayName, bio })
+  } catch (error) {
+    console.error('Profile update error:', error)
+    return c.json({ error: 'Failed to update profile' }, 500)
+  }
+})
+
 // Update password
 app.post('/api/users/update-password', async (c) => {
   try {
