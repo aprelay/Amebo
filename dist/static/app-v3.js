@@ -8822,7 +8822,6 @@ class SecureChatApp {
                         </div>
                     `;
                 }).join('');
-            }
             } else {
                 console.error('[CONTACTS] ❌ API error:', response.status, await response.text());
             }
