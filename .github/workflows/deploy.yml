@@ -1,3 +1,18 @@
+# This file enables GitHub Actions auto-deploy
+# Setup instructions in AUTO_DEPLOY_SETUP.md
+#
+# NOTE: This workflow file needs to be added manually to GitHub
+# because Personal Access Tokens require 'workflow' scope to create workflows.
+#
+# To enable auto-deploy:
+# 1. Copy this entire file
+# 2. Go to: https://github.com/aprelay/Amebo
+# 3. Click "Add file" → "Create new file"
+# 4. Name it: .github/workflows/deploy.yml
+# 5. Paste this content
+# 6. Commit directly to main branch
+# 7. Add required secrets (see AUTO_DEPLOY_SETUP.md)
+
 name: Deploy to Cloudflare Pages
 
 on:
