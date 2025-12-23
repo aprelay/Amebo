@@ -2238,7 +2238,7 @@ class SecureChatApp {
                             ></textarea>
                             
                             <!-- Voice Note Button (changes to Send when typing) -->
-                            <button id="voiceNoteBtn" style="background: #25d366; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.3); flex-shrink: 0; align-self: flex-end; margin-bottom: 3px; transition: all 0.2s;" title="Voice Note" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 3px 8px rgba(37, 211, 102, 0.5)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 5px rgba(37, 211, 102, 0.3)'">
+                            <button id="voiceNoteBtn" style="background: #25d366; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.3); flex-shrink: 0; align-self: flex-end; margin-bottom: 3px; transition: all 0.2s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;" title="Voice Note" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 3px 8px rgba(37, 211, 102, 0.5)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 5px rgba(37, 211, 102, 0.3)'">
                                 <i class="fas fa-microphone"></i>
                             </button>
                             
@@ -2306,9 +2306,10 @@ class SecureChatApp {
                 // CRITICAL FIX: Remove old global listeners before adding new ones
                 // No gesture listeners to cleanup (using simple tap)
                 
-                // SIMPLE: Click to record/send
+                // SIMPLE: Click to record/send (works on mobile + desktop)
                 newVoiceBtn.addEventListener('click', (e) => {
                     e.preventDefault();
+                    e.stopPropagation(); // Prevent event bubbling on mobile
                     const hasText = document.getElementById('messageInput')?.value.trim().length > 0;
                     
                     if (hasText) {
@@ -3344,10 +3345,10 @@ class SecureChatApp {
                         <div style="width: 8px; height: 8px; border-radius: 50%; background: white; animation: pulse 1s infinite;"></div>
                         <span id="recordingTime" style="color: white; font-weight: 600;">0:00</span>
                     </div>
-                    <button onclick="app.stopAndSendRecording()" style="background: white; color: #25d366; border: none; padding: 8px 16px; border-radius: 15px; font-weight: 600; cursor: pointer;">
+                    <button onclick="app.stopAndSendRecording()" style="background: white; color: #25d366; border: none; padding: 8px 16px; border-radius: 15px; font-weight: 600; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none;">
                         <i class="fas fa-paper-plane"></i> Send
                     </button>
-                    <button onclick="app.cancelRecording()" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 15px; font-weight: 600; cursor: pointer;">
+                    <button onclick="app.cancelRecording()" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 15px; font-weight: 600; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none;">
                         <i class="fas fa-trash"></i> Delete
                     </button>
                 </div>
@@ -3503,7 +3504,7 @@ class SecureChatApp {
                             <div style="width: 8px; height: 8px; border-radius: 50%; background: #dc2626; animation: pulse 1s infinite;"></div>
                             <span id="recordingTime" style="font-weight: 600; color: #666;">0:00</span>
                         </div>
-                        <button onclick="app.cancelRecording()" style="background: #dc2626; border: none; color: white; padding: 8px 12px; border-radius: 15px; cursor: pointer; font-size: 12px; font-weight: 600;" title="Cancel Recording">
+                        <button onclick="app.cancelRecording()" style="background: #dc2626; border: none; color: white; padding: 8px 12px; border-radius: 15px; cursor: pointer; font-size: 12px; font-weight: 600; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none;" title="Cancel Recording">
                             <i class="fas fa-trash"></i> Cancel
                         </button>
                     </div>
