@@ -1526,7 +1526,7 @@ class SecureChatApp {
                             <div class="flex items-center gap-3 mb-4">
                                 ${avatarHtml}
                                 <div>
-                                    <h2 class="text-xl font-bold">${this.currentUser.username}</h2>
+                                    <h2 class="text-xl font-bold">${this.currentUser.display_name || this.currentUser.username}</h2>
                                     <p class="text-sm text-white/80">${this.currentUser.email}</p>
                                 </div>
                             </div>
@@ -1731,7 +1731,7 @@ class SecureChatApp {
                             </button>
                             ${avatarHtml}
                             <div>
-                                <h1 class="text-lg font-bold">${this.currentUser.username}</h1>
+                                <h1 class="text-lg font-bold">${this.currentUser.display_name || this.currentUser.username}</h1>
                                 <button 
                                     onclick="app.showTokenDashboard()" 
                                     class="flex items-center gap-2 text-sm bg-white/20 px-3 py-1 rounded-lg hover:bg-white/30 transition mt-1"
@@ -7982,7 +7982,7 @@ class SecureChatApp {
                         <!-- Current Username -->
                         <div class="mb-6 p-4 bg-gray-50 rounded-lg">
                             <p class="text-sm text-gray-600 mb-1">Current Username</p>
-                            <p class="text-xl font-bold text-gray-800">${this.currentUser.username}</p>
+                            <p class="text-xl font-bold text-gray-800">${this.currentUser.display_name || this.currentUser.username}</p>
                         </div>
 
                         <!-- New Username Form -->
