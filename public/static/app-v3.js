@@ -1829,6 +1829,15 @@ class SecureChatApp {
             const data = await response.json();
             
             console.log('[V3] Rooms loaded:', data);
+            
+            // Debug: Log rooms data to see what we're getting
+            if (data.rooms && data.rooms.length > 0) {
+                console.log('[V3] Sample room data:', data.rooms[0]);
+                console.log('[V3] Has other_user?', data.rooms[0].other_user ? 'YES' : 'NO');
+                console.log('[V3] Room type:', data.rooms[0].room_type);
+                console.log('[V3] Room code:', data.rooms[0].room_code);
+            }
+            
             this.rooms = data.rooms || [];
 
             // FAST: Skip unread count calculation on initial load - calculate in background
@@ -1837,6 +1846,24 @@ class SecureChatApp {
             if (listEl && this.rooms.length > 0) {
                 // Render rooms immediately WITHOUT waiting for unread counts
                 listEl.innerHTML = this.rooms.map(room => {
+                    // Determine display name and avatar for room
+                    const isDirectMessage = room.room_type === 'direct' || (room.room_code && room.room_code.startsWith('dm-'));
+                    let displayName, displayAvatar;
+                    
+                    if (isDirectMessage && room.other_user) {
+                        // For DM: Show other user's info
+                        displayName = room.other_user.display_name || room.other_user.username || room.room_name || 'User';
+                        displayAvatar = room.other_user.avatar
+                            ? `<img src="${room.other_user.avatar}" class="w-12 h-12 rounded-full object-cover" alt="${displayName}">`
+                            : `<div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 text-white font-bold text-xl">${displayName.charAt(0).toUpperCase()}</div>`;
+                    } else {
+                        // For group or regular chat: Show room name
+                        displayName = room.room_name || room.room_code;
+                        displayAvatar = room.avatar
+                            ? `<img src="${room.avatar}" class="w-12 h-12 rounded-full object-cover" alt="${displayName}">`
+                            : `<div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0"><i class="fas fa-${room.is_group ? 'users' : 'user'} text-white text-lg"></i></div>`;
+                    }
+                    
                     return `
                     <div class="room-item-wrapper relative overflow-hidden" data-room-id="${room.id}">
                         <div 
@@ -1846,16 +1873,14 @@ class SecureChatApp {
                             >
                                 <div class="flex items-center gap-3">
                                     <!-- Avatar / Icon -->
-                                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
-                                        <i class="fas fa-${room.is_group ? 'users' : 'user'} text-white text-lg"></i>
-                                    </div>
+                                    ${displayAvatar}
                                     
                                     <!-- Chat Info -->
                                     <div class="flex-1 min-w-0">
                                         <!-- Name and Time -->
                                         <div class="flex justify-between items-baseline mb-1">
                                             <h3 class="font-semibold text-gray-900 truncate pr-2">
-                                                ${room.room_name || room.room_code}
+                                                ${displayName}
                                             </h3>
                                             <span class="text-xs text-gray-500 whitespace-nowrap">
                                                 ${this.formatTimestamp(room.last_message_at || room.created_at)}
