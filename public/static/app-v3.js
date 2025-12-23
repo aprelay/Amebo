@@ -8496,7 +8496,15 @@ class SecureChatApp {
     }
     
     async startDirectMessage(userId, username) {
-        console.log('[DM] Starting direct message:', { userId, username });
+        console.log('[DM] 💬 Starting direct message with:', { userId, username });
+        console.log('[DM] Current user:', this.currentUser?.email);
+        
+        if (!userId) {
+            console.error('[DM] ❌ No userId provided');
+            this.showToast('Error: Invalid contact', 'error');
+            return;
+        }
+        
         try {
             this.showToast('Opening chat...', 'info');
             
@@ -8826,14 +8834,17 @@ class SecureChatApp {
                             </div>
                             <div class="flex gap-2">
                                 <button 
-                                    onclick="app.startDirectMessage('${contact.id}', '${this.escapeHtml(contact.username)}')"
-                                    class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 transition text-sm"
+                                    class="contact-chat-btn bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 transition text-sm"
+                                    data-contact-id="${contact.id}"
+                                    data-contact-username="${this.escapeHtml(contact.username)}"
+                                    title="Start chat"
                                 >
                                     <i class="fas fa-comment"></i>
                                 </button>
                                 <button 
-                                    onclick="app.removeContact('${contact.id}')"
-                                    class="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 transition text-sm"
+                                    class="contact-remove-btn bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 transition text-sm"
+                                    data-contact-id="${contact.id}"
+                                    title="Remove contact"
                                 >
                                     <i class="fas fa-user-times"></i>
                                 </button>
@@ -8841,6 +8852,9 @@ class SecureChatApp {
                         </div>
                     `;
                 }).join('');
+                
+                // Add event listeners for contact buttons
+                this.initContactButtons();
             } else {
                 console.error('[CONTACTS] ❌ API error:', response.status, await response.text());
             }
@@ -8848,6 +8862,33 @@ class SecureChatApp {
             console.error('[CONTACTS] ❌ Error loading contacts:', error);
             this.showToast('Failed to load contacts. Please refresh.', 'error');
         }
+    }
+    
+    initContactButtons() {
+        // Chat buttons
+        document.querySelectorAll('.contact-chat-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const contactId = btn.dataset.contactId;
+                const contactUsername = btn.dataset.contactUsername;
+                console.log('[CONTACTS] 💬 Chat button clicked:', { contactId, contactUsername });
+                this.startDirectMessage(contactId, contactUsername);
+            });
+        });
+        
+        // Remove buttons
+        document.querySelectorAll('.contact-remove-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const contactId = btn.dataset.contactId;
+                console.log('[CONTACTS] ❌ Remove button clicked:', contactId);
+                this.removeContact(contactId);
+            });
+        });
+        
+        console.log('[CONTACTS] ✅ Initialized', document.querySelectorAll('.contact-chat-btn').length, 'contact buttons');
     }
     
     async removeContact(contactId) {
