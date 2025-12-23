@@ -1,5 +1,7 @@
-// Service Worker for PWA
-const CACHE_NAME = 'securechat-v1';
+// Service Worker for PWA - Auto-Update Version
+// Increment this version number when you want to force an update
+const CACHE_VERSION = 2; // Change this number to force update
+const CACHE_NAME = `amebo-v${CACHE_VERSION}`;
 const urlsToCache = [
   '/',
   '/static/app-v3.js',
@@ -8,16 +10,21 @@ const urlsToCache = [
   // Don't cache CDN resources - they cause CORS errors
 ];
 
-// Install service worker
+// Install service worker - activates immediately
 self.addEventListener('install', (event) => {
+  console.log('[SW] Installing new service worker version:', CACHE_VERSION);
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache');
+        console.log('[SW] Caching app shell');
         return cache.addAll(urlsToCache);
       })
+      .then(() => {
+        console.log('[SW] ✅ Install complete');
+        // Skip waiting to activate immediately
+        return self.skipWaiting();
+      })
   );
-  self.skipWaiting();
 });
 
 // Fetch from cache, fallback to network
@@ -61,8 +68,9 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Activate and clean up old caches
+// Activate and clean up old caches - takes control immediately
 self.addEventListener('activate', (event) => {
+  console.log('[SW] Activating new service worker version:', CACHE_VERSION);
   const cacheWhitelist = [CACHE_NAME];
   
   event.waitUntil(
@@ -70,13 +78,29 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheWhitelist.indexOf(cacheName) === -1) {
+            console.log('[SW] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
     })
+    .then(() => {
+      console.log('[SW] ✅ Activation complete');
+      // Take control of all pages immediately
+      return self.clients.claim();
+    })
+    .then(() => {
+      // Notify all clients that an update is ready
+      return self.clients.matchAll({ type: 'window' }).then(clients => {
+        clients.forEach(client => {
+          client.postMessage({
+            type: 'SW_UPDATED',
+            version: CACHE_VERSION
+          });
+        });
+      });
+    })
   );
-  self.clients.claim();
 });
 
 // Handle push notifications

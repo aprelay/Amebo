@@ -2328,17 +2328,59 @@ app.get('/', (c) => {
         <script src="/static/app-v3.js?v=REALTIME-UNREAD-1766411021"></script>
         
         <script>
-          // Register service worker for PWA
+          // Register service worker for PWA with auto-update support
           if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
               navigator.serviceWorker.register('/static/sw.js')
-                .then(reg => console.log('Service Worker registered'))
-                .catch(err => console.log('Service Worker registration failed'));
+                .then(reg => {
+                  console.log('[PWA] Service Worker registered');
+                  
+                  // Check for updates every 60 seconds
+                  setInterval(() => {
+                    reg.update();
+                  }, 60000);
+                  
+                  // Listen for updates
+                  reg.addEventListener('updatefound', () => {
+                    const newWorker = reg.installing;
+                    console.log('[PWA] New version found, updating...');
+                    
+                    newWorker.addEventListener('statechange', () => {
+                      if (newWorker.state === 'activated') {
+                        console.log('[PWA] ✅ New version activated');
+                      }
+                    });
+                  });
+                })
+                .catch(err => console.log('[PWA] Service Worker registration failed:', err));
+              
+              // Listen for messages from service worker
+              navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'SW_UPDATED') {
+                  console.log('[PWA] App updated to version:', event.data.version);
+                  
+                  // Show update notification
+                  if (window.app && typeof window.app.showToast === 'function') {
+                    window.app.showToast('✨ App updated! Refresh for latest features.', 'success');
+                    
+                    // Auto-reload after 3 seconds
+                    setTimeout(() => {
+                      window.location.reload();
+                    }, 3000);
+                  } else {
+                    // Fallback: just reload
+                    setTimeout(() => {
+                      window.location.reload();
+                    }, 1000);
+                  }
+                }
+              });
             });
           }
         </script>
         <script>
             const app = new SecureChatApp();
+            window.app = app; // Make app globally accessible for service worker updates
             app.init();
         </script>
     </body>
@@ -5391,6 +5433,7 @@ app.get('*', (c) => {
         <script src="/static/app-v3.js?v=${Date.now()}"></script>
         <script>
             const app = new SecureChatApp();
+            window.app = app; // Make app globally accessible for service worker updates
             app.init();
         </script>
     </body>
