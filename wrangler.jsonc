@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "webapp",
+  "name": "amebo-app",
   "compatibility_date": "2025-12-20",
   "pages_build_output_dir": "./dist",
   "compatibility_flags": [
@@ -9,8 +9,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "webapp-production",
-      "database_id": "3826fa8c-5197-4b1d-99b2-8e3f0b742bb2"
+      "database_name": "amebo-production",
+      "database_id": "d7ff178a-2df4-44fd-880a-b22b2832e843"
     }
   ]
 }
