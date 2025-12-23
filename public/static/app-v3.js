@@ -3484,19 +3484,6 @@ class SecureChatApp {
             progressBar.style.background = 'linear-gradient(90deg, #ef4444, #10b981)';
         }
     }
-        
-        // Update opacity based on gesture progress
-        const cancelProgress = Math.min(deltaX / 120, 1);
-        const lockProgress = Math.min(deltaY / 120, 1);
-        
-        if (cancelProgress > 0.3) {
-            this.slideIndicator.style.background = 'rgba(239, 68, 68, 0.9)'; // Red
-        } else if (lockProgress > 0.3) {
-            this.slideIndicator.style.background = 'rgba(16, 185, 129, 0.9)'; // Green
-        } else {
-            this.slideIndicator.style.background = 'rgba(0, 0, 0, 0.8)'; // Default
-        }
-    }
     
     removeSlideIndicator() {
         if (this.slideIndicator) {
