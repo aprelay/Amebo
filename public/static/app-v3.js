@@ -2192,9 +2192,42 @@ class SecureChatApp {
             console.log('[V3] Room encryption key generated');
         }
 
-        const avatarHtml = this.currentUser.avatar 
-            ? `<img src="${this.currentUser.avatar}" class="w-8 h-8 rounded-full object-cover" alt="Avatar">`
-            : `<div class="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center"><i class="fas fa-user text-white text-sm"></i></div>`;
+        // Determine display info (for direct messages, show other user's info)
+        const isDirectMessage = this.currentRoom?.room_type === 'direct' || this.currentRoom?.room_code?.startsWith('dm-');
+        const otherUser = this.currentRoom?.other_user;
+        
+        let displayName, displayAvatar, displayStatus;
+        
+        if (isDirectMessage && otherUser) {
+            // Show other user's info in direct messages
+            displayName = otherUser.display_name || otherUser.username || 'User';
+            displayAvatar = otherUser.avatar 
+                ? `<img src="${otherUser.avatar}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" alt="${displayName}">`
+                : `<div style="width: 40px; height: 40px; border-radius: 50%; background: #25d366; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">${displayName.charAt(0).toUpperCase()}</div>`;
+            
+            // Show online status for direct messages
+            const isOnline = otherUser.online_status === 'online';
+            const lastSeen = otherUser.last_seen ? new Date(otherUser.last_seen) : null;
+            const now = new Date();
+            const minutesAgo = lastSeen ? Math.floor((now - lastSeen) / 60000) : 999;
+            
+            if (isOnline && minutesAgo < 5) {
+                displayStatus = '<span style="color: #4ade80;">● online</span>';
+            } else if (lastSeen && minutesAgo < 60) {
+                displayStatus = `last seen ${minutesAgo}m ago`;
+            } else if (lastSeen && minutesAgo < 1440) {
+                displayStatus = `last seen ${Math.floor(minutesAgo / 60)}h ago`;
+            } else {
+                displayStatus = 'offline';
+            }
+        } else {
+            // Show group info for group chats
+            displayName = this.currentRoom?.room_name || 'Chat Room';
+            displayAvatar = this.currentRoom?.avatar
+                ? `<img src="${this.currentRoom.avatar}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" alt="${displayName}">`
+                : `<div style="width: 40px; height: 40px; border-radius: 50%; background: #25d366; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">${displayName.charAt(0).toUpperCase()}</div>`;
+            displayStatus = `<i class="fas fa-lock" style="font-size: 10px;"></i> Encrypted • ${this.currentRoom?.room_code || roomId}`;
+        }
 
         document.getElementById('app').innerHTML = `
             <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; background: #efeae2;">
@@ -2205,13 +2238,11 @@ class SecureChatApp {
                             <i class="fas fa-arrow-left"></i>
                         </button>
                         <button onclick="app.showRoomProfile('${this.currentRoom?.id}', '${this.currentRoom?.room_code}')" style="background: none; border: none; padding: 0; cursor: pointer; display: flex; align-items: center; gap: 12px; flex: 1; text-align: left; color: white;">
-                            <div style="width: 40px; height: 40px; border-radius: 50%; background: #25d366; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; flex-shrink: 0;">
-                                ${this.currentRoom?.room_name?.charAt(0)?.toUpperCase() || 'C'}
-                            </div>
+                            ${displayAvatar}
                             <div style="flex: 1; min-width: 0;">
-                                <div style="font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.currentRoom?.room_name || 'Chat Room'}</div>
+                                <div style="font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${displayName}</div>
                                 <div style="font-size: 12px; opacity: 0.8;">
-                                    <i class="fas fa-lock" style="font-size: 10px;"></i> Encrypted • ${this.currentRoom?.room_code || roomId}
+                                    ${displayStatus}
                                 </div>
                             </div>
                         </button>

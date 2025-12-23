@@ -907,7 +907,7 @@ app.get('/api/rooms/user/:userId', async (c) => {
     const userId = c.req.param('userId')
     
     const result = await c.env.DB.prepare(`
-      SELECT cr.id, cr.room_code, cr.room_name, cr.created_at,
+      SELECT cr.id, cr.room_code, cr.room_name, cr.created_at, cr.room_type, cr.avatar,
              (SELECT COUNT(*) FROM room_members WHERE room_id = cr.id) as member_count
       FROM chat_rooms cr
       JOIN room_members rm ON cr.id = rm.room_id
@@ -915,8 +915,47 @@ app.get('/api/rooms/user/:userId', async (c) => {
       ORDER BY cr.created_at DESC
     `).bind(userId).all()
 
-    return c.json({ success: true, rooms: result.results || [] })
+    // For direct messages, fetch the other user's info
+    const rooms = await Promise.all((result.results || []).map(async (room: any) => {
+      if (room.room_type === 'direct') {
+        // Get the other user's info from direct_message_rooms
+        const dmInfo = await c.env.DB.prepare(`
+          SELECT 
+            CASE 
+              WHEN dmr.user1_id = ? THEN dmr.user2_id 
+              ELSE dmr.user1_id 
+            END as other_user_id
+          FROM direct_message_rooms dmr
+          WHERE dmr.room_id = ?
+        `).bind(userId, room.id).first()
+        
+        if (dmInfo) {
+          const otherUser = await c.env.DB.prepare(`
+            SELECT id, username, display_name, avatar, online_status, last_seen
+            FROM users WHERE id = ?
+          `).bind(dmInfo.other_user_id).first()
+          
+          if (otherUser) {
+            return {
+              ...room,
+              other_user: {
+                id: otherUser.id,
+                username: otherUser.username,
+                display_name: otherUser.display_name,
+                avatar: otherUser.avatar,
+                online_status: otherUser.online_status,
+                last_seen: otherUser.last_seen
+              }
+            }
+          }
+        }
+      }
+      return room
+    }))
+
+    return c.json({ success: true, rooms })
   } catch (error) {
+    console.error('Failed to fetch rooms:', error)
     return c.json({ error: 'Failed to fetch rooms' }, 500)
   }
 })
