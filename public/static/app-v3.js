@@ -56,38 +56,10 @@ class SecureChatApp {
         // Store global event listeners for cleanup (prevent memory leaks)
         // CRITICAL: Create these ONCE in constructor and reuse them!
         // Creating new functions each time causes listener stacking
-        // Voice recording state
-        this.voiceRecordStartX = 0;
-        this.voiceRecordStartY = 0;
-        this.voiceRecordingLocked = false;
-        
-        this.globalGestureListeners = {
-            mousemove: (e) => {
-                if (this.isRecording && !this.isRecordingLocked) {
-                    e.preventDefault();
-                    this.updateVoiceRecordingGesture(e.clientX, e.clientY);
-                }
-            },
-            mouseup: (e) => {
-                if (this.isRecording && !this.isRecordingLocked) {
-                    e.preventDefault();
-                    this.endVoiceRecordingGesture();
-                }
-            },
-            touchmove: (e) => {
-                if (this.isRecording && !this.isRecordingLocked) {
-                    e.preventDefault();
-                    const touch = e.touches[0];
-                    this.updateVoiceRecordingGesture(touch.clientX, touch.clientY);
-                }
-            },
-            touchend: (e) => {
-                if (this.isRecording && !this.isRecordingLocked) {
-                    e.preventDefault();
-                    this.endVoiceRecordingGesture();
-                }
-            }
-        };
+        // Voice recording state (simple tap-to-record - no gestures)
+        this.isRecording = false;
+        this.mediaRecorder = null;
+        this.audioChunks = [];
         
         // Recursion guard for loadMessages
         this.isLoadingMessages = false;
@@ -2160,7 +2132,7 @@ class SecureChatApp {
         }
         
         // CRITICAL FIX: Remove global gesture event listeners to prevent stacking
-        this.cleanupGlobalGestureListeners();
+        // No gesture listeners to cleanup (using simple tap)
         
         // Clear unread count when opening room (in-memory only)
         this.unreadCounts.set(roomId, 0);
@@ -2332,7 +2304,7 @@ class SecureChatApp {
                 // - Release to send
                 
                 // CRITICAL FIX: Remove old global listeners before adding new ones
-                this.cleanupGlobalGestureListeners();
+                // No gesture listeners to cleanup (using simple tap)
                 
                 // SIMPLE: Click to record/send
                 newVoiceBtn.addEventListener('click', (e) => {
@@ -3315,234 +3287,6 @@ class SecureChatApp {
     // WhatsApp-Style Voice Recording Gestures
     // ========================================
     
-    cleanupGlobalGestureListeners() {
-        // Remove all global gesture event listeners to prevent memory leaks
-        console.log('[CLEANUP] Removing global gesture listeners');
-        
-        if (this.globalGestureListeners.mousemove) {
-            document.removeEventListener('mousemove', this.globalGestureListeners.mousemove);
-            this.globalGestureListeners.mousemove = null;
-        }
-        
-        if (this.globalGestureListeners.mouseup) {
-            document.removeEventListener('mouseup', this.globalGestureListeners.mouseup);
-            this.globalGestureListeners.mouseup = null;
-        }
-        
-        if (this.globalGestureListeners.touchmove) {
-            document.removeEventListener('touchmove', this.globalGestureListeners.touchmove);
-            this.globalGestureListeners.touchmove = null;
-        }
-        
-        if (this.globalGestureListeners.touchend) {
-            document.removeEventListener('touchend', this.globalGestureListeners.touchend);
-            this.globalGestureListeners.touchend = null;
-        }
-    }
-    
-    async startVoiceRecordingGesture(x, y) {
-        console.log('[VOICE] 🎤 Hold started at:', x, y);
-        
-        // Save starting position
-        this.voiceRecordStartX = x;
-        this.voiceRecordStartY = y;
-        this.voiceRecordingLocked = false;
-        
-        // Start recording immediately
-        await this.startRecording();
-        
-        // Create slide indicator overlay
-        this.createSlideIndicator(x, y);
-    }
-    
-    updateVoiceRecordingGesture(currentX, currentY) {
-        if (!this.isRecording || this.isRecordingLocked) return;
-        
-        // Calculate movement from starting position
-        const deltaX = this.voiceRecordStartX - currentX; // Left movement is positive
-        const deltaY = this.voiceRecordStartY - currentY; // Up movement is positive
-        
-        // Update visual indicator position
-        this.updateSlideIndicatorPosition(currentX, currentY, deltaX, deltaY);
-        
-        // CANCEL: Slide left more than 120px
-        if (deltaX > 120) {
-            console.log('[VOICE] ❌ CANCEL - Slid left:', Math.round(deltaX), 'px');
-            this.cancelRecording();
-            return;
-        }
-        
-        // LOCK: Slide up more than 120px  
-        if (deltaY > 120) {
-            console.log('[VOICE] 🔒 LOCK - Slid up:', Math.round(deltaY), 'px');
-            this.lockRecording();
-            return;
-        }
-    }
-    
-    async endVoiceRecordingGesture() {
-        if (!this.isRecording) return;
-        
-        console.log('[VOICE] 🔴 Release detected - SENDING voice note');
-        
-        // Release = Send (if not cancelled/locked)
-        await this.stopRecording();
-        this.removeSlideIndicator();
-    }
-    
-    createSlideIndicator(startX, startY) {
-        // Remove any existing indicator
-        this.removeSlideIndicator();
-        
-        // Create overlay container
-        const overlay = document.createElement('div');
-        overlay.id = 'voiceRecordingOverlay';
-        overlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10000;
-            pointer-events: none;
-        `;
-        
-        // Create sliding element that follows finger
-        const slider = document.createElement('div');
-        slider.id = 'voiceSlider';
-        slider.style.cssText = `
-            position: absolute;
-            left: ${startX}px;
-            top: ${startY}px;
-            transform: translate(-50%, -50%);
-            background: rgba(37, 211, 102, 0.95);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 25px;
-            font-size: 14px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            transition: background 0.2s, transform 0.05s;
-        `;
-        
-        slider.innerHTML = `
-            <i class="fas fa-microphone" style="font-size: 16px;"></i>
-            <span id="slideText">Slide to Cancel</span>
-        `;
-        
-        // Lock icon (appears at top)
-        const lockIcon = document.createElement('div');
-        lockIcon.id = 'lockIcon';
-        lockIcon.style.cssText = `
-            position: absolute;
-            left: ${startX}px;
-            top: 100px;
-            transform: translateX(-50%);
-            background: rgba(16, 185, 129, 0.95);
-            color: white;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            opacity: 0;
-            transition: opacity 0.2s;
-        `;
-        lockIcon.innerHTML = '<i class="fas fa-lock" style="font-size: 20px;"></i>';
-        
-        // Cancel zone indicator (appears on left)
-        const cancelZone = document.createElement('div');
-        cancelZone.id = 'cancelZone';
-        cancelZone.style.cssText = `
-            position: absolute;
-            left: 50px;
-            top: ${startY}px;
-            transform: translateY(-50%);
-            background: rgba(239, 68, 68, 0.95);
-            color: white;
-            padding: 10px 15px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            opacity: 0;
-            transition: opacity 0.2s;
-        `;
-        cancelZone.innerHTML = '<i class="fas fa-times" style="font-size: 16px;"></i> Cancel';
-        
-        overlay.appendChild(slider);
-        overlay.appendChild(lockIcon);
-        overlay.appendChild(cancelZone);
-        document.body.appendChild(overlay);
-        
-        this.slideIndicator = overlay;
-        this.voiceSlider = slider;
-    }
-    
-    updateSlideIndicatorPosition(currentX, currentY, deltaX, deltaY) {
-        if (!this.voiceSlider) return;
-        
-        // Move slider with finger/mouse
-        this.voiceSlider.style.left = `${currentX}px`;
-        this.voiceSlider.style.top = `${currentY}px`;
-        
-        const slideText = document.getElementById('slideText');
-        const lockIcon = document.getElementById('lockIcon');
-        const cancelZone = document.getElementById('cancelZone');
-        
-        // Show lock icon when sliding up
-        if (deltaY > 30) {
-            if (lockIcon) lockIcon.style.opacity = '1';
-            if (slideText) slideText.textContent = 'Release to Lock';
-            this.voiceSlider.style.background = 'rgba(16, 185, 129, 0.95)';
-        } else {
-            if (lockIcon) lockIcon.style.opacity = '0';
-        }
-        
-        // Show cancel zone when sliding left
-        if (deltaX > 30) {
-            if (cancelZone) cancelZone.style.opacity = '1';
-            if (slideText && deltaY <= 30) slideText.textContent = '← Cancel';
-            if (deltaY <= 30) this.voiceSlider.style.background = 'rgba(239, 68, 68, 0.95)';
-        } else {
-            if (cancelZone) cancelZone.style.opacity = '0';
-        }
-        
-        // Default state
-        if (deltaX <= 30 && deltaY <= 30) {
-            if (slideText) slideText.textContent = 'Slide to Cancel';
-            this.voiceSlider.style.background = 'rgba(37, 211, 102, 0.95)';
-        }
-    }
-    
-    removeSlideIndicator() {
-        if (this.slideIndicator) {
-            this.slideIndicator.remove();
-            this.slideIndicator = null;
-        }
-    }
-    
-    lockRecording() {
-        if (!this.isRecording) return;
-        
-        console.log('[VOICE] 🔒 Recording LOCKED - Hands-free mode activated');
-        this.isRecordingLocked = true;
-        
-        // Remove slide indicator
-        this.removeSlideIndicator();
-        
-        // Update UI to show locked state with send/cancel buttons
-        this.updateLockedRecordingUI();
-    }
-    
     async cancelRecording() {
         if (!this.isRecording) return;
         
@@ -3896,7 +3640,7 @@ class SecureChatApp {
         }
         
         // CRITICAL FIX: Cleanup global gesture listeners
-        this.cleanupGlobalGestureListeners();
+        // No gesture listeners to cleanup (using simple tap)
         
         // Clear sensitive data
         if (this.currentUser) {
