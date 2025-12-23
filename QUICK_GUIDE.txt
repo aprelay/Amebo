@@ -1,0 +1,207 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                  🎉 AMEBO APP - NEW FEATURES QUICK GUIDE                     ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 1. 🟢 ONLINE STATUS SETTINGS (NEW!)                                          │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+📍 HOW TO ACCESS:
+   Login → Profile (top left) → "Online Status Settings"
+
+✨ 3 STATUS OPTIONS:
+   🟢 Online      - Visible to everyone
+   🟡 Away        - Shown when inactive
+   ⚪ Invisible   - Browse privately (appear offline)
+
+🎯 FEATURES:
+   ✅ One-click status change
+   ✅ Real-time updates
+   ✅ Visual indicators
+   ✅ Persists across sessions
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 2. 📸 AVATAR UPLOAD - USERS (NEW!)                                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+📍 HOW TO ACCESS:
+   Login → Profile → "Change Avatar"
+
+🎨 3 UPLOAD METHODS:
+
+   Method 1: 📤 FILE UPLOAD (NEW!)
+   ─────────────────────────────────
+   • Click "🌩️ Choose File"
+   • Select photo from device
+   • Supports: JPG, PNG, GIF
+   • Max size: 5MB
+   • Auto-preview & save
+
+   Method 2: 😊 EMOJI AVATAR
+   ──────────────────────────
+   • Choose from 100+ emojis
+   • Categories: Smileys, Animals, Nature, Sports
+   • Click emoji → Instant update
+   • High-quality canvas rendering
+
+   Method 3: 🔗 IMAGE URL
+   ───────────────────────
+   • Paste any image URL
+   • Click "Preview" to test
+   • Works with direct links
+
+🎯 FEATURES:
+   ✅ Real-time preview
+   ✅ File validation (type & size)
+   ✅ Remove avatar option
+   ✅ Updates everywhere instantly
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 3. 📸 AVATAR UPLOAD - GROUPS (NEW!)                                          │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+📍 HOW TO ACCESS (ADMIN ONLY):
+   Open Group → Menu (⋮) → "Group Profile" → "Edit Group Info"
+
+🎨 3 UPLOAD METHODS:
+
+   Method 1: 📤 FILE UPLOAD (NEW!)
+   ─────────────────────────────────
+   • Click "📤 Upload Photo"
+   • Select photo from device
+   • Supports: JPG, PNG, GIF
+   • Max size: 5MB
+   • Recommended: Square, 200x200px+
+
+   Method 2: 😊 EMOJI AVATAR
+   ──────────────────────────
+   • Click "😊 Choose Emoji"
+   • Pick from 100+ emojis
+   • Perfect for fun group icons
+
+   Method 3: 🗑️ REMOVE AVATAR
+   ────────────────────────────
+   • Click "🗑️ Remove"
+   • Confirmation required
+   • Reverts to default letter
+
+🎯 FEATURES:
+   ✅ Admin-only access
+   ✅ Real-time preview in edit page
+   ✅ Permission checks
+   ✅ All members see changes instantly
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 📊 TECHNICAL SPECS                                                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+BUILD INFO:
+   File: dist/_worker.js
+   Size: 150.14 kB
+   Date: Dec 23, 2025
+
+GIT STATUS:
+   Branch: main
+   Latest: 4942d59
+   Commits: 7 new features/fixes
+
+BACKEND APIs:
+   • POST /api/users/status              - Update online status
+   • GET  /api/rooms/:roomId/online      - Get online users
+   • POST /api/users/update-avatar       - Update user avatar
+   • POST /api/profile/group/update      - Update group (inc. avatar)
+
+STORAGE:
+   • Base64 image encoding
+   • Cloudflare D1 database
+   • LocalStorage sync (frontend)
+
+VALIDATIONS:
+   • File type: image/* only
+   • File size: max 5MB
+   • Permissions: admin-only for groups
+   • Authentication: required for all
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 🚀 DEPLOYMENT STATUS                                                         │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+✅ COMPLETED:
+   ✓ Code implementation
+   ✓ Build successful
+   ✓ Git committed
+   ✓ Documentation complete
+
+⏳ PENDING:
+   ⏳ Deploy to Cloudflare Pages
+      (Waiting for API token permissions)
+
+PRODUCTION URLs:
+   Main: https://amebo-app.pages.dev
+   GitHub: https://github.com/aprelay/Amebo
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 🧪 TESTING CHECKLIST (After Deployment)                                     │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+ONLINE STATUS:
+   □ Login to app
+   □ Go to Online Status Settings
+   □ Try: Online → Away → Invisible
+   □ Verify UI updates immediately
+   □ Logout & login → Check persistence
+
+USER AVATAR:
+   □ Go to Change Avatar
+   □ Upload photo file
+   □ Select emoji
+   □ Paste image URL
+   □ Remove avatar
+   □ Check profile shows new avatar
+
+GROUP AVATAR:
+   □ Create/open group (as admin)
+   □ Edit Group Info
+   □ Upload photo
+   □ Change to emoji
+   □ Remove avatar
+   □ Verify members see changes
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 📚 DOCUMENTATION FILES                                                       │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+   ONLINE_STATUS_FEATURE.md     - Online status guide (7,915 chars)
+   AVATAR_UPLOAD_FEATURE.md     - Avatar upload guide (13,206 chars)
+   FEATURES_SUMMARY.md          - Complete summary (9,195 chars)
+   QUICK_GUIDE.txt              - This file
+
+   Plus: 7 other detailed documentation files
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 🎯 QUICK START (After Deployment)                                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+1. CHANGE YOUR STATUS:
+   Profile → Online Status Settings → Pick: Online/Away/Invisible
+
+2. UPLOAD YOUR AVATAR:
+   Profile → Change Avatar → Upload photo or pick emoji
+
+3. CUSTOMIZE YOUR GROUP:
+   Group → Edit Group Info → Upload group avatar
+
+4. ENJOY YOUR PERSONALIZED EXPERIENCE! 🎉
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  Status: ✅ Built & Ready  |  ⏳ Pending Deployment                          ║
+║  Questions? Check FEATURES_SUMMARY.md for complete details                   ║
+╚══════════════════════════════════════════════════════════════════════════════╝
