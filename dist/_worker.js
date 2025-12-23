@@ -699,7 +699,7 @@ var Tr=Object.defineProperty;var $e=e=>{throw TypeError(e)};var Dr=(e,r,t)=>r in
           // Register service worker for PWA with auto-update support
           if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-              navigator.serviceWorker.register('/static/sw.js')
+              navigator.serviceWorker.register('/sw.js', { scope: '/' })
                 .then(reg => {
                   console.log('[PWA] Service Worker registered');
                   
