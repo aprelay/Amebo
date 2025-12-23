@@ -8715,6 +8715,8 @@ class SecureChatApp {
     
     // Show My Contacts
     async showMyContacts() {
+        console.log('[CONTACTS] 📋 Showing contacts page for:', this.currentUser.email);
+        
         document.getElementById('app').innerHTML = `
             <div class="min-h-screen bg-gray-100 p-4">
                 <div class="max-w-md mx-auto">
@@ -8724,9 +8726,14 @@ class SecureChatApp {
                                 <i class="fas fa-users text-purple-600 mr-2"></i>
                                 My Contacts
                             </h1>
-                            <button onclick="app.showRoomList()" class="text-gray-600 hover:text-gray-800">
-                                <i class="fas fa-times text-2xl"></i>
-                            </button>
+                            <div class="flex gap-2">
+                                <button onclick="app.loadMyContacts()" class="text-gray-600 hover:text-gray-800 p-2" title="Refresh">
+                                    <i class="fas fa-sync-alt text-xl"></i>
+                                </button>
+                                <button onclick="app.showRoomList()" class="text-gray-600 hover:text-gray-800">
+                                    <i class="fas fa-times text-2xl"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <div id="contacts-list" class="space-y-3">
@@ -8745,15 +8752,21 @@ class SecureChatApp {
     
     async loadMyContacts() {
         try {
+            console.log('[CONTACTS] 🔄 Loading contacts for:', this.currentUser.email);
+            
             const response = await fetch('/api/contacts', {
                 headers: { 'X-User-Email': this.currentUser.email }
             });
             
+            console.log('[CONTACTS] API Response status:', response.status);
+            
             if (response.ok) {
                 const { contacts } = await response.json();
+                console.log('[CONTACTS] ✅ Loaded', contacts.length, 'contacts:', contacts);
                 const listDiv = document.getElementById('contacts-list');
                 
                 if (contacts.length === 0) {
+                    console.log('[CONTACTS] ⚠️ No contacts found!');
                     listDiv.innerHTML = `
                         <div class="text-gray-500 text-center py-8">
                             <i class="fas fa-user-friends text-4xl mb-3 text-gray-300"></i>
@@ -8810,8 +8823,12 @@ class SecureChatApp {
                     `;
                 }).join('');
             }
+            } else {
+                console.error('[CONTACTS] ❌ API error:', response.status, await response.text());
+            }
         } catch (error) {
-            console.error('[CONTACTS] Error loading contacts:', error);
+            console.error('[CONTACTS] ❌ Error loading contacts:', error);
+            this.showToast('Failed to load contacts. Please refresh.', 'error');
         }
     }
     
