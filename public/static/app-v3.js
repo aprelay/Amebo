@@ -7918,7 +7918,7 @@ class SecureChatApp {
                                 >
                                     <i class="fas fa-cloud-upload-alt mr-2"></i>Choose File
                                 </button>
-                                <p class="text-sm text-gray-500 mt-3">JPG, PNG or GIF (Max 5MB)</p>
+                                <p class="text-sm text-gray-500 mt-3">JPG, PNG or GIF (Max 10MB)</p>
                             </div>
                         </div>
 
@@ -7997,9 +7997,9 @@ class SecureChatApp {
             return;
         }
 
-        // Validate file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            this.showMessage(msgDiv, 'Image size must be less than 5MB', 'error');
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            this.showMessage(msgDiv, 'Image size must be less than 10MB', 'error');
             return;
         }
 
@@ -11288,9 +11288,9 @@ class SecureChatApp {
             return;
         }
 
-        // Validate file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            this.showToast('Image size must be less than 5MB', 'error');
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            this.showToast('Image size must be less than 10MB', 'error');
             return;
         }
 
