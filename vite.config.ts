@@ -5,7 +5,10 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [
-    build(),
+    build({
+      outputDir: 'dist',
+      externalize: ['/sw.js'] // Exclude sw.js from worker routing
+    }),
     devServer({
       adapter,
       entry: 'src/index.tsx'
