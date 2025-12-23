@@ -847,11 +847,14 @@ class SecureChatApp {
     }
 
     async init() {
-        console.log('[V3] Init started');
-        
-        // Apply saved theme immediately on app load
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        this.applyThemeOnLoad(savedTheme);
+        try {
+            console.log('[V3] ========== INIT STARTED ==========');
+            console.log('[V3] Window loaded:', document.readyState);
+            console.log('[V3] App element exists:', !!document.getElementById('app'));
+            
+            // Apply saved theme immediately on app load
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            this.applyThemeOnLoad(savedTheme);
         
         // Register Service Worker for PWA
         if ('serviceWorker' in navigator) {
@@ -946,11 +949,38 @@ class SecureChatApp {
             this.checkBadgeSupport();
             
             // FEATURE: Direct to room list (no room code prompt)
+            console.log('[V3] ✅ User logged in, showing room list');
             await this.showRoomList();
         } else {
-            console.log('[V3] No saved user - showing auth');
+            console.log('[V3] ❌ No saved user - showing auth');
             this.showAuth();
         }
+        
+        console.log('[V3] ========== INIT COMPLETED ==========');
+    } catch (error) {
+        console.error('[V3] ⚠️ FATAL ERROR IN INIT:', error);
+        console.error('[V3] Error stack:', error.stack);
+        // Force show auth on error
+        try {
+            document.getElementById('app').innerHTML = `
+                <div class="min-h-screen bg-red-50 flex items-center justify-center p-4">
+                    <div class="bg-white rounded-lg shadow-xl p-8 max-w-md">
+                        <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ App Error</h2>
+                        <p class="text-gray-700 mb-4">Failed to initialize app. Please refresh.</p>
+                        <button onclick="location.reload()" class="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700">
+                            🔄 Refresh Page
+                        </button>
+                        <div class="mt-4 p-4 bg-gray-100 rounded text-xs text-gray-600 overflow-auto max-h-40">
+                            <strong>Error:</strong><br>${error.message}<br><br>
+                            <strong>Stack:</strong><br>${error.stack}
+                        </div>
+                    </div>
+                </div>
+            `;
+        } catch (e) {
+            console.error('[V3] Could not render error screen:', e);
+        }
+    }
     }
 
     // Format timestamp in WhatsApp style
@@ -981,8 +1011,17 @@ class SecureChatApp {
     }
 
     showAuth() {
-        console.log('[V3] Rendering email auth page');
-        document.getElementById('app').innerHTML = `
+        try {
+            console.log('[V3] ========== SHOWING AUTH PAGE ==========');
+            const appEl = document.getElementById('app');
+            console.log('[V3] App element found:', !!appEl);
+            
+            if (!appEl) {
+                throw new Error('App element not found in DOM!');
+            }
+            
+            console.log('[V3] Rendering email auth page');
+            document.getElementById('app').innerHTML = `
             <div class="min-h-screen bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center p-4">
                 <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
                     <div class="text-center mb-8">
@@ -1141,6 +1180,27 @@ class SecureChatApp {
                 </div>
             </div>
         `;
+        
+        console.log('[V3] ✅ Auth page rendered successfully');
+    } catch (error) {
+        console.error('[V3] ⚠️ ERROR RENDERING AUTH PAGE:', error);
+        console.error('[V3] Error stack:', error.stack);
+        try {
+            document.getElementById('app').innerHTML = `
+                <div class="min-h-screen bg-red-50 flex items-center justify-center p-4">
+                    <div class="bg-white rounded-lg shadow-xl p-8 max-w-md">
+                        <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ Login Error</h2>
+                        <p class="text-gray-700 mb-4">Failed to load login page.</p>
+                        <button onclick="location.reload()" class="w-full bg-purple-600 text-white py-2 rounded-lg">
+                            🔄 Refresh
+                        </button>
+                    </div>
+                </div>
+            `;
+        } catch (e) {
+            console.error('[V3] Could not render error:', e);
+        }
+    }
     }
 
     switchAuthMode(mode) {
