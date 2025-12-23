@@ -9866,13 +9866,23 @@ class SecureChatApp {
                 // Save to localStorage
                 localStorage.setItem('onlineStatus', status);
                 
-                // Refresh the page to show new status
-                this.showAccountStatus();
+                // Update UI to reflect new status (without navigation)
+                const statusButtons = document.querySelectorAll('.status-option');
+                statusButtons.forEach(btn => {
+                    if (btn.dataset.status === status) {
+                        btn.classList.add('bg-blue-50', 'border-blue-500');
+                        btn.classList.remove('border-gray-300');
+                    } else {
+                        btn.classList.remove('bg-blue-50', 'border-blue-500');
+                        btn.classList.add('border-gray-300');
+                    }
+                });
                 
-                // Show brief success message
+                // Show success message
                 const statusText = status === 'online' ? 'Online' : 
                                    status === 'away' ? 'Away' : 
                                    'Invisible';
+                this.showToast(`Status changed to ${statusText}`, 'success');
                 console.log(`[STATUS] Updated to: ${statusText}`);
             } else {
                 alert('Failed to update status: ' + (data.error || 'Unknown error'));
