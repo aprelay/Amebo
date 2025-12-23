@@ -724,7 +724,15 @@ class SecureChatApp {
     }
 
     navigateBack() {
+        // Debounce: Prevent rapid back button clicks
+        if (this.isNavigating) {
+            console.log('[NAV] ⚠️ Navigation in progress, ignoring duplicate back');
+            return;
+        }
+        
         if (this.navigationHistory.length > 0) {
+            this.isNavigating = true; // Set navigation lock
+            
             // Remove current page
             this.navigationHistory.pop();
             
@@ -819,13 +827,22 @@ class SecureChatApp {
                     default:
                         this.showRoomList();
                 }
+                
+                // Release navigation lock after a short delay
+                setTimeout(() => {
+                    this.isNavigating = false;
+                }, 300);
             } else {
                 // No history, go to room list
                 console.log('[NAV] No history, going to room list');
                 this.showRoomList();
+                setTimeout(() => {
+                    this.isNavigating = false;
+                }, 300);
             }
         } else {
             console.log('[NAV] No navigation history');
+            this.isNavigating = false; // Release immediately if no history
         }
     }
 
