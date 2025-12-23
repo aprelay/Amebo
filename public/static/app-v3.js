@@ -2856,13 +2856,6 @@ class SecureChatApp {
     async loadMessages() {
         if (!this.currentRoom) return;
         
-        // Check if we're still on the chat page (messages container exists)
-        const container = document.getElementById('messages');
-        if (!container) {
-            console.log('[V3] Not on chat page anymore, skipping message load');
-            return;
-        }
-        
         // Recursion guard - prevent stack overflow
         if (this.isLoadingMessages) {
             console.log('[LOAD] Already loading messages, skipping duplicate call');
@@ -2871,9 +2864,10 @@ class SecureChatApp {
         
         this.isLoadingMessages = true;
         
+        // Check if we're still on the chat page (messages container exists)
         const container = document.getElementById('messages');
         if (!container) {
-            console.error('[V3] Messages container not found!');
+            console.error('[V3] Messages container not found! Not on chat page anymore.');
             this.isLoadingMessages = false;
             return;
         }
