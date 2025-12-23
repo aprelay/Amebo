@@ -1505,6 +1505,13 @@ class SecureChatApp {
     async showRoomList() {
         console.log('[V3] Showing room list with token balance');
         
+        // Stop message polling when leaving chat room
+        if (this.messagePoller) {
+            clearInterval(this.messagePoller);
+            this.messagePoller = null;
+            console.log('[POLLING] Stopped message polling');
+        }
+        
         // Push to navigation history
         this.pushNavigation('roomList');
         
@@ -2788,6 +2795,13 @@ class SecureChatApp {
 
     async loadMessages() {
         if (!this.currentRoom) return;
+        
+        // Check if we're still on the chat page (messages container exists)
+        const container = document.getElementById('messages');
+        if (!container) {
+            console.log('[V3] Not on chat page anymore, skipping message load');
+            return;
+        }
         
         // Recursion guard - prevent stack overflow
         if (this.isLoadingMessages) {
