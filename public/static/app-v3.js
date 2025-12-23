@@ -1954,6 +1954,7 @@ class SecureChatApp {
                 
                 const diffX = startX - currentX;
                 const diffY = Math.abs(startY - currentY);
+                const totalMovement = Math.sqrt(diffX * diffX + diffY * diffY);
                 
                 item.style.transition = 'transform 0.3s ease';
                 
@@ -1973,11 +1974,14 @@ class SecureChatApp {
                         item.style.transform = 'translateX(0)';
                     }
                 } else {
-                    // Was a tap, not a swipe - open the room
+                    // Only open room if it was a real tap (minimal movement)
+                    // Ignore if vertical scroll or pull-to-refresh (diffY > 10px or totalMovement > 15px)
                     const transform = item.style.transform;
-                    if (!transform || transform === 'translateX(0px)' || transform === '') {
+                    const isRealTap = totalMovement < 15 && diffY < 10;
+                    
+                    if (isRealTap && (!transform || transform === 'translateX(0px)' || transform === '')) {
                         this.openRoom(item.dataset.roomId, item.dataset.roomCode);
-                    } else {
+                    } else if (transform && transform !== 'translateX(0px)' && transform !== '') {
                         // If already swiped, snap back
                         item.style.transform = 'translateX(0)';
                     }
