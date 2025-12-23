@@ -906,8 +906,9 @@ app.get('/api/rooms/user/:userId', async (c) => {
   try {
     const userId = c.req.param('userId')
     
+    // Query rooms - only select columns that exist in all database versions
     const result = await c.env.DB.prepare(`
-      SELECT cr.id, cr.room_code, cr.room_name, cr.created_at, cr.room_type, cr.avatar,
+      SELECT cr.id, cr.room_code, cr.room_name, cr.created_at,
              (SELECT COUNT(*) FROM room_members WHERE room_id = cr.id) as member_count
       FROM chat_rooms cr
       JOIN room_members rm ON cr.id = rm.room_id
@@ -915,10 +916,13 @@ app.get('/api/rooms/user/:userId', async (c) => {
       ORDER BY cr.created_at DESC
     `).bind(userId).all()
 
-    // For direct messages, fetch the other user's info
+    // For direct messages (detected by room_code starting with 'dm-'), fetch the other user's info
     const rooms = await Promise.all((result.results || []).map(async (room: any) => {
       try {
-        if (room.room_type === 'direct') {
+        // Detect direct message by room_code pattern
+        const isDirectMessage = room.room_code && room.room_code.startsWith('dm-')
+        
+        if (isDirectMessage) {
           // Get the other user's info from direct_message_rooms
           const dmInfo = await c.env.DB.prepare(`
             SELECT 
@@ -939,6 +943,7 @@ app.get('/api/rooms/user/:userId', async (c) => {
             if (otherUser) {
               return {
                 ...room,
+                room_type: 'direct', // Add room_type for frontend
                 other_user: {
                   id: otherUser.id,
                   username: otherUser.username,
