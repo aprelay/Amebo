@@ -1891,7 +1891,6 @@ class SecureChatApp {
                         // Update badges after calculation
                         this.updateRoomListBadges();
                     }, 0);
-                }
             } else if (listEl && this.rooms.length === 0) {
                 listEl.innerHTML = `
                     <div class="text-gray-500 text-center py-8">
