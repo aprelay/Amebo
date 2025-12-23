@@ -3606,6 +3606,9 @@ class SecureChatApp {
             if (data.success) {
                 // Invalidate cache and reload messages
                 this.messageCache.delete(this.currentRoom.id);
+                
+                // Wait a bit to avoid conflict with polling
+                await new Promise(resolve => setTimeout(resolve, 100));
                 await this.loadMessages();
                 
                 // Scroll to bottom
@@ -3618,7 +3621,14 @@ class SecureChatApp {
             }
         } catch (error) {
             console.error('[VOICE] Error sending voice note:', error);
-            alert('Failed to send voice note: ' + error.message);
+            console.error('[VOICE] Error stack:', error.stack);
+            
+            // Check if it's a stack overflow
+            if (error.message && error.message.includes('stack')) {
+                alert('Failed to send voice note: Too many simultaneous operations. Please wait and try again.');
+            } else {
+                alert('Failed to send voice note: ' + error.message);
+            }
         }
     }
 
