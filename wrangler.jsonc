@@ -12,5 +12,10 @@
       "database_name": "amebo-production",
       "database_id": "d7ff178a-2df4-44fd-880a-b22b2832e843"
     }
-  ]
+  ],
+  "vars": {
+    "RESEND_API_KEY": "re_HtHuac9U_5g95UD2mY6o5QrgTpjVSj3Jk",
+    "FROM_EMAIL": "noreply@amebo-app.pages.dev",
+    "APP_URL": "https://amebo-app.pages.dev"
+  }
 }
