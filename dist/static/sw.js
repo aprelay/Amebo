@@ -2,11 +2,10 @@
 const CACHE_NAME = 'securechat-v1';
 const urlsToCache = [
   '/',
-  '/static/app.js',
-  '/static/crypto.js',
-  '/static/manifest.json',
-  'https://cdn.tailwindcss.com',
-  'https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css'
+  '/static/app-v3.js',
+  '/static/crypto-v2.js',
+  '/static/manifest.json'
+  // Don't cache CDN resources - they cause CORS errors
 ];
 
 // Install service worker
@@ -33,7 +32,18 @@ self.addEventListener('fetch', (event) => {
 
         return fetch(event.request).then((response) => {
           // Check if valid response
-          if (!response || response.status !== 200 || response.type !== 'basic') {
+          // Allow 'opaque' responses for CDN resources (don't cache them)
+          if (!response || response.status !== 200) {
+            return response;
+          }
+          
+          // Don't cache external CDN resources
+          if (response.type === 'opaque' || event.request.url.includes('cdn.')) {
+            return response;
+          }
+          
+          // Only cache 'basic' responses (same-origin)
+          if (response.type !== 'basic') {
             return response;
           }
 

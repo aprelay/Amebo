@@ -2770,9 +2770,19 @@ class SecureChatApp {
                     return;
                 }
                 
-                // Decrypt messages - optimized with batching
-                const BATCH_SIZE = 20;
+                // Decrypt messages - optimized with smaller batches for faster initial display
+                const BATCH_SIZE = 10; // Reduced from 20 to 10 for faster initial rendering
                 const decryptedMessages = [];
+                
+                // Show "Decrypting..." count for large message sets
+                if (newMessages.length > 10 && isInitialLoad) {
+                    container.innerHTML = `
+                        <div class="text-gray-500 text-center py-8">
+                            <i class="fas fa-lock text-2xl mb-1 text-purple-600 animate-pulse"></i>
+                            <p class="text-sm">🔐 Decrypting ${newMessages.length} messages...</p>
+                        </div>
+                    `;
+                }
                 
                 for (let i = 0; i < newMessages.length; i += BATCH_SIZE) {
                     const batch = newMessages.slice(i, i + BATCH_SIZE);
