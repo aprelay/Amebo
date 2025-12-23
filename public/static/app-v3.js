@@ -9489,7 +9489,153 @@ class SecureChatApp {
 
     showAccountStatus() {
         this.closeProfileDrawer();
-        alert('Online Status Settings' + String.fromCharCode(10) + String.fromCharCode(10) + 'Current: Online' + String.fromCharCode(10) + String.fromCharCode(10) + 'Options:' + String.fromCharCode(10) + '🟢 Online' + String.fromCharCode(10) + '⚪ Invisible' + String.fromCharCode(10) + '🟡 Away');
+        this.pushNavigation('onlineStatus');
+        
+        // Get current status from localStorage or default to 'online'
+        const currentStatus = localStorage.getItem('onlineStatus') || 'online';
+        
+        document.getElementById('app').innerHTML = `
+            <div class="min-h-screen bg-gray-100">
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg">
+                    <div class="max-w-4xl mx-auto flex items-center gap-3">
+                        <button onclick="app.goBack()" class="p-2 hover:bg-white/20 rounded-lg">
+                            <i class="fas fa-arrow-left text-xl"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Online Status</h1>
+                    </div>
+                </div>
+
+                <div class="max-w-4xl mx-auto p-4 space-y-4">
+                    <!-- Current Status Display -->
+                    <div class="bg-white rounded-2xl shadow-lg p-6 text-center">
+                        <div class="w-20 h-20 mx-auto mb-4 rounded-full ${
+                            currentStatus === 'online' ? 'bg-green-100' : 
+                            currentStatus === 'away' ? 'bg-yellow-100' : 
+                            'bg-gray-100'
+                        } flex items-center justify-center">
+                            <div class="w-12 h-12 rounded-full ${
+                                currentStatus === 'online' ? 'bg-green-500' : 
+                                currentStatus === 'away' ? 'bg-yellow-500' : 
+                                'bg-gray-400'
+                            } animate-pulse"></div>
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-2">
+                            ${currentStatus === 'online' ? 'Online' : 
+                              currentStatus === 'away' ? 'Away' : 
+                              'Invisible'}
+                        </h2>
+                        <p class="text-gray-600">
+                            ${currentStatus === 'online' ? 'You appear online to all users' : 
+                              currentStatus === 'away' ? 'You appear away to other users' : 
+                              'You appear offline to other users'}
+                        </p>
+                    </div>
+
+                    <!-- Status Options -->
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="px-4 py-2 bg-gray-50 font-semibold text-gray-700">
+                            <i class="fas fa-circle-dot mr-2"></i>Choose Your Status
+                        </div>
+                        
+                        <!-- Online -->
+                        <button 
+                            onclick="app.updateOnlineStatus('online')" 
+                            class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition border-b ${currentStatus === 'online' ? 'bg-green-50' : ''}"
+                        >
+                            <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                                <div class="w-6 h-6 rounded-full bg-green-500"></div>
+                            </div>
+                            <div class="flex-1 text-left">
+                                <div class="font-semibold text-gray-800">Online</div>
+                                <div class="text-sm text-gray-600">Visible to everyone</div>
+                            </div>
+                            ${currentStatus === 'online' ? '<i class="fas fa-check text-green-500 text-xl"></i>' : ''}
+                        </button>
+
+                        <!-- Away -->
+                        <button 
+                            onclick="app.updateOnlineStatus('away')" 
+                            class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition border-b ${currentStatus === 'away' ? 'bg-yellow-50' : ''}"
+                        >
+                            <div class="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                                <div class="w-6 h-6 rounded-full bg-yellow-500"></div>
+                            </div>
+                            <div class="flex-1 text-left">
+                                <div class="font-semibold text-gray-800">Away</div>
+                                <div class="text-sm text-gray-600">Appears away to others</div>
+                            </div>
+                            ${currentStatus === 'away' ? '<i class="fas fa-check text-yellow-500 text-xl"></i>' : ''}
+                        </button>
+
+                        <!-- Invisible -->
+                        <button 
+                            onclick="app.updateOnlineStatus('invisible')" 
+                            class="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition ${currentStatus === 'invisible' ? 'bg-gray-50' : ''}"
+                        >
+                            <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                                <div class="w-6 h-6 rounded-full bg-gray-400"></div>
+                            </div>
+                            <div class="flex-1 text-left">
+                                <div class="font-semibold text-gray-800">Invisible</div>
+                                <div class="text-sm text-gray-600">Appear offline to everyone</div>
+                            </div>
+                            ${currentStatus === 'invisible' ? '<i class="fas fa-check text-gray-500 text-xl"></i>' : ''}
+                        </button>
+                    </div>
+
+                    <!-- Info Card -->
+                    <div class="bg-blue-50 rounded-2xl p-4 border border-blue-200">
+                        <div class="flex gap-3">
+                            <i class="fas fa-info-circle text-blue-500 text-xl mt-1"></i>
+                            <div class="flex-1 text-sm text-blue-800">
+                                <div class="font-semibold mb-1">About Online Status</div>
+                                <ul class="space-y-1 list-disc list-inside">
+                                    <li><strong>Online:</strong> Green dot - Everyone can see you're active</li>
+                                    <li><strong>Away:</strong> Yellow dot - Indicates you're inactive</li>
+                                    <li><strong>Invisible:</strong> No dot - You appear offline but can still use all features</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    async updateOnlineStatus(status) {
+        try {
+            // Update in backend
+            const response = await fetch(`${API_BASE}/api/users/status`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-User-Email': this.currentUser.email
+                },
+                body: JSON.stringify({ status })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Save to localStorage
+                localStorage.setItem('onlineStatus', status);
+                
+                // Refresh the page to show new status
+                this.showAccountStatus();
+                
+                // Show brief success message
+                const statusText = status === 'online' ? 'Online' : 
+                                   status === 'away' ? 'Away' : 
+                                   'Invisible';
+                console.log(`[STATUS] Updated to: ${statusText}`);
+            } else {
+                alert('Failed to update status: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('[STATUS] Update error:', error);
+            alert('Failed to update online status. Please try again.');
+        }
     }
 
     showThemeSettings() {
