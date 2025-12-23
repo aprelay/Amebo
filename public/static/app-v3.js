@@ -61,8 +61,9 @@ class SecureChatApp {
         this.mediaRecorder = null;
         this.audioChunks = [];
         
-        // Recursion guard for loadMessages
+        // Recursion guards
         this.isLoadingMessages = false;
+        this.isSendingMessage = false; // Prevent simultaneous sends
         
         console.log('[V3] App initialized - Industrial Grade Security + Tokens + Enhanced Notifications');
         
@@ -3242,6 +3243,13 @@ class SecureChatApp {
 
         if (!content || !this.currentRoom) return;
 
+        // GUARD: Prevent simultaneous sends
+        if (this.isSendingMessage) {
+            console.log('[SEND] ⚠️ Already sending, ignoring');
+            return;
+        }
+        this.isSendingMessage = true;
+
         console.log('[V3] Sending encrypted message');
 
         // CRITICAL FIX: Stop polling temporarily to prevent collision
@@ -3293,6 +3301,8 @@ class SecureChatApp {
             if (wasPolling) {
                 this.startPolling();
             }
+            // Release sending lock
+            this.isSendingMessage = false;
         }
     }
 
@@ -3585,6 +3595,13 @@ class SecureChatApp {
     async sendVoiceMessage(audioDataUrl, duration, size) {
         if (!this.currentRoom) return;
         
+        // GUARD: Prevent simultaneous sends
+        if (this.isSendingMessage) {
+            console.log('[VOICE] ⚠️ Already sending, ignoring');
+            return;
+        }
+        this.isSendingMessage = true;
+        
         console.log('[VOICE] Sending voice note:', { duration, size });
         
         // CRITICAL FIX: Stop polling temporarily to prevent collision
@@ -3647,6 +3664,8 @@ class SecureChatApp {
                 console.log('[VOICE] Resuming polling');
                 this.startPolling();
             }
+            // Release sending lock
+            this.isSendingMessage = false;
         }
     }
 
