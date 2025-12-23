@@ -115,8 +115,19 @@ class CryptoUtils {
             );
 
             // Convert to base64 for storage
+            // CRITICAL FIX: Don't use spread operator for large arrays (causes stack overflow)
             const encryptedArray = new Uint8Array(encrypted);
-            const encryptedBase64 = btoa(String.fromCharCode(...encryptedArray));
+            
+            // Use chunk processing for large data
+            let binaryString = '';
+            const chunkSize = 8192; // Process 8KB at a time
+            for (let i = 0; i < encryptedArray.length; i += chunkSize) {
+                const chunk = encryptedArray.subarray(i, i + chunkSize);
+                binaryString += String.fromCharCode.apply(null, chunk);
+            }
+            const encryptedBase64 = btoa(binaryString);
+            
+            // IV is always small, safe to use spread operator
             const ivBase64 = btoa(String.fromCharCode(...iv));
 
             return {
