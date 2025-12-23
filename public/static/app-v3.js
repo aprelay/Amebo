@@ -3455,10 +3455,10 @@ class SecureChatApp {
             const seconds = elapsed % 60;
             timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
             
-            // Auto-stop at 10 minutes (instead of 5)
-            if (elapsed >= 600) {
+            // Auto-stop at 50 minutes
+            if (elapsed >= 3000) {
                 this.stopRecording();
-                alert('⏱️ Maximum recording time reached (10 minutes)');
+                alert('⏱️ Maximum recording time reached (50 minutes)');
             }
         }, 100);
     }
