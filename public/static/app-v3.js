@@ -686,6 +686,13 @@ class SecureChatApp {
     }
 
     pushNavigation(pageName, context = {}) {
+        // Prevent duplicate consecutive entries
+        const lastEntry = this.navigationHistory[this.navigationHistory.length - 1];
+        if (lastEntry && lastEntry.page === pageName) {
+            console.log('[NAV] ⚠️ Duplicate navigation ignored:', pageName);
+            return;
+        }
+        
         this.navigationHistory.push({ page: pageName, context });
         console.log('[NAV] Pushed:', pageName, '- History depth:', this.navigationHistory.length);
     }
