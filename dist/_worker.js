@@ -130,18 +130,18 @@ var Tr=Object.defineProperty;var We=e=>{throw TypeError(e)};var Dr=(e,r,t)=>r in
       JOIN room_members rm ON cr.id = rm.room_id
       WHERE rm.user_id = ?
       ORDER BY cr.created_at DESC
-    `).bind(r).all(),s=await Promise.all((t.results||[]).map(async n=>{if(n.room_type==="direct"){const a=await e.env.DB.prepare(`
-          SELECT 
-            CASE 
-              WHEN dmr.user1_id = ? THEN dmr.user2_id 
-              ELSE dmr.user1_id 
-            END as other_user_id
-          FROM direct_message_rooms dmr
-          WHERE dmr.room_id = ?
-        `).bind(r,n.id).first();if(a){const o=await e.env.DB.prepare(`
-            SELECT id, username, display_name, avatar, online_status, last_seen
-            FROM users WHERE id = ?
-          `).bind(a.other_user_id).first();if(o)return{...n,other_user:{id:o.id,username:o.username,display_name:o.display_name,avatar:o.avatar,online_status:o.online_status,last_seen:o.last_seen}}}}return n}));return e.json({success:!0,rooms:s})}catch(r){return console.error("Failed to fetch rooms:",r),e.json({error:"Failed to fetch rooms"},500)}});p.get("/api/rooms/:roomId/members",async e=>{try{const r=e.req.param("roomId"),t=await e.env.DB.prepare(`
+    `).bind(r).all(),s=await Promise.all((t.results||[]).map(async n=>{try{if(n.room_type==="direct"){const a=await e.env.DB.prepare(`
+            SELECT 
+              CASE 
+                WHEN dmr.user1_id = ? THEN dmr.user2_id 
+                ELSE dmr.user1_id 
+              END as other_user_id
+            FROM direct_message_rooms dmr
+            WHERE dmr.room_id = ?
+          `).bind(r,n.id).first();if(a&&a.other_user_id){const o=await e.env.DB.prepare(`
+              SELECT id, username, display_name, avatar, online_status, last_seen
+              FROM users WHERE id = ?
+            `).bind(a.other_user_id).first();if(o)return{...n,other_user:{id:o.id,username:o.username,display_name:o.display_name,avatar:o.avatar,online_status:o.online_status,last_seen:o.last_seen}}}}}catch(a){console.error(`Error fetching DM info for room ${n.id}:`,a)}return n}));return e.json({success:!0,rooms:s})}catch(r){return console.error("Failed to fetch rooms:",r),e.json({error:"Failed to fetch rooms"},500)}});p.get("/api/rooms/:roomId/members",async e=>{try{const r=e.req.param("roomId"),t=await e.env.DB.prepare(`
       SELECT u.id, u.username, u.public_key, rm.joined_at
       FROM users u
       JOIN room_members rm ON u.id = rm.user_id

@@ -917,38 +917,43 @@ app.get('/api/rooms/user/:userId', async (c) => {
 
     // For direct messages, fetch the other user's info
     const rooms = await Promise.all((result.results || []).map(async (room: any) => {
-      if (room.room_type === 'direct') {
-        // Get the other user's info from direct_message_rooms
-        const dmInfo = await c.env.DB.prepare(`
-          SELECT 
-            CASE 
-              WHEN dmr.user1_id = ? THEN dmr.user2_id 
-              ELSE dmr.user1_id 
-            END as other_user_id
-          FROM direct_message_rooms dmr
-          WHERE dmr.room_id = ?
-        `).bind(userId, room.id).first()
-        
-        if (dmInfo) {
-          const otherUser = await c.env.DB.prepare(`
-            SELECT id, username, display_name, avatar, online_status, last_seen
-            FROM users WHERE id = ?
-          `).bind(dmInfo.other_user_id).first()
+      try {
+        if (room.room_type === 'direct') {
+          // Get the other user's info from direct_message_rooms
+          const dmInfo = await c.env.DB.prepare(`
+            SELECT 
+              CASE 
+                WHEN dmr.user1_id = ? THEN dmr.user2_id 
+                ELSE dmr.user1_id 
+              END as other_user_id
+            FROM direct_message_rooms dmr
+            WHERE dmr.room_id = ?
+          `).bind(userId, room.id).first()
           
-          if (otherUser) {
-            return {
-              ...room,
-              other_user: {
-                id: otherUser.id,
-                username: otherUser.username,
-                display_name: otherUser.display_name,
-                avatar: otherUser.avatar,
-                online_status: otherUser.online_status,
-                last_seen: otherUser.last_seen
+          if (dmInfo && dmInfo.other_user_id) {
+            const otherUser = await c.env.DB.prepare(`
+              SELECT id, username, display_name, avatar, online_status, last_seen
+              FROM users WHERE id = ?
+            `).bind(dmInfo.other_user_id).first()
+            
+            if (otherUser) {
+              return {
+                ...room,
+                other_user: {
+                  id: otherUser.id,
+                  username: otherUser.username,
+                  display_name: otherUser.display_name,
+                  avatar: otherUser.avatar,
+                  online_status: otherUser.online_status,
+                  last_seen: otherUser.last_seen
+                }
               }
             }
           }
         }
+      } catch (dmError) {
+        console.error(`Error fetching DM info for room ${room.id}:`, dmError)
+        // Return room without other_user info if DM lookup fails
       }
       return room
     }))
