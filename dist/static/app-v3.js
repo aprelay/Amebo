@@ -3367,6 +3367,12 @@ class SecureChatApp {
     }
 
     async startRecording() {
+        // GUARD: Prevent multiple simultaneous recordings
+        if (this.isRecording) {
+            console.log('[VOICE] Already recording, ignoring duplicate start');
+            return;
+        }
+        
         try {
             console.log('[VOICE] Requesting microphone permission...');
             
@@ -3412,7 +3418,6 @@ class SecureChatApp {
             
             this.mediaRecorder.start();
             this.isRecording = true;
-            this.isRecordingLocked = false;
             this.shouldProcessRecording = true; // Reset flag for new recording
             this.recordingStartTime = Date.now();
             
@@ -3425,6 +3430,7 @@ class SecureChatApp {
         } catch (error) {
             console.error('[VOICE] Error starting recording:', error);
             alert('❌ Microphone access denied\n\nPlease allow microphone access to send voice notes.');
+            this.isRecording = false; // Reset on error
         }
     }
 
