@@ -3031,9 +3031,14 @@ class SecureChatApp {
                             this.unreadCounts.set(this.currentRoom.id, currentUnread + newMessagesOnly.length);
                             // this.saveUnreadCounts();  // REMOVED - don't save to localStorage
                             
-                            newMessagesOnly.forEach(msg => {
-                                this.queueNotification(msg, this.currentRoom.room_name || this.currentRoom.room_code);
-                            });
+                            // DISABLED: Don't show notifications for new messages
+                            // Only update unread count badge, no notification
+                            console.log('[NOTIF] ✅ Updated unread count:', currentUnread + newMessagesOnly.length, '(notifications disabled)');
+                            
+                            // OLD CODE (disabled):
+                            // newMessagesOnly.forEach(msg => {
+                            //     this.queueNotification(msg, this.currentRoom.room_name || this.currentRoom.room_code);
+                            // });
                         }
                     }
                 }
