@@ -3048,6 +3048,12 @@ class SecureChatApp {
                     const latestMessageId = decryptedMessages[decryptedMessages.length - 1].id;
                     const previousLastMessageId = this.lastMessageIds.get(this.currentRoom.id);
                     
+                    console.log('[LOAD] 🔍 Message comparison:');
+                    console.log('  - Latest message ID:', latestMessageId);
+                    console.log('  - Previous last message ID:', previousLastMessageId);
+                    console.log('  - Is new message?', previousLastMessageId !== latestMessageId);
+                    console.log('  - Is initial load?', isInitialLoad);
+                    
                     // Check if there are actually new messages
                     if (previousLastMessageId !== latestMessageId || isInitialLoad) {
                         // Find new messages only
@@ -3056,7 +3062,12 @@ class SecureChatApp {
                             const lastIndex = decryptedMessages.findIndex(m => m.id === previousLastMessageId);
                             if (lastIndex !== -1) {
                                 messagesToAdd = decryptedMessages.slice(lastIndex + 1);
+                                console.log('[LOAD] 🆕 Found', messagesToAdd.length, 'new messages to add');
+                            } else {
+                                console.log('[LOAD] ⚠️ Previous message not found - full reload');
                             }
+                        } else {
+                            console.log('[LOAD] 📋 Rendering all', decryptedMessages.length, 'messages');
                         }
                         
                         // Update state
@@ -3065,12 +3076,17 @@ class SecureChatApp {
                         
                         // Render strategy: Full render ONLY on initial load, otherwise append
                         if (isInitialLoad) {
+                            console.log('[LOAD] 🎨 Full render (initial load)');
                             // Full render (only on first open)
                             container.innerHTML = decryptedMessages.map(msg => this.renderMessage(msg)).join('');
                         } else if (messagesToAdd.length > 0) {
+                            console.log('[LOAD] ➕ Appending', messagesToAdd.length, 'new messages');
                             // Append new messages only - never rebuild existing!
                             const newHTML = messagesToAdd.map(msg => this.renderMessage(msg)).join('');
                             container.insertAdjacentHTML('beforeend', newHTML);
+                            console.log('[LOAD] ✅ Messages appended successfully');
+                        } else {
+                            console.log('[LOAD] ⏭️ No new messages - DOM unchanged');
                         }
                         // If no new messages and not initial load, do NOTHING (keep DOM unchanged)
                         
@@ -3080,6 +3096,8 @@ class SecureChatApp {
                                 this.scrollToBottom();
                             });
                         }
+                    } else {
+                        console.log('[LOAD] ⏭️ No changes - skipping render (latest ID matches previous)');
                     }
                     
                     this.lastMessageIds.set(this.currentRoom.id, latestMessageId);
@@ -3961,14 +3979,18 @@ class SecureChatApp {
         if (this.messagePoller) clearInterval(this.messagePoller);
         
         console.log('[POLL] ▶️ Starting real-time message polling (1 second interval)');
+        console.log('[POLL] 🎯 Current room:', this.currentRoom?.id, this.currentRoom?.room_code);
         
         this.messagePoller = setInterval(async () => {
             if (this.currentRoom) {
+                console.log('[POLL] 🔄 Polling tick - fetching messages for room:', this.currentRoom.id);
                 // Always load messages (smart append logic handles rendering)
                 await this.loadMessages();
                 
                 // Poll typing indicators
                 await this.pollTypingIndicators(this.currentRoom.id);
+            } else {
+                console.log('[POLL] ⚠️ No current room - skipping poll');
             }
         }, 1000); // 🚀 FASTER: 1 second for real-time messaging (was 3 seconds)
     }
