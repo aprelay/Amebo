@@ -1,17 +1,13 @@
 {
-  "name": "amebo-app",
-  "pages_build_output_dir": "dist",
+  "name": "amebo-v2",
+  "pages_build_output_dir": "dist_v2",
   "compatibility_date": "2025-12-20",
+  "compatibility_flags": ["nodejs_compat"],
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "amebo-production",
-      "database_id": "d7ff178a-2df4-44fd-880a-b22b2832e843"
+      "database_name": "amebo-v2-production",
+      "database_id": "a021b5f3-51bf-4b74-bec0-4c2b22f9a5ca"
     }
-  ],
-  "vars": {
-    "RESEND_API_KEY": "re_HtHuac9U_5g95UD2mY6o5QrgTpjVSj3Jk",
-    "FROM_EMAIL": "amebo@oztec.cam",
-    "APP_URL": "https://amebo-app.pages.dev"
-  }
+  ]
 }
