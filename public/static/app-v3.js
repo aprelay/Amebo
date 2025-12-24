@@ -3059,12 +3059,20 @@ class SecureChatApp {
                     if (lastIndex !== -1 && lastIndex < decryptedMessages.length - 1) {
                         const newMessagesOnly = decryptedMessages.slice(lastIndex + 1);
                         
-                        // Only increment unread count if user is NOT viewing (hidden or unfocused)
+                        // CRITICAL FIX: Filter out YOUR OWN messages from unread count
+                        // Only count messages from OTHER users
+                        const newMessagesFromOthers = newMessagesOnly.filter(msg => msg.sender_id !== this.currentUser.id);
+                        
+                        console.log(`[NOTIF] 📨 New messages: ${newMessagesOnly.length} total, ${newMessagesFromOthers.length} from others`);
+                        
+                        // Only increment unread count if user is NOT viewing AND messages are from others
                         const isUserViewing = !document.hidden && document.hasFocus();
-                        if (!isUserViewing) {
+                        if (!isUserViewing && newMessagesFromOthers.length > 0) {
                             const currentUnread = this.unreadCounts.get(this.currentRoom.id) || 0;
-                            this.unreadCounts.set(this.currentRoom.id, currentUnread + newMessagesOnly.length);
-                            console.log('[NOTIF] 📊 User away - incremented unread count:', currentUnread + newMessagesOnly.length);
+                            this.unreadCounts.set(this.currentRoom.id, currentUnread + newMessagesFromOthers.length);
+                            console.log('[NOTIF] 📊 User away - incremented unread count:', currentUnread + newMessagesFromOthers.length);
+                        } else if (newMessagesFromOthers.length === 0) {
+                            console.log('[NOTIF] ✅ All new messages are yours - no unread increment');
                         } else {
                             console.log('[NOTIF] ✅ User viewing - will mark as read (no unread increment)');
                         }
