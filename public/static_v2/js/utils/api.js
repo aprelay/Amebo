@@ -2,7 +2,7 @@
 // AMEBO v2.0 - API Client
 // ============================================
 
-import { CONFIG, API_ENDPOINTS, ERROR_MESSAGES } from './config.js';
+import { CONFIG, API_ENDPOINTS, ERROR_MESSAGES } from '../config.js';
 
 class APIError extends Error {
     constructor(message, code, status, details) {
