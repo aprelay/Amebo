@@ -2321,10 +2321,23 @@ class SecureChatApp {
         this.pushNavigation('room', { roomId, roomCode: roomCode || this.currentRoom.room_code });
 
         // Generate/retrieve room encryption key from room code
-        if (!this.roomKeys.has(roomId)) {
-            const roomKey = await CryptoUtils.deriveKeyFromCode(roomCode || this.currentRoom.room_code);
-            this.roomKeys.set(roomId, roomKey);
-            console.log('[V3] Room encryption key generated');
+        try {
+            if (!this.roomKeys.has(roomId)) {
+                const codeToUse = roomCode || this.currentRoom?.room_code;
+                if (!codeToUse) {
+                    throw new Error('No room code available for encryption key');
+                }
+                const roomKey = await CryptoUtils.deriveKeyFromCode(codeToUse);
+                this.roomKeys.set(roomId, roomKey);
+                console.log('[V3] ✅ Room encryption key generated');
+            } else {
+                console.log('[V3] ✅ Using cached encryption key');
+            }
+        } catch (keyError) {
+            console.error('[V3] ❌ Failed to generate encryption key:', keyError);
+            this.showToast('Failed to generate encryption key', 'error');
+            await this.showRoomList();
+            return;
         }
 
         // Determine display info (for direct messages, show other user's info)
@@ -2962,6 +2975,7 @@ class SecureChatApp {
 
         try {
             console.log('[LOAD] 🌐 Fetching messages from API...');
+            
             // CRITICAL: Add timestamp to bust Cloudflare cache for real-time messaging
             const timestamp = Date.now();
             const response = await fetch(`${API_BASE}/api/messages/${this.currentRoom.id}?_t=${timestamp}`, {
@@ -2971,7 +2985,12 @@ class SecureChatApp {
                     'Pragma': 'no-cache'
                 }
             });
+            
             console.log('[LOAD] 📡 API response status:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`API returned ${response.status}: ${response.statusText}`);
+            }
             
             const data = await response.json();
             console.log('[LOAD] 📦 API returned:', data.messages?.length || 0, 'messages');
