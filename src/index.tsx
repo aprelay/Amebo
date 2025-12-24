@@ -918,23 +918,29 @@ app.get('/api/rooms/user/:userId', async (c) => {
   try {
     const userId = c.req.param('userId')
     
+    console.log('[ROOMS] Fetching rooms for user:', userId)
+    
     // Query rooms - only select columns that exist in all database versions
     const result = await c.env.DB.prepare(`
-      SELECT cr.id, cr.room_code, cr.room_name, cr.created_at,
+      SELECT cr.id, cr.room_code, cr.room_name, cr.created_at, cr.room_type,
              (SELECT COUNT(*) FROM room_members WHERE room_id = cr.id) as member_count
       FROM chat_rooms cr
       JOIN room_members rm ON cr.id = rm.room_id
       WHERE rm.user_id = ?
       ORDER BY cr.created_at DESC
     `).bind(userId).all()
+    
+    console.log('[ROOMS] Found', result.results?.length || 0, 'rooms')
 
     // For direct messages (detected by room_code starting with 'dm-'), fetch the other user's info
     const rooms = await Promise.all((result.results || []).map(async (room: any) => {
       try {
-        // Detect direct message by room_code pattern
-        const isDirectMessage = room.room_code && room.room_code.startsWith('dm-')
+        // Detect direct message by room_code pattern or room_type
+        const isDirectMessage = room.room_type === 'direct' || (room.room_code && room.room_code.startsWith('dm-'))
         
         if (isDirectMessage) {
+          console.log('[ROOMS] Processing DM room:', room.id, room.room_code)
+          
           // Get the other user's info from direct_message_rooms
           const dmInfo = await c.env.DB.prepare(`
             SELECT 
@@ -946,11 +952,15 @@ app.get('/api/rooms/user/:userId', async (c) => {
             WHERE dmr.room_id = ?
           `).bind(userId, room.id).first()
           
+          console.log('[ROOMS] DM info:', dmInfo)
+          
           if (dmInfo && dmInfo.other_user_id) {
             const otherUser = await c.env.DB.prepare(`
               SELECT id, username, display_name, avatar, online_status, last_seen
               FROM users WHERE id = ?
             `).bind(dmInfo.other_user_id).first()
+            
+            console.log('[ROOMS] Other user:', otherUser?.username)
             
             if (otherUser) {
               return {
@@ -966,18 +976,22 @@ app.get('/api/rooms/user/:userId', async (c) => {
                 }
               }
             }
+          } else {
+            console.log('[ROOMS] ⚠️ No DM info found for room:', room.id)
           }
         }
       } catch (dmError) {
-        console.error(`Error fetching DM info for room ${room.id}:`, dmError)
+        console.error(`[ROOMS] Error fetching DM info for room ${room.id}:`, dmError)
         // Return room without other_user info if DM lookup fails
       }
       return room
     }))
+    
+    console.log('[ROOMS] Returning', rooms.length, 'rooms with full info')
 
     return c.json({ success: true, rooms })
   } catch (error) {
-    console.error('Failed to fetch rooms:', error)
+    console.error('[ROOMS] Failed to fetch rooms:', error)
     return c.json({ error: 'Failed to fetch rooms' }, 500)
   }
 })
