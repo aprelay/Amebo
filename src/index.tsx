@@ -1366,12 +1366,39 @@ app.post('/api/messages/send', async (c) => {
     }
 
     // Verify user is member of room
-    const member = await c.env.DB.prepare(`
+    let member = await c.env.DB.prepare(`
       SELECT * FROM room_members WHERE room_id = ? AND user_id = ?
     `).bind(roomId, senderId).first()
 
     if (!member) {
-      return c.json({ error: 'Not a member of this room' }, 403)
+      console.log('[SEND] ⚠️ User not in room_members, checking if DM room...')
+      
+      // Check if this is a DM room involving this user
+      const dmRoom = await c.env.DB.prepare(`
+        SELECT * FROM direct_message_rooms 
+        WHERE room_id = ? AND (user1_id = ? OR user2_id = ?)
+      `).bind(roomId, senderId, senderId).first()
+      
+      if (dmRoom) {
+        console.log('[SEND] ✅ DM room found, auto-adding user as member')
+        // Auto-add user as member for DM rooms
+        await c.env.DB.prepare(`
+          INSERT OR IGNORE INTO room_members (room_id, user_id) VALUES (?, ?)
+        `).bind(roomId, senderId).run()
+        
+        // Verify it was added
+        member = await c.env.DB.prepare(`
+          SELECT * FROM room_members WHERE room_id = ? AND user_id = ?
+        `).bind(roomId, senderId).first()
+        
+        if (!member) {
+          console.error('[SEND] ❌ Failed to auto-add member')
+          return c.json({ error: 'Failed to add room member' }, 500)
+        }
+      } else {
+        console.error('[SEND] ❌ Not a member and not a DM participant')
+        return c.json({ error: 'Not a member of this room' }, 403)
+      }
     }
 
     const messageId = crypto.randomUUID()
@@ -4990,11 +5017,17 @@ app.post('/api/typing/start', async (c) => {
       return c.json({ error: 'User not found' }, 404)
     }
     
-    // Insert or update typing status
-    await c.env.DB.prepare(`
-      INSERT OR REPLACE INTO typing_status (room_id, user_id, started_at)
-      VALUES (?, ?, datetime('now'))
-    `).bind(room_id, user.id).run()
+    // Insert or update typing status - with error handling for missing table
+    try {
+      await c.env.DB.prepare(`
+        INSERT OR REPLACE INTO typing_status (room_id, user_id, started_at)
+        VALUES (?, ?, datetime('now'))
+      `).bind(room_id, user.id).run()
+    } catch (dbError: any) {
+      console.error('[TYPING] DB error (table might not exist):', dbError.message)
+      // Silently fail if typing_status table doesn't exist
+      // This is non-critical functionality
+    }
     
     return c.json({ success: true })
   } catch (error) {
@@ -5018,9 +5051,14 @@ app.post('/api/typing/stop', async (c) => {
       return c.json({ error: 'User not found' }, 404)
     }
     
-    await c.env.DB.prepare(`
-      DELETE FROM typing_status WHERE room_id = ? AND user_id = ?
-    `).bind(room_id, user.id).run()
+    try {
+      await c.env.DB.prepare(`
+        DELETE FROM typing_status WHERE room_id = ? AND user_id = ?
+      `).bind(room_id, user.id).run()
+    } catch (dbError: any) {
+      console.error('[TYPING] DB error (table might not exist):', dbError.message)
+      // Silently fail if typing_status table doesn't exist
+    }
     
     return c.json({ success: true })
   } catch (error) {
