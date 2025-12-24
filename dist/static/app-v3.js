@@ -2019,8 +2019,23 @@ class SecureChatApp {
             let isSwiping = false;
             let hasMoved = false;
             let isDeleting = false;
+            let hapticTriggered = false;
             const wrapper = item.closest('.room-item-wrapper');
             const deleteButton = wrapper.querySelector('.delete-button');
+            
+            // Haptic feedback helper
+            const triggerHaptic = (style = 'light') => {
+                if (window.navigator && window.navigator.vibrate) {
+                    const patterns = {
+                        light: 10,
+                        medium: 20,
+                        heavy: 30,
+                        success: [10, 50, 10],
+                        warning: [20, 100, 20]
+                    };
+                    window.navigator.vibrate(patterns[style] || 10);
+                }
+            };
             
             item.addEventListener('touchstart', (e) => {
                 if (isDeleting) return;
@@ -2030,6 +2045,7 @@ class SecureChatApp {
                 currentY = startY;
                 isSwiping = true;
                 hasMoved = false;
+                hapticTriggered = false;
                 item.style.transition = 'none';
             }, { passive: true });
             
@@ -2041,14 +2057,35 @@ class SecureChatApp {
                 const diffX = startX - currentX;
                 const diffY = Math.abs(startY - currentY);
                 
-                // Only consider it a swipe if horizontal movement > 10px and more horizontal than vertical
-                if (Math.abs(diffX) > 10 && Math.abs(diffX) > diffY) {
+                // Only consider it a swipe if horizontal movement > 5px and more horizontal than vertical
+                if (Math.abs(diffX) > 5 && Math.abs(diffX) > diffY) {
                     hasMoved = true;
                     
                     // Only allow swipe left (positive diff)
-                    if (diffX > 0 && diffX <= 80) {
+                    if (diffX > 0 && diffX <= 100) {
                         e.preventDefault();
-                        item.style.transform = `translateX(-${diffX}px)`;
+                        
+                        // Smooth resistance effect as you swipe further
+                        const resistance = diffX > 80 ? 80 + (diffX - 80) * 0.3 : diffX;
+                        item.style.transform = `translateX(-${resistance}px)`;
+                        
+                        // Haptic feedback when revealing delete button (at 40px threshold)
+                        if (diffX > 40 && !hapticTriggered) {
+                            triggerHaptic('medium');
+                            hapticTriggered = true;
+                            
+                            // Visual feedback: pulse delete button
+                            deleteButton.style.animation = 'pulse 0.3s ease';
+                            setTimeout(() => {
+                                deleteButton.style.animation = '';
+                            }, 300);
+                        }
+                        
+                        // Change delete button color intensity based on swipe distance
+                        if (diffX > 40) {
+                            const intensity = Math.min((diffX - 40) / 40, 1);
+                            deleteButton.style.opacity = 0.7 + (intensity * 0.3);
+                        }
                     }
                 }
             });
@@ -2060,18 +2097,27 @@ class SecureChatApp {
                 const diffY = Math.abs(startY - currentY);
                 const totalMovement = Math.sqrt(diffX * diffX + diffY * diffY);
                 
-                item.style.transition = 'transform 0.3s ease';
+                item.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
                 
                 // Only process as swipe if there was horizontal movement
                 if (hasMoved && Math.abs(diffX) > diffY) {
-                    // If swiped more than 40px, show delete button
-                    if (diffX > 40) {
+                    // If swiped more than 50px, show delete button (lowered threshold for easier access)
+                    if (diffX > 50) {
                         item.style.transform = 'translateX(-80px)';
+                        triggerHaptic('light');
                         
-                        // Add click handler to delete button
-                        deleteButton.onclick = (e) => {
+                        // Add click handler to delete button with immediate visual feedback
+                        deleteButton.onclick = async (e) => {
                             e.stopPropagation();
-                            this.confirmDeleteRoom(item.dataset.roomId, item.dataset.roomCode);
+                            triggerHaptic('warning');
+                            
+                            // Visual feedback: scale down
+                            deleteButton.style.transform = 'scale(0.9)';
+                            setTimeout(() => {
+                                deleteButton.style.transform = 'scale(1)';
+                            }, 100);
+                            
+                            await this.confirmDeleteRoom(item.dataset.roomId, item.dataset.roomCode);
                         };
                     } else {
                         // Snap back
@@ -2079,11 +2125,11 @@ class SecureChatApp {
                     }
                 } else {
                     // Only open room if it was a real tap (minimal movement)
-                    // Ignore if vertical scroll or pull-to-refresh (diffY > 10px or totalMovement > 15px)
                     const transform = item.style.transform;
-                    const isRealTap = totalMovement < 15 && diffY < 10;
+                    const isRealTap = totalMovement < 10 && diffY < 5;
                     
                     if (isRealTap && (!transform || transform === 'translateX(0px)' || transform === '')) {
+                        triggerHaptic('light');
                         this.openRoom(item.dataset.roomId, item.dataset.roomCode);
                     } else if (transform && transform !== 'translateX(0px)' && transform !== '') {
                         // If already swiped, snap back
@@ -2093,6 +2139,14 @@ class SecureChatApp {
                 
                 isSwiping = false;
                 hasMoved = false;
+            }, { passive: true });
+            
+            // Close swipe on scroll
+            window.addEventListener('scroll', () => {
+                if (item.style.transform && item.style.transform !== 'translateX(0px)') {
+                    item.style.transition = 'transform 0.3s ease';
+                    item.style.transform = 'translateX(0)';
+                }
             }, { passive: true });
         });
     }
@@ -2105,15 +2159,84 @@ class SecureChatApp {
         
         console.log('[DELETE] Room found:', room);
         
-        const confirmed = confirm(`Delete "${roomName}"?\n\nThis will:\n• Remove the chat from your list\n• You can rejoin with the room code later\n• Messages will remain for other members`);
+        // Modern, mobile-friendly confirmation modal
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4';
+        modal.style.animation = 'fadeIn 0.2s ease';
         
-        console.log('[DELETE] User confirmed:', confirmed);
+        modal.innerHTML = `
+            <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl" style="animation: slideUp 0.3s ease;">
+                <div class="p-6">
+                    <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full">
+                        <i class="fas fa-trash-alt text-2xl text-red-500"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-center mb-2">Delete Chat?</h3>
+                    <p class="text-gray-600 text-center mb-1">"${roomName}"</p>
+                    <div class="text-sm text-gray-500 space-y-1 mt-4">
+                        <p>• Chat will be removed from your list</p>
+                        <p>• You can rejoin with the room code later</p>
+                        <p>• Messages remain for other members</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 p-4 border-t">
+                    <button id="cancelDelete" class="px-4 py-3 text-gray-700 font-semibold rounded-xl hover:bg-gray-100 transition active:scale-95">
+                        Cancel
+                    </button>
+                    <button id="confirmDelete" class="px-4 py-3 bg-red-500 text-white font-semibold rounded-xl hover:bg-red-600 transition active:scale-95">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        `;
         
-        if (confirmed) {
-            await this.deleteRoom(roomId);
-        } else {
-            console.log('[DELETE] Delete cancelled by user');
-        }
+        document.body.appendChild(modal);
+        
+        // Add animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            @keyframes slideUp {
+                from { transform: translateY(20px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        return new Promise((resolve) => {
+            const cancelBtn = modal.querySelector('#cancelDelete');
+            const confirmBtn = modal.querySelector('#confirmDelete');
+            
+            const cleanup = () => {
+                modal.style.animation = 'fadeOut 0.2s ease';
+                setTimeout(() => {
+                    modal.remove();
+                    style.remove();
+                }, 200);
+            };
+            
+            cancelBtn.onclick = () => {
+                console.log('[DELETE] Delete cancelled by user');
+                cleanup();
+                resolve(false);
+            };
+            
+            confirmBtn.onclick = async () => {
+                console.log('[DELETE] User confirmed deletion');
+                cleanup();
+                await this.deleteRoom(roomId);
+                resolve(true);
+            };
+            
+            // Close on backdrop click
+            modal.onclick = (e) => {
+                if (e.target === modal) {
+                    cancelBtn.click();
+                }
+            };
+        });
     }
     
     async deleteRoom(roomId) {
@@ -2125,6 +2248,30 @@ class SecureChatApp {
                 console.error('[DELETE] No user email found!');
                 this.showToast('Error: Not logged in', 'error');
                 return;
+            }
+            
+            // Haptic feedback
+            if (window.navigator && window.navigator.vibrate) {
+                window.navigator.vibrate([10, 50, 10]);
+            }
+            
+            // Find the room element for animation
+            const roomElement = document.querySelector(`[data-room-id="${roomId}"]`);
+            const wrapper = roomElement?.closest('.room-item-wrapper');
+            
+            // Optimistic UI update - animate out immediately
+            if (wrapper) {
+                wrapper.style.transition = 'all 0.3s ease';
+                wrapper.style.transform = 'translateX(-100%)';
+                wrapper.style.opacity = '0';
+                wrapper.style.height = wrapper.offsetHeight + 'px';
+                
+                setTimeout(() => {
+                    wrapper.style.height = '0';
+                    wrapper.style.marginBottom = '0';
+                    wrapper.style.paddingTop = '0';
+                    wrapper.style.paddingBottom = '0';
+                }, 100);
             }
             
             this.showToast('Deleting chat...', 'info');
@@ -2142,6 +2289,12 @@ class SecureChatApp {
             if (response.ok) {
                 const data = await response.json();
                 console.log('[DELETE] Success:', data);
+                
+                // Success haptic
+                if (window.navigator && window.navigator.vibrate) {
+                    window.navigator.vibrate(50);
+                }
+                
                 this.showToast('Chat deleted!', 'success');
                 
                 // Clear all cached data for this room
@@ -2154,11 +2307,30 @@ class SecureChatApp {
                 // Remove room from local array
                 this.rooms = this.rooms.filter(r => r.id !== roomId);
                 
-                // Force complete UI refresh
-                await this.showRoomList();
+                // Wait for animation to complete, then refresh
+                setTimeout(async () => {
+                    await this.showRoomList();
+                }, 400);
             } else {
                 const data = await response.json();
                 console.error('[DELETE] Failed:', data);
+                
+                // Revert animation on error
+                if (wrapper) {
+                    wrapper.style.transition = 'all 0.3s ease';
+                    wrapper.style.transform = 'translateX(0)';
+                    wrapper.style.opacity = '1';
+                    wrapper.style.height = 'auto';
+                    wrapper.style.marginBottom = '';
+                    wrapper.style.paddingTop = '';
+                    wrapper.style.paddingBottom = '';
+                }
+                
+                // Error haptic
+                if (window.navigator && window.navigator.vibrate) {
+                    window.navigator.vibrate([50, 100, 50]);
+                }
+                
                 this.showToast(data.error || 'Failed to delete chat', 'error');
             }
         } catch (error) {
