@@ -1139,14 +1139,39 @@ app.post('/api/rooms/direct', async (c) => {
     `).bind(user1Id, user2Id, user2Id, user1Id).first()
     
     if (existingDM) {
-      // Get room details
+      // Get room details with other user info
       const room = await c.env.DB.prepare(`
-        SELECT * FROM chat_rooms WHERE id = ?
-      `).bind(existingDM.room_id).first()
+        SELECT 
+          r.*,
+          u2.id as other_user_id,
+          u2.username as other_user_username,
+          u2.display_name as other_user_display_name,
+          u2.email as other_user_email,
+          u2.avatar as other_user_avatar,
+          u2.online_status as other_user_online_status,
+          u2.last_seen as other_user_last_seen
+        FROM chat_rooms r
+        LEFT JOIN users u2 ON u2.id = ?
+        WHERE r.id = ?
+      `).bind(user2Id, existingDM.room_id).first()
+      
+      // Format room with other_user object
+      const formattedRoom = {
+        ...room,
+        other_user: room.other_user_id ? {
+          id: room.other_user_id,
+          username: room.other_user_username,
+          display_name: room.other_user_display_name,
+          email: room.other_user_email,
+          avatar: room.other_user_avatar,
+          online_status: room.other_user_online_status,
+          last_seen: room.other_user_last_seen
+        } : null
+      }
       
       return c.json({
         success: true,
-        room,
+        room: formattedRoom,
         isNew: false
       })
     }
@@ -1184,14 +1209,39 @@ app.post('/api/rooms/direct', async (c) => {
       INSERT INTO room_members (room_id, user_id) VALUES (?, ?)
     `).bind(roomId, user2Id).run()
     
-    // Get room details
+    // Get room details with other user info
     const room = await c.env.DB.prepare(`
-      SELECT * FROM chat_rooms WHERE id = ?
-    `).bind(roomId).first()
+      SELECT 
+        r.*,
+        u2.id as other_user_id,
+        u2.username as other_user_username,
+        u2.display_name as other_user_display_name,
+        u2.email as other_user_email,
+        u2.avatar as other_user_avatar,
+        u2.online_status as other_user_online_status,
+        u2.last_seen as other_user_last_seen
+      FROM chat_rooms r
+      LEFT JOIN users u2 ON u2.id = ?
+      WHERE r.id = ?
+    `).bind(user2Id, roomId).first()
+    
+    // Format room with other_user object
+    const formattedRoom = {
+      ...room,
+      other_user: room.other_user_id ? {
+        id: room.other_user_id,
+        username: room.other_user_username,
+        display_name: room.other_user_display_name,
+        email: room.other_user_email,
+        avatar: room.other_user_avatar,
+        online_status: room.other_user_online_status,
+        last_seen: room.other_user_last_seen
+      } : null
+    }
     
     return c.json({
       success: true,
-      room,
+      room: formattedRoom,
       isNew: true,
       message: 'Direct message room created'
     })
