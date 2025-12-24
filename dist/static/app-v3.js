@@ -3045,20 +3045,14 @@ class SecureChatApp {
                     if (lastIndex !== -1 && lastIndex < decryptedMessages.length - 1) {
                         const newMessagesOnly = decryptedMessages.slice(lastIndex + 1);
                         
-                        // Increment unread count for closed rooms (in-memory only)
-                        if (document.hidden || !document.hasFocus()) {
+                        // Only increment unread count if user is NOT viewing (hidden or unfocused)
+                        const isUserViewing = !document.hidden && document.hasFocus();
+                        if (!isUserViewing) {
                             const currentUnread = this.unreadCounts.get(this.currentRoom.id) || 0;
                             this.unreadCounts.set(this.currentRoom.id, currentUnread + newMessagesOnly.length);
-                            // this.saveUnreadCounts();  // REMOVED - don't save to localStorage
-                            
-                            // DISABLED: Don't show notifications for new messages
-                            // Only update unread count badge, no notification
-                            console.log('[NOTIF] ✅ Updated unread count:', currentUnread + newMessagesOnly.length, '(notifications disabled)');
-                            
-                            // OLD CODE (disabled):
-                            // newMessagesOnly.forEach(msg => {
-                            //     this.queueNotification(msg, this.currentRoom.room_name || this.currentRoom.room_code);
-                            // });
+                            console.log('[NOTIF] 📊 User away - incremented unread count:', currentUnread + newMessagesOnly.length);
+                        } else {
+                            console.log('[NOTIF] ✅ User viewing - will mark as read (no unread increment)');
                         }
                     }
                 }
@@ -3122,14 +3116,18 @@ class SecureChatApp {
                     
                     this.lastMessageIds.set(this.currentRoom.id, latestMessageId);
                     
-                    // CRITICAL FIX: Only mark as read on INITIAL load, NOT during polling!
-                    // During polling, we want to show unread counts for new messages
-                    if (isInitialLoad) {
-                        console.log('[LOAD] ✅ Marking room as read (initial load)');
+                    // CRITICAL FIX: Mark as read if user is actively viewing the chat
+                    // Only skip marking as read if window is hidden or not focused
+                    const isUserViewing = !document.hidden && document.hasFocus();
+                    
+                    if (isUserViewing || isInitialLoad) {
+                        console.log('[LOAD] ✅ Marking room as read (user viewing or initial load)');
                         this.lastReadMessageIds.set(this.currentRoom.id, latestMessageId);
                         this.saveLastReadMessages();
+                        this.unreadCounts.set(this.currentRoom.id, 0);
+                        this.updateRoomListBadges();
                     } else {
-                        console.log('[LOAD] 📊 Polling update - NOT marking as read (preserving unread count)');
+                        console.log('[LOAD] 📊 User away - NOT marking as read (preserving unread count)');
                     }
                 } else if (isInitialLoad) {
                     this.messages = decryptedMessages;
