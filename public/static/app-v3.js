@@ -2922,8 +2922,9 @@ class SecureChatApp {
     }
 
     async loadMessages() {
-        if (!this.currentRoom) {
-            console.log('[LOAD] ⚠️ No current room, cannot load messages');
+        // CRITICAL: Check if currentRoom still exists
+        if (!this.currentRoom || !this.currentRoom.id) {
+            console.log('[LOAD] ⚠️ No current room or room cleared, skipping load');
             return;
         }
         
@@ -4034,13 +4035,17 @@ class SecureChatApp {
         console.log('[POLL] 🎯 Current room:', this.currentRoom?.id, this.currentRoom?.room_code);
         
         this.messagePoller = setInterval(async () => {
-            if (this.currentRoom) {
-                console.log('[POLL] 🔄 Polling tick - fetching messages for room:', this.currentRoom.id);
+            // Capture current room reference to avoid race conditions
+            const room = this.currentRoom;
+            if (room && room.id) {
+                console.log('[POLL] 🔄 Polling tick - fetching messages for room:', room.id);
                 // Always load messages (smart append logic handles rendering)
                 await this.loadMessages();
                 
-                // Poll typing indicators
-                await this.pollTypingIndicators(this.currentRoom.id);
+                // Poll typing indicators (check room still exists)
+                if (this.currentRoom && this.currentRoom.id === room.id) {
+                    await this.pollTypingIndicators(room.id);
+                }
             } else {
                 console.log('[POLL] ⚠️ No current room - skipping poll');
             }
