@@ -66,11 +66,11 @@ app.get('/api/v2/health', (c) => {
 });
 
 // ============================================
-// STATIC FILES
+// STATIC FILES (Served automatically by Cloudflare Pages)
 // ============================================
 
-// Serve static files from public/static_v2/
-app.use('/static/*', serveStatic({ root: './public/static_v2' }));
+// Static files in dist_v2/static_v2/ are automatically served by Cloudflare Pages
+// No explicit serveStatic needed for production deployment
 
 // ============================================
 // ROOT ROUTE
@@ -84,7 +84,7 @@ app.get('/', (c) => {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Amebo v2.0 - Bug-Free Messaging</title>
-            <link rel="stylesheet" href="/static/css/styles.css">
+            <link rel="stylesheet" href="/static_v2/css/styles.css">
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         </head>
         <body>
@@ -95,7 +95,7 @@ app.get('/', (c) => {
                 </div>
             </div>
             
-            <script type="module" src="/static/js/app.js"></script>
+            <script type="module" src="/static_v2/js/app.js"></script>
         </body>
         </html>
     `);

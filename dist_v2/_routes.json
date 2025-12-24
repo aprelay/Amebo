@@ -1,1 +1,1 @@
-{"version":1,"include":["/*"],"exclude":["/static/*","/sw.js"]}
+{"version":1,"include":["/*"],"exclude":["/static/*","/static_v2/*","/sw.js"]}
