@@ -10392,11 +10392,16 @@ class SecureChatApp {
     }
 
     async showUserProfile(roomId, roomCode) {
+        console.log('[PROFILE] Opening profile for room:', roomId, roomCode);
+        console.log('[PROFILE] Current user ID:', this.currentUser?.id);
+        
         // Push to navigation history
         this.pushNavigation('userProfile', { roomId, roomCode });
         
         const room = this.rooms.find(r => r.id === roomId);
         const roomName = room?.room_name || 'User';
+        
+        console.log('[PROFILE] Room found:', room);
         
         // Check mute status
         let isMuted = false;
@@ -10413,16 +10418,37 @@ class SecureChatApp {
         
         // Fetch real user data
         let userData = { username: roomName, bio: 'Hey there! I\'m using Amebo.', status: 'offline', avatar: null };
+        let otherUserId = null;
+        
         try {
             // Extract user ID from DM room code (dm-user1id-user2id)
             if (room?.room_code?.startsWith('dm-')) {
                 const parts = room.room_code.split('-');
-                const otherUserId = parts[1] === this.currentUser.id ? parts[2] : parts[1];
+                console.log('[PROFILE] DM room code parts:', parts);
+                
+                // parts[0] = 'dm', parts[1] = userId1, parts[2] = userId2
+                otherUserId = parts[1] === this.currentUser.id ? parts[2] : parts[1];
+                console.log('[PROFILE] Current user:', this.currentUser.id);
+                console.log('[PROFILE] Other user ID:', otherUserId);
+                
+                if (!otherUserId || otherUserId === this.currentUser.id) {
+                    console.error('[PROFILE] ERROR: Could not determine other user ID!');
+                    console.error('[PROFILE] Room code:', room.room_code);
+                    console.error('[PROFILE] Parts:', parts);
+                    console.error('[PROFILE] Current user ID:', this.currentUser.id);
+                }
                 
                 const response = await fetch(`${API_BASE}/api/users/${otherUserId}`);
+                console.log('[PROFILE] User data response status:', response.status);
+                
                 if (response.ok) {
                     userData = await response.json();
+                    console.log('[PROFILE] Loaded user data:', userData);
+                } else {
+                    console.error('[PROFILE] Failed to fetch user data');
                 }
+            } else {
+                console.warn('[PROFILE] Not a DM room:', room?.room_code);
             }
         } catch (error) {
             console.error('[PROFILE] Error fetching user:', error);
