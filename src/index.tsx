@@ -2735,38 +2735,49 @@ app.post('/api/tokens/award', async (c) => {
     `).bind(userId).first()
     
     if (!user) {
+      console.log('[TOKEN] ⚠️ User not found:', userId)
       return c.json({ error: 'User not found' }, 404)
     }
     
     const currentTokens = user.tokens || 0
     const { tier, multiplier } = getTierMultiplier(currentTokens)
     
-    // Check monthly limit FIRST (highest priority)
-    const monthlyCheck = await checkMonthlyLimit(c.env.DB, userId, amount)
-    if (!monthlyCheck.allowed) {
-      console.log(`[TOKEN ECONOMY] ❌ Monthly limit reached for ${userId}: ${monthlyCheck.reason}`)
-      return c.json({ 
-        error: monthlyCheck.reason,
-        monthlyLimitReached: true,
-        current: monthlyCheck.current,
-        limit: monthlyCheck.limit,
-        remaining: monthlyCheck.remaining
-      }, 429)
+    // Check monthly limit FIRST (highest priority) - with error handling
+    try {
+      const monthlyCheck = await checkMonthlyLimit(c.env.DB, userId, amount)
+      if (!monthlyCheck.allowed) {
+        console.log(`[TOKEN ECONOMY] ❌ Monthly limit reached for ${userId}: ${monthlyCheck.reason}`)
+        return c.json({ 
+          error: monthlyCheck.reason,
+          monthlyLimitReached: true,
+          current: monthlyCheck.current,
+          limit: monthlyCheck.limit,
+          remaining: monthlyCheck.remaining
+        }, 429)
+      }
+    } catch (monthlyError: any) {
+      console.log('[TOKEN] ⚠️ Monthly limit check failed (table may not exist):', monthlyError.message)
+      // Continue without monthly limit check if table doesn't exist
     }
     
-    // Check daily limits (only for certain actions)
+    // Check daily limits (only for certain actions) - with error handling
     const capActions = ['message_sent', 'file_shared', 'message', 'file_share']
     if (capActions.includes(reason)) {
-      const limitCheck = await checkDailyLimit(c.env.DB, userId, reason, amount)
-      
-      if (!limitCheck.allowed) {
-        console.log(`[TOKEN ECONOMY] ⚠️ Daily limit reached for ${userId}: ${limitCheck.reason}`)
-        return c.json({ 
-          error: limitCheck.reason,
-          dailyLimitReached: true,
-          current: limitCheck.current,
-          limit: limitCheck.limit
-        }, 429)
+      try {
+        const limitCheck = await checkDailyLimit(c.env.DB, userId, reason, amount)
+        
+        if (!limitCheck.allowed) {
+          console.log(`[TOKEN ECONOMY] ⚠️ Daily limit reached for ${userId}: ${limitCheck.reason}`)
+          return c.json({ 
+            error: limitCheck.reason,
+            dailyLimitReached: true,
+            current: limitCheck.current,
+            limit: limitCheck.limit
+          }, 429)
+        }
+      } catch (dailyError: any) {
+        console.log('[TOKEN] ⚠️ Daily limit check failed (table may not exist):', dailyError.message)
+        // Continue without daily limit check if table doesn't exist
       }
     }
     
@@ -2785,27 +2796,42 @@ app.post('/api/tokens/award', async (c) => {
       WHERE id = ?
     `).bind(bonusAmount, newTier, bonusAmount, userId).run()
     
-    // Record earning in history
-    await c.env.DB.prepare(`
-      INSERT INTO token_earnings (user_id, action, amount, tier, daily_total)
-      VALUES (?, ?, ?, ?, ?)
-    `).bind(userId, reason, bonusAmount, tier, bonusAmount).run()
-    
-    // Update daily caps
-    if (capActions.includes(reason)) {
-      const today = new Date().toISOString().split('T')[0]
-      const countField = reason === 'message_sent' || reason === 'message' ? 'messages_count' : 'files_count'
-      
+    // Record earning in history - with error handling for missing table
+    try {
       await c.env.DB.prepare(`
-        UPDATE daily_earning_caps 
-        SET ${countField} = ${countField} + ?,
-            total_earned = total_earned + ?
-        WHERE user_id = ? AND date = ?
-      `).bind(bonusAmount, bonusAmount, userId, today).run()
+        INSERT INTO token_earnings (user_id, action, amount, tier, daily_total)
+        VALUES (?, ?, ?, ?, ?)
+      `).bind(userId, reason, bonusAmount, tier, bonusAmount).run()
+    } catch (historyError: any) {
+      console.log('[TOKEN] ⚠️ Failed to record token history (table may not exist):', historyError.message)
+      // Continue - token balance was updated successfully
     }
     
-    // Update monthly caps and tracking
-    await updateMonthlyTracking(c.env.DB, userId, bonusAmount, reason)
+    // Update daily caps - with error handling for missing table
+    if (capActions.includes(reason)) {
+      try {
+        const today = new Date().toISOString().split('T')[0]
+        const countField = reason === 'message_sent' || reason === 'message' ? 'messages_count' : 'files_count'
+        
+        await c.env.DB.prepare(`
+          UPDATE daily_earning_caps 
+          SET ${countField} = ${countField} + ?,
+              total_earned = total_earned + ?
+          WHERE user_id = ? AND date = ?
+        `).bind(bonusAmount, bonusAmount, userId, today).run()
+      } catch (capsError: any) {
+        console.log('[TOKEN] ⚠️ Failed to update daily caps (table may not exist):', capsError.message)
+        // Continue - token balance was updated successfully
+      }
+    }
+    
+    // Update monthly caps and tracking - with error handling
+    try {
+      await updateMonthlyTracking(c.env.DB, userId, bonusAmount, reason)
+    } catch (monthlyError: any) {
+      console.log('[TOKEN] ⚠️ Failed to update monthly tracking (table may not exist):', monthlyError.message)
+      // Continue - token balance was updated successfully
+    }
     
     const tierBonus = multiplier > 1 ? ` (${tier} tier ${multiplier}x bonus!)` : ''
     const monthlyWarning = monthlyCheck.isWarning ? ` ⚠️ Approaching monthly limit (${monthlyCheck.current + bonusAmount}/${monthlyCheck.limit})` : ''
