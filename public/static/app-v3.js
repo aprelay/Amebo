@@ -2419,6 +2419,7 @@ class SecureChatApp {
                                 placeholder="Type a message"
                                 rows="1"
                                 style="flex: 1; min-width: 0; padding: 9px 14px; border: none; border-radius: 18px; background: white; font-size: 14px; outline: none; max-width: 100%; resize: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; line-height: 1.4; max-height: 90px; overflow-y: auto;"
+                                oninput="const btn = document.getElementById('sendBtn'); if(btn) btn.style.opacity = this.value.trim().length > 0 ? '1' : '0.5';"
                                 onkeypress="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); app.sendMessage(); }"
                             ></textarea>
                             
@@ -2428,7 +2429,7 @@ class SecureChatApp {
                             </button>
                             
                             <!-- Send Button (always visible, brightens when typing) -->
-                            <button id="sendBtn" style="background: #25d366; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.3); flex-shrink: 0; align-self: flex-end; margin-bottom: 3px; transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0.5; touch-action: manipulation; -webkit-tap-highlight-color: transparent;" title="Send Message">
+                            <button id="sendBtn" onclick="app.sendMessage()" style="background: #25d366; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.3); flex-shrink: 0; align-self: flex-end; margin-bottom: 3px; transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0.5; touch-action: manipulation; -webkit-tap-highlight-color: transparent;" title="Send Message">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                             
@@ -3547,24 +3548,18 @@ class SecureChatApp {
                 console.log('[SEND] ✅ Message sent successfully!');
                 
                 input.value = '';
-                // Reset button back to microphone
-                this.handleMessageInput();
+                // Reset button opacity
+                const sendBtn = document.getElementById('sendBtn');
+                if (sendBtn) sendBtn.style.opacity = '0.5';
                 
-                // INSTANT MESSAGE DISPLAY:
-                // Invalidate cache and reload messages immediately
-                console.log('[SEND] 🔄 Reloading messages to show new message...');
+                // DON'T reload messages - let polling handle it (faster!)
+                // Invalidate cache so next poll gets fresh data
                 this.messageCache.delete(this.currentRoom.id);
-                await this.loadMessages();
                 
-                console.log('[SEND] ✅ Messages reloaded, new message should be visible');
+                console.log('[SEND] ✅ Message sent, polling will show it within 1 second');
                 
-                // Force scroll to bottom after sending your own message
-                setTimeout(() => {
-                    this.scrollToBottom(true);
-                }, 100);
-                
-                // Award tokens for messaging
-                await this.awardTokens(1, 'message');
+                // Award tokens for messaging (don't await - fire and forget)
+                this.awardTokens(1, 'message').catch(e => console.log('[TOKENS] Award failed:', e));
             } else {
                 console.error('[SEND] ❌ Send failed:', data.error);
                 this.showToast('Failed to send message', 'error');
