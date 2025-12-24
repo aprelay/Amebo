@@ -4874,11 +4874,7 @@ class SecureChatApp {
                         continue;
                     }
                     
-                    // Get last read message ID for this room
-                const lastReadId = this.lastReadMessageIds.get(room.id);
-                const latestMessageId = messages[messages.length - 1].id;
-                
-                // CRITICAL FIX: Use TIMESTAMP-based approach
+                    // CRITICAL FIX: Use TIMESTAMP-based approach
                 const lastReadId = this.lastReadMessageIds.get(room.id);
                 const lastReadMsg = messages.find(m => m.id === lastReadId);
                 const lastReadTimestamp = lastReadMsg ? new Date(lastReadMsg.created_at).getTime() : 0;
