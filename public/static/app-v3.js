@@ -3550,8 +3550,6 @@ class SecureChatApp {
             // Encrypt message with room key
             const roomKey = this.roomKeys.get(this.currentRoom.id);
             const encrypted = await CryptoUtils.encryptMessage(content, roomKey);
-
-            console.log('[SEND] 🔒 Message encrypted, sending to server...');
             
             const response = await fetch(`${API_BASE}/api/messages/send`, {
                 method: 'POST',
@@ -3568,26 +3566,22 @@ class SecureChatApp {
             console.log('[SEND] 📥 Server response:', data);
 
             if (data.success) {
-                console.log('[SEND] ✅ Message sent successfully!');
-                
-                // INSTANT UI UPDATE: Clear input immediately
+                // ⚡ INSTANT UI: Clear input immediately
                 input.value = '';
+                input.focus();
+                
+                // Update send button state
                 const sendBtn = document.getElementById('sendBtn');
                 if (sendBtn) sendBtn.style.opacity = '0.5';
                 
-                // INSTANT RELOAD: Invalidate cache
+                // Invalidate cache and reload messages (fire and forget)
                 this.messageCache.delete(this.currentRoom.id);
+                this.loadMessages().catch(e => console.error('[SEND] Reload error:', e));
                 
-                // ⚡ BLAZING FAST: Fire and forget - don't block UI
-                this.loadMessages().catch(e => console.log('[SEND] Reload error:', e));
-                
-                // Award tokens (fire and forget)
-                this.awardTokens(1, 'message').catch(e => console.log('[TOKENS] Award failed:', e));
-                
-                console.log('[SEND] ⚡ Message sent, reloading in background');
+                // Award tokens silently
+                this.awardTokens(1, 'message').catch(e => console.error('[TOKENS] Award failed:', e));
             } else {
-                console.error('[SEND] ❌ Send failed:', data.error);
-                this.showToast('Failed to send message', 'error');
+                this.showToast('Failed to send', 'error');
             }
         } catch (error) {
             console.error('[SEND] ❌ Error sending message:', error);
@@ -8915,7 +8909,6 @@ class SecureChatApp {
     
     async startDirectMessage(userId, username) {
         console.log('[DM] 💬 Starting direct message with:', { userId, username });
-        console.log('[DM] Current user:', this.currentUser?.email);
         
         if (!userId) {
             console.error('[DM] ❌ No userId provided');
@@ -8924,7 +8917,8 @@ class SecureChatApp {
         }
         
         try {
-            this.showToast('Opening chat...', 'info');
+            // Show brief loading indicator
+            const loadingToast = this.showToast('Opening chat...', 'info');
             
             const response = await fetch('/api/rooms/direct', {
                 method: 'POST',
@@ -8936,23 +8930,17 @@ class SecureChatApp {
             });
             
             const data = await response.json();
-            console.log('[DM] Response:', { ok: response.ok, data });
+            console.log('[DM] ✅ Got room:', data.room.id);
             
             if (response.ok) {
-                // Use room directly from API response instead of searching
-                const room = data.room;
-                console.log('[DM] Got room from API:', { id: room.id, code: room.room_code });
-                
-                // Open the room directly with data from API
-                await this.openRoom(room.id, room.room_code);
+                // Open chat IMMEDIATELY with room from API
+                await this.openRoom(data.room.id, data.room.room_code);
             } else {
-                // Show error based on privacy settings
-                console.error('[DM] Failed:', data.error);
                 this.showToast(data.error || 'Failed to start chat', 'error');
             }
         } catch (error) {
-            console.error('[DM] Error starting direct message:', error);
-            this.showToast('Error starting direct message', 'error');
+            console.error('[DM] ❌ Error:', error);
+            this.showToast('Error starting chat', 'error');
         }
     }
 
@@ -9262,16 +9250,15 @@ class SecureChatApp {
                     </div>
                     <div class="flex gap-2">
                         <button 
-                            class="contact-chat-btn bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 transition text-sm"
-                            data-contact-id="${contact.id}"
-                            data-contact-username="${this.escapeHtml(contact.username)}"
+                            onclick="app.startDirectMessage('${contact.id}', '${this.escapeHtml(contact.username)}')"
+                            class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm font-medium"
                             title="Start chat"
                         >
-                            <i class="fas fa-comment"></i>
+                            <i class="fas fa-comment mr-1"></i> Chat
                         </button>
                         <button 
-                            class="contact-remove-btn bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 transition text-sm"
-                            data-contact-id="${contact.id}"
+                            onclick="app.removeContact('${contact.id}')"
+                            class="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition text-sm"
                             title="Remove contact"
                         >
                             <i class="fas fa-user-times"></i>
@@ -9280,11 +9267,6 @@ class SecureChatApp {
                 </div>
             `;
         }).join('');
-        
-        // Re-initialize button handlers after DOM update
-        setTimeout(() => {
-            this.initContactButtons();
-        }, 0);
     }
     
     async loadMyContacts() {
@@ -9334,53 +9316,7 @@ class SecureChatApp {
         }
     }
     
-    initContactButtons() {
-        console.log('[CONTACTS] 🔧 Initializing contact buttons...');
-        
-        // Chat buttons - use onclick instead of addEventListener to avoid duplicates
-        const chatButtons = document.querySelectorAll('.contact-chat-btn');
-        console.log('[CONTACTS] Found', chatButtons.length, 'chat buttons');
-        
-        chatButtons.forEach((btn, index) => {
-            const contactId = btn.dataset.contactId;
-            const contactUsername = btn.dataset.contactUsername;
-            console.log(`[CONTACTS] Button ${index + 1}:`, { contactId, contactUsername });
-            
-            // Remove old listener by cloning
-            const newBtn = btn.cloneNode(true);
-            btn.parentNode.replaceChild(newBtn, btn);
-            
-            // Add fresh listener
-            newBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('[CONTACTS] 💬 Chat button clicked:', { contactId, contactUsername });
-                this.startDirectMessage(contactId, contactUsername);
-            });
-        });
-        
-        // Remove buttons
-        const removeButtons = document.querySelectorAll('.contact-remove-btn');
-        console.log('[CONTACTS] Found', removeButtons.length, 'remove buttons');
-        
-        removeButtons.forEach(btn => {
-            const contactId = btn.dataset.contactId;
-            
-            // Remove old listener by cloning
-            const newBtn = btn.cloneNode(true);
-            btn.parentNode.replaceChild(newBtn, btn);
-            
-            // Add fresh listener
-            newBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('[CONTACTS] ❌ Remove button clicked:', contactId);
-                this.removeContact(contactId);
-            });
-        });
-        
-        console.log('[CONTACTS] ✅ Initialized', chatButtons.length, 'chat buttons +', removeButtons.length, 'remove buttons');
-    }
+    // Removed - now using inline onclick for reliability
     
     async removeContact(contactId) {
         if (!confirm('Remove this contact?')) return;
