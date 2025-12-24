@@ -691,14 +691,26 @@ app.get('/api/users/:userId', async (c) => {
     const userId = c.req.param('userId')
     
     const result = await c.env.DB.prepare(`
-      SELECT id, username, public_key, avatar, created_at FROM users WHERE id = ?
+      SELECT 
+        id, 
+        username, 
+        display_name,
+        email,
+        public_key, 
+        avatar, 
+        bio,
+        online_status as status,
+        last_seen,
+        created_at 
+      FROM users 
+      WHERE id = ?
     `).bind(userId).first()
 
     if (!result) {
       return c.json({ error: 'User not found' }, 404)
     }
 
-    return c.json({ success: true, user: result })
+    return c.json(result)
   } catch (error) {
     return c.json({ error: 'Failed to fetch user' }, 500)
   }

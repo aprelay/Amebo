@@ -98,8 +98,20 @@ var Tr=Object.defineProperty;var $e=e=>{throw TypeError(e)};var Dr=(e,r,t)=>r in
       WHERE bu.user_id = ?
       ORDER BY bu.blocked_at DESC
     `).bind(t.id).all();return e.json({success:!0,blockedUsers:s.results||[]})}catch(r){return console.error("Get blocked users error:",r),e.json({error:"Failed to get blocked users"},500)}});p.get("/api/users/:userId",async e=>{try{const r=e.req.param("userId"),t=await e.env.DB.prepare(`
-      SELECT id, username, public_key, avatar, created_at FROM users WHERE id = ?
-    `).bind(r).first();return t?e.json({success:!0,user:t}):e.json({error:"User not found"},404)}catch{return e.json({error:"Failed to fetch user"},500)}});p.post("/api/users/update-avatar",async e=>{try{const{userId:r,avatar:t}=await e.req.json();return r?(await e.env.DB.prepare(`
+      SELECT 
+        id, 
+        username, 
+        display_name,
+        email,
+        public_key, 
+        avatar, 
+        bio,
+        online_status as status,
+        last_seen,
+        created_at 
+      FROM users 
+      WHERE id = ?
+    `).bind(r).first();return t?e.json(t):e.json({error:"User not found"},404)}catch{return e.json({error:"Failed to fetch user"},500)}});p.post("/api/users/update-avatar",async e=>{try{const{userId:r,avatar:t}=await e.req.json();return r?(await e.env.DB.prepare(`
       UPDATE users SET avatar = ? WHERE id = ?
     `).bind(t,r).run(),e.json({success:!0,message:"Avatar updated"})):e.json({error:"User ID required"},400)}catch(r){return console.error("Avatar update error:",r),e.json({error:"Failed to update avatar"},500)}});p.post("/api/users/update-username",async e=>{try{const{userId:r,username:t}=await e.req.json();return!r||!t?e.json({error:"User ID and username required"},400):await e.env.DB.prepare(`
       SELECT id FROM users WHERE username = ? AND id != ?
