@@ -2283,7 +2283,7 @@ class SecureChatApp {
         }
     }
 
-    async openRoom(roomId, roomCode) {
+    async openRoom(roomId, roomCode, roomData = null) {
         console.log('[V3] Opening encrypted room:', roomId);
         
         // CRITICAL FIX: Cancel any active recording before switching rooms
@@ -2310,11 +2310,17 @@ class SecureChatApp {
         // Clear app badge when opening room (user is viewing messages)
         await this.updateAppBadge(0);
         
-        this.currentRoom = this.rooms.find(r => r.id === roomId);
-        
-        if (!this.currentRoom) {
-            await this.loadRooms();
+        // Use provided room data if available, otherwise find in list
+        if (roomData) {
+            console.log('[V3] Using room data from API:', roomData);
+            this.currentRoom = roomData;
+        } else {
             this.currentRoom = this.rooms.find(r => r.id === roomId);
+            
+            if (!this.currentRoom) {
+                await this.loadRooms();
+                this.currentRoom = this.rooms.find(r => r.id === roomId);
+            }
         }
 
         // Push to navigation history
@@ -8957,8 +8963,8 @@ class SecureChatApp {
             console.log('[DM] ✅ Got room:', data.room.id);
             
             if (response.ok) {
-                // Open chat IMMEDIATELY with room from API
-                await this.openRoom(data.room.id, data.room.room_code);
+                // Open chat IMMEDIATELY with room data from API
+                await this.openRoom(data.room.id, data.room.room_code, data.room);
             } else {
                 this.showToast(data.error || 'Failed to start chat', 'error');
             }
