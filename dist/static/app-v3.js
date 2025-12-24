@@ -2299,6 +2299,9 @@ class SecureChatApp {
         this.unreadCounts.set(roomId, 0);
         // this.saveUnreadCounts();  // REMOVED - don't save to localStorage
         
+        // IMMEDIATE: Update badge display
+        this.updateRoomListBadges();
+        
         // Will mark messages as read after loading them
         
         // Clear messages for fresh load (forces isInitialLoad = true)
@@ -3177,6 +3180,7 @@ class SecureChatApp {
                         this.saveLastReadMessages();
                         this.unreadCounts.set(this.currentRoom.id, 0);
                         this.updateRoomListBadges();
+                        console.log('[LOAD] 🎯 Unread count for this room:', this.unreadCounts.get(this.currentRoom.id));
                     } else {
                         console.log('[LOAD] 📊 User away - NOT marking as read (preserving unread count)');
                     }

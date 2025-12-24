@@ -1408,47 +1408,9 @@ app.post('/api/messages/send', async (c) => {
       VALUES (?, ?, ?, ?, ?)
     `).bind(messageId, roomId, senderId, encryptedContent, iv).run()
 
-    // ✅ NEW: Create notifications for other room members (for mobile push)
-    try {
-      // Get sender info
-      const sender = await c.env.DB.prepare(`
-        SELECT username FROM users WHERE id = ?
-      `).bind(senderId).first()
-      
-      // Get room info
-      const room = await c.env.DB.prepare(`
-        SELECT room_name, room_code FROM chat_rooms WHERE id = ?
-      `).bind(roomId).first()
-      
-      // Get all room members except sender
-      const { results: members } = await c.env.DB.prepare(`
-        SELECT user_id FROM room_members WHERE room_id = ? AND user_id != ?
-      `).bind(roomId, senderId).all()
-      
-      const roomName = room?.room_name || room?.room_code || 'Unknown Room'
-      const senderName = sender?.username || 'Someone'
-      
-      // Create notification for each member
-      for (const member of members || []) {
-        const notifId = crypto.randomUUID()
-        await c.env.DB.prepare(`
-          INSERT INTO notifications (id, user_id, type, title, message, data, read)
-          VALUES (?, ?, ?, ?, ?, ?, 0)
-        `).bind(
-          notifId,
-          member.user_id,
-          'new_message',
-          `New message in ${roomName}`,
-          `${senderName} sent a message`,
-          JSON.stringify({ roomId, messageId, senderId, roomName })
-        ).run()
-        
-        console.log(`[NOTIFICATION] Created for user ${member.user_id} in room ${roomName}`)
-      }
-    } catch (notifError) {
-      console.error('[NOTIFICATION] Error creating notifications:', notifError)
-      // Don't fail message sending if notification creation fails
-    }
+    // DISABLED: Message notifications (causing issues with active chat notifications)
+    // TODO: Re-enable with proper "user is viewing room" detection
+    // Notifications should only be sent when user is NOT actively viewing the chat
 
     return c.json({ 
       success: true, 
