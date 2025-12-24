@@ -2423,9 +2423,14 @@ class SecureChatApp {
                                 onkeypress="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); app.sendMessage(); }"
                             ></textarea>
                             
-                            <!-- Voice Note Button (changes to Send when typing) -->
-                            <button id="voiceNoteBtn" style="background: #25d366; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.3); flex-shrink: 0; align-self: flex-end; margin-bottom: 3px; transition: all 0.2s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;" title="Voice Note" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 3px 8px rgba(37, 211, 102, 0.5)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 5px rgba(37, 211, 102, 0.3)'">
+                            <!-- Voice Note Button (always visible) -->
+                            <button id="voiceNoteBtn" style="background: #25d366; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.3); flex-shrink: 0; align-self: flex-end; margin-bottom: 3px; transition: all 0.2s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;" title="Record Voice Note" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 3px 8px rgba(37, 211, 102, 0.5)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 5px rgba(37, 211, 102, 0.3)'">
                                 <i class="fas fa-microphone"></i>
+                            </button>
+                            
+                            <!-- Send Button (always visible, disabled when empty) -->
+                            <button id="sendBtn" onclick="app.sendMessage()" style="background: #25d366; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.3); flex-shrink: 0; align-self: flex-end; margin-bottom: 3px; transition: all 0.2s; opacity: 0.5;" title="Send Message" onmouseover="if(!this.disabled) { this.style.transform='scale(1.05)'; this.style.boxShadow='0 3px 8px rgba(37, 211, 102, 0.5)'; }" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 5px rgba(37, 211, 102, 0.3)'" disabled>
+                                <i class="fas fa-paper-plane"></i>
                             </button>
                             
                             <!-- Recording Timer (hidden by default) -->
@@ -2477,34 +2482,19 @@ class SecureChatApp {
             console.log('[INIT] Voice button element:', voiceBtn);
             
             if (voiceBtn) {
-                console.log('[INIT] ✅ Button found! Setting up WhatsApp-style hold-to-record');
+                console.log('[INIT] ✅ Button found! Setting up voice recording');
                 
                 // CRITICAL FIX: Clone and replace the button to remove ALL old event listeners
                 // This prevents stacking listeners when opening the room multiple times
                 const newVoiceBtn = voiceBtn.cloneNode(true);
                 voiceBtn.parentNode.replaceChild(newVoiceBtn, voiceBtn);
                 
-                // WhatsApp-style gesture controls:
-                // - Click button when text exists = SEND MESSAGE
-                // - Hold button to record voice note
-                // - Slide left to cancel
-                // - Slide up to lock (hands-free)
-                // - Release to send
-                
-                // CRITICAL FIX: Remove old global listeners before adding new ones
-                // No gesture listeners to cleanup (using simple tap)
-                
-                // SIMPLE: Click to record/send (works on mobile + desktop)
+                // Voice button: Click to record/stop
                 newVoiceBtn.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation(); // Prevent event bubbling on mobile
-                    const hasText = document.getElementById('messageInput')?.value.trim().length > 0;
                     
-                    if (hasText) {
-                        // Has text: Send text message
-                        console.log('[SEND] Sending text message');
-                        this.sendMessage();
-                    } else if (this.isRecording) {
+                    if (this.isRecording) {
                         // Currently recording: Stop and send voice note
                         console.log('[VOICE] Stop recording and send');
                         this.stopRecording();
@@ -2515,9 +2505,9 @@ class SecureChatApp {
                     }
                 });
                 
-                // Set initial button state
+                // Set initial button state (send button)
                 this.handleMessageInput();
-                console.log('[INIT] ✅ Button initialized - Simple tap to record, tap to send');
+                console.log('[INIT] ✅ Voice button initialized - Click to record voice note');
             } else {
                 console.error('[INIT] ❌ Voice button not found! Attempt:', attempts);
                 
@@ -2557,39 +2547,29 @@ class SecureChatApp {
 
     handleMessageInput() {
         const input = document.getElementById('messageInput');
-        const voiceBtn = document.getElementById('voiceNoteBtn');
+        const sendBtn = document.getElementById('sendBtn');
         
-        if (!input || !voiceBtn) {
+        if (!input || !sendBtn) {
             console.log('[UI] Button elements not found yet');
             return;
         }
         
         const hasText = input.value.trim().length > 0;
         
-        // Don't change button if currently recording
-        if (this.isRecording) {
-            console.log('[UI] Recording in progress, not changing button');
-            return;
-        }
-        
-        // Update button appearance based on input state
+        // Enable/disable send button based on input
         if (hasText) {
-            // Send button appearance
-            console.log('[UI] Switching to SEND button (has text)');
-            voiceBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
-            voiceBtn.title = 'Send Message';
-            voiceBtn.setAttribute('data-mode', 'send');
+            // Enable send button
+            console.log('[UI] Enabling SEND button (has text)');
+            sendBtn.disabled = false;
+            sendBtn.style.opacity = '1';
+            sendBtn.style.cursor = 'pointer';
         } else {
-            // Voice note button appearance
-            console.log('[UI] Switching to MICROPHONE button (no text)');
-            voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-            voiceBtn.title = 'Record Voice Note';
-            voiceBtn.setAttribute('data-mode', 'voice');
+            // Disable send button
+            console.log('[UI] Disabling SEND button (no text)');
+            sendBtn.disabled = true;
+            sendBtn.style.opacity = '0.5';
+            sendBtn.style.cursor = 'not-allowed';
         }
-        
-        // Keep consistent styling
-        voiceBtn.style.background = '#25d366';
-        voiceBtn.style.animation = 'none';
     }
 
     handleButtonClick() {
