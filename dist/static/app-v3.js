@@ -351,10 +351,21 @@ class SecureChatApp {
                     console.log(`[UNREAD] Last read index: ${lastReadIndex}`);
                     
                     if (lastReadIndex === -1) {
-                        // Last read message not found - all unread
-                        this.unreadCounts.set(room.id, messages.length);
-                        console.log(`[UNREAD] Result: ${messages.length} (last read message NOT FOUND in list)`);
-                        console.log(`[UNREAD] Message IDs in room:`, messages.slice(-5).map(m => `${m.id} (${typeof m.id})`));
+                        // Last read message not found in current message list
+                        // CRITICAL FIX: Check if lastReadId matches the LATEST message
+                        // If so, all messages are read (user just exited the room)
+                        const latestMessageId = messages[messages.length - 1].id;
+                        
+                        if (lastReadId === latestMessageId) {
+                            // User has read up to latest message - all read!
+                            this.unreadCounts.set(room.id, 0);
+                            console.log(`[UNREAD] Result: 0 (lastReadId matches latest message - all read!)`);
+                        } else {
+                            // LastReadId is old/missing - assume all unread
+                            this.unreadCounts.set(room.id, messages.length);
+                            console.log(`[UNREAD] Result: ${messages.length} (last read message NOT FOUND, assuming all unread)`);
+                            console.log(`[UNREAD] Message IDs in room:`, messages.slice(-5).map(m => `${m.id} (${typeof m.id})`));
+                        }
                     } else {
                         // Count messages after last read index
                         const unreadCount = messages.length - lastReadIndex - 1;
