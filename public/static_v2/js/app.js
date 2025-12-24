@@ -69,18 +69,25 @@ class App {
      * Main render function
      */
     render() {
+        console.log('[APP] render() called - view:', state.view, 'user:', state.user?.username);
+        
         const container = document.getElementById('app');
-        if (!container) return;
+        if (!container) {
+            console.error('[APP] ❌ #app container not found!');
+            return;
+        }
         
         // Determine view
         const view = state.view;
         
         // Only re-render if view changed
         if (this.currentView === view) {
+            console.log('[APP] View unchanged, calling updateView()');
             this.updateView();
             return;
         }
         
+        console.log('[APP] Rendering view:', view);
         this.currentView = view;
         
         // Render appropriate view
