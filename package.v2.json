@@ -1,0 +1,32 @@
+{
+  "name": "amebo-v2",
+  "version": "2.0.0",
+  "description": "Amebo Chat - Clean Architecture Rebuild",
+  "main": "src_v2/index.tsx",
+  "scripts": {
+    "dev": "wrangler pages dev dist_v2 --d1=amebo-v2-production --local --ip 0.0.0.0 --port 3001",
+    "build": "vite build --config vite.config.v2.ts",
+    "deploy": "npm run build && wrangler pages deploy dist_v2 --project-name amebo-v2",
+    "db:create": "wrangler d1 create amebo-v2-production",
+    "db:migrate:local": "wrangler d1 execute amebo-v2-production --local --file=migrations_v2/0001_clean_schema_v2.sql",
+    "db:migrate:prod": "wrangler d1 execute amebo-v2-production --file=migrations_v2/0001_clean_schema_v2.sql",
+    "db:console:local": "wrangler d1 execute amebo-v2-production --local",
+    "db:console:prod": "wrangler d1 execute amebo-v2-production",
+    "type-check": "tsc --noEmit",
+    "lint": "echo 'Linting v2...'",
+    "test": "echo 'Testing v2...'"
+  },
+  "keywords": ["chat", "messaging", "encrypted", "cloudflare"],
+  "author": "Amebo Team",
+  "license": "MIT",
+  "dependencies": {
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20250705.0",
+    "@hono/vite-cloudflare-pages": "^0.4.2",
+    "vite": "^5.0.0",
+    "wrangler": "^3.78.0",
+    "typescript": "^5.0.0"
+  }
+}
