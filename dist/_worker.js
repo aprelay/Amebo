@@ -739,19 +739,23 @@ var Tr=Object.defineProperty;var $e=e=>{throw TypeError(e)};var Dr=(e,r,t)=>r in
                 if (event.data && event.data.type === 'SW_UPDATED') {
                   console.log('[PWA] App updated to version:', event.data.version);
                   
-                  // Show update notification
-                  if (window.app && typeof window.app.showToast === 'function') {
-                    window.app.showToast('✨ App updated! Refresh for latest features.', 'success');
+                  // Check if user is logged in (app exists and is initialized)
+                  const isLoggedIn = window.app && typeof window.app.showToast === 'function' && window.app.currentUser;
+                  
+                  if (isLoggedIn) {
+                    // User is logged in - show toast and auto-reload
+                    console.log('[PWA] User is logged in, showing update notification');
+                    window.app.showToast('✨ App updated! Reloading...', 'success');
                     
-                    // Auto-reload after 3 seconds
+                    // Auto-reload after 2 seconds
                     setTimeout(() => {
                       window.location.reload();
-                    }, 3000);
+                    }, 2000);
                   } else {
-                    // Fallback: just reload
-                    setTimeout(() => {
-                      window.location.reload();
-                    }, 1000);
+                    // User is on login page - silently update without notification
+                    console.log('[PWA] User on login page, updating silently');
+                    // Don't show notification, don't reload - let them login first
+                    // The new version will be active after they login
                   }
                 }
               });
