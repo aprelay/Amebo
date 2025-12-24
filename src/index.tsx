@@ -1189,10 +1189,12 @@ app.post('/api/rooms/direct', async (c) => {
     const roomCode = `dm-${crypto.randomUUID().slice(0, 8)}`
     
     // Create chat room
-    await c.env.DB.prepare(`
+    const roomResult = await c.env.DB.prepare(`
       INSERT INTO chat_rooms (id, room_code, room_name, created_by, room_type)
       VALUES (?, ?, ?, ?, 'direct')
     `).bind(roomId, roomCode, roomName, user1Id).run()
+    
+    console.log('[DM CREATE] ✅ Room created:', roomId)
     
     // Create DM mapping
     await c.env.DB.prepare(`
@@ -1200,14 +1202,25 @@ app.post('/api/rooms/direct', async (c) => {
       VALUES (?, ?, ?, ?)
     `).bind(dmId, user1Id, user2Id, roomId).run()
     
-    // Add both users as members
-    await c.env.DB.prepare(`
-      INSERT INTO room_members (room_id, user_id) VALUES (?, ?)
+    console.log('[DM CREATE] ✅ DM mapping created')
+    
+    // Add both users as members - CRITICAL for message sending
+    const member1Result = await c.env.DB.prepare(`
+      INSERT OR IGNORE INTO room_members (room_id, user_id) VALUES (?, ?)
     `).bind(roomId, user1Id).run()
     
-    await c.env.DB.prepare(`
-      INSERT INTO room_members (room_id, user_id) VALUES (?, ?)
+    const member2Result = await c.env.DB.prepare(`
+      INSERT OR IGNORE INTO room_members (room_id, user_id) VALUES (?, ?)
     `).bind(roomId, user2Id).run()
+    
+    console.log('[DM CREATE] ✅ Members added:', { user1: user1Id, user2: user2Id })
+    
+    // Verify members were added
+    const members = await c.env.DB.prepare(`
+      SELECT * FROM room_members WHERE room_id = ?
+    `).bind(roomId).all()
+    
+    console.log('[DM CREATE] 👥 Verified members:', members.results.length)
     
     // Get room details with other user info
     const room = await c.env.DB.prepare(`
