@@ -8939,22 +8939,12 @@ class SecureChatApp {
             console.log('[DM] Response:', { ok: response.ok, data });
             
             if (response.ok) {
-                // First load/refresh rooms to ensure we have the latest room data
-                await this.loadRooms();
+                // Use room directly from API response instead of searching
+                const room = data.room;
+                console.log('[DM] Got room from API:', { id: room.id, code: room.room_code });
                 
-                // Find the room in our rooms list
-                const room = this.rooms.find(r => r.room_code === data.room.room_code);
-                
-                if (room) {
-                    // Open the room with proper parameters
-                    console.log('[DM] Opening room:', { id: room.id, code: room.room_code });
-                    await this.openRoom(room.id, room.room_code);
-                } else {
-                    console.error('[DM] Room not found in rooms list:', data.room.room_code);
-                    this.showToast('Chat created! Reloading...', 'success');
-                    // Fallback: show room list and reload
-                    await this.showRoomList();
-                }
+                // Open the room directly with data from API
+                await this.openRoom(room.id, room.room_code);
             } else {
                 // Show error based on privacy settings
                 console.error('[DM] Failed:', data.error);
