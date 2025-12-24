@@ -1387,10 +1387,18 @@ app.get('/api/messages/:roomId', async (c) => {
       LIMIT ? OFFSET ?
     `).bind(roomId, limit, offset).all()
 
-    return c.json({ 
+    // CRITICAL: Disable caching for real-time messaging
+    const response = c.json({ 
       success: true, 
       messages: (result.results || []).reverse() // Return oldest first
     })
+    
+    // Add no-cache headers to prevent Cloudflare/browser caching
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    
+    return response
   } catch (error) {
     return c.json({ error: 'Failed to fetch messages' }, 500)
   }

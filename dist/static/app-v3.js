@@ -2933,7 +2933,15 @@ class SecureChatApp {
 
         try {
             console.log('[LOAD] 🌐 Fetching messages from API...');
-            const response = await fetch(`${API_BASE}/api/messages/${this.currentRoom.id}`);
+            // CRITICAL: Add timestamp to bust Cloudflare cache for real-time messaging
+            const timestamp = Date.now();
+            const response = await fetch(`${API_BASE}/api/messages/${this.currentRoom.id}?_t=${timestamp}`, {
+                cache: 'no-store', // Disable browser cache
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            });
             console.log('[LOAD] 📡 API response status:', response.status);
             
             const data = await response.json();
