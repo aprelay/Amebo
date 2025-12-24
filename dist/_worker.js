@@ -693,7 +693,7 @@ var Tr=Object.defineProperty;var $e=e=>{throw TypeError(e)};var Dr=(e,r,t)=>r in
         
         <!-- V3 INDUSTRIAL GRADE - E2E Encryption + Token System + Enhanced Features -->
         <script src="/static/crypto-v2.js?v=NOTIF-FIX-V2"><\/script>
-        <script src="/static/app-v3.js?v=REALTIME-UNREAD-1766411021"><\/script>
+        <script src="/static/app-v3.js?v=${Date.now()}"><\/script>
         
         <script>
           // Register service worker for PWA with auto-update support
