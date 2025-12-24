@@ -3552,11 +3552,16 @@ class SecureChatApp {
                 const sendBtn = document.getElementById('sendBtn');
                 if (sendBtn) sendBtn.style.opacity = '0.5';
                 
-                // DON'T reload messages - let polling handle it (faster!)
-                // Invalidate cache so next poll gets fresh data
+                // INSTANT RELOAD: Invalidate cache and reload immediately
                 this.messageCache.delete(this.currentRoom.id);
                 
-                console.log('[SEND] ✅ Message sent, polling will show it within 1 second');
+                // Force immediate reload (don't wait for polling)
+                this.loadMessages().then(() => {
+                    console.log('[SEND] ✅ Message displayed immediately');
+                    this.scrollToBottom(true);
+                }).catch(e => console.log('[SEND] Reload error:', e));
+                
+                console.log('[SEND] ✅ Message reloading...');
                 
                 // Award tokens for messaging (don't await - fire and forget)
                 this.awardTokens(1, 'message').catch(e => console.log('[TOKENS] Award failed:', e));
@@ -3992,7 +3997,7 @@ class SecureChatApp {
     startPolling() {
         if (this.messagePoller) clearInterval(this.messagePoller);
         
-        console.log('[POLL] ▶️ Starting real-time message polling (1 second interval)');
+        console.log('[POLL] ▶️ Starting real-time message polling (500ms interval - ULTRA FAST)');
         console.log('[POLL] 🎯 Current room:', this.currentRoom?.id, this.currentRoom?.room_code);
         
         this.messagePoller = setInterval(async () => {
@@ -4006,7 +4011,7 @@ class SecureChatApp {
             } else {
                 console.log('[POLL] ⚠️ No current room - skipping poll');
             }
-        }, 1000); // 🚀 FASTER: 1 second for real-time messaging (was 3 seconds)
+        }, 500); // 🚀 ULTRA-FAST: 500ms (0.5 second) for instant messaging
     }
 
     logout() {
