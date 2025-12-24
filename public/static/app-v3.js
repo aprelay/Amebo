@@ -2419,18 +2419,16 @@ class SecureChatApp {
                                 placeholder="Type a message"
                                 rows="1"
                                 style="flex: 1; min-width: 0; padding: 9px 14px; border: none; border-radius: 18px; background: white; font-size: 14px; outline: none; max-width: 100%; resize: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; line-height: 1.4; max-height: 90px; overflow-y: auto;"
-                                oninput="app.autoResizeTextarea(this); app.handleMessageInput();"
-                                onkeyup="app.handleMessageInput();"
                                 onkeypress="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); app.sendMessage(); }"
                             ></textarea>
                             
                             <!-- Voice Note Button (always visible) -->
-                            <button id="voiceNoteBtn" style="background: #25d366; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.3); flex-shrink: 0; align-self: flex-end; margin-bottom: 3px; transition: all 0.2s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;" title="Record Voice Note" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 3px 8px rgba(37, 211, 102, 0.5)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 5px rgba(37, 211, 102, 0.3)'">
+                            <button id="voiceNoteBtn" style="background: #25d366; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.3); flex-shrink: 0; align-self: flex-end; margin-bottom: 3px; transition: all 0.2s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;" title="Record Voice Note">
                                 <i class="fas fa-microphone"></i>
                             </button>
                             
-                            <!-- Send Button (always visible, grayed when empty) -->
-                            <button id="sendBtn" onclick="app.sendMessage()" style="background: #25d366; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.3); flex-shrink: 0; align-self: flex-end; margin-bottom: 3px; transition: all 0.2s; opacity: 0.5; touch-action: manipulation; -webkit-tap-highlight-color: transparent;" title="Send Message" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 3px 8px rgba(37, 211, 102, 0.5)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 5px rgba(37, 211, 102, 0.3)'">
+                            <!-- Send Button (always visible, brightens when typing) -->
+                            <button id="sendBtn" style="background: #25d366; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.3); flex-shrink: 0; align-self: flex-end; margin-bottom: 3px; transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0.5; touch-action: manipulation; -webkit-tap-highlight-color: transparent;" title="Send Message">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                             
@@ -2477,43 +2475,67 @@ class SecureChatApp {
         let attempts = 0;
         const initButton = () => {
             attempts++;
-            console.log(`[INIT] Attempt ${attempts} to initialize voice button`);
+            console.log(`[INIT] Attempt ${attempts} to initialize buttons`);
             
             const voiceBtn = document.getElementById('voiceNoteBtn');
-            console.log('[INIT] Voice button element:', voiceBtn);
+            const sendBtn = document.getElementById('sendBtn');
+            const input = document.getElementById('messageInput');
             
-            if (voiceBtn) {
-                console.log('[INIT] ✅ Button found! Setting up voice recording');
+            console.log('[INIT] Voice button:', voiceBtn);
+            console.log('[INIT] Send button:', sendBtn);
+            console.log('[INIT] Input:', input);
+            
+            if (voiceBtn && sendBtn && input) {
+                console.log('[INIT] ✅ All elements found! Setting up event listeners');
                 
-                // CRITICAL FIX: Clone and replace the button to remove ALL old event listeners
-                // This prevents stacking listeners when opening the room multiple times
+                // CRITICAL FIX: Clone and replace buttons to remove ALL old event listeners
                 const newVoiceBtn = voiceBtn.cloneNode(true);
                 voiceBtn.parentNode.replaceChild(newVoiceBtn, voiceBtn);
+                
+                const newSendBtn = sendBtn.cloneNode(true);
+                sendBtn.parentNode.replaceChild(newSendBtn, sendBtn);
                 
                 // Voice button: Click to record/stop
                 newVoiceBtn.addEventListener('click', (e) => {
                     e.preventDefault();
-                    e.stopPropagation(); // Prevent event bubbling on mobile
+                    e.stopPropagation();
                     
                     if (this.isRecording) {
-                        // Currently recording: Stop and send voice note
                         console.log('[VOICE] Stop recording and send');
                         this.stopRecording();
                     } else {
-                        // Not recording: Start recording
                         console.log('[VOICE] Start recording');
                         this.startRecording();
                     }
                 });
                 
-                // Set initial button state (send button)
-                this.handleMessageInput();
-                console.log('[INIT] ✅ Voice button initialized - Click to record voice note');
-            } else {
-                console.error('[INIT] ❌ Voice button not found! Attempt:', attempts);
+                // Send button: Click to send (always works, validates inside)
+                newSendBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('[SEND BTN] Clicked! Input value:', input.value);
+                    this.sendMessage();
+                });
                 
-                // Try again if button not found and we haven't tried too many times
-                if (attempts < 5) {
+                // Input: Listen to ALL events for maximum compatibility
+                const updateButtonState = () => {
+                    console.log('[INPUT EVENT] Updating button state, value:', input.value);
+                    this.handleMessageInput();
+                };
+                
+                input.addEventListener('input', updateButtonState);     // Desktop typing
+                input.addEventListener('keyup', updateButtonState);     // Mobile keyboard
+                input.addEventListener('change', updateButtonState);    // Fallback
+                input.addEventListener('paste', updateButtonState);     // Paste events
+                
+                // Set initial button state
+                this.handleMessageInput();
+                console.log('[INIT] ✅ All buttons initialized with event listeners');
+            } else {
+                console.error('[INIT] ❌ Elements not found! Attempt:', attempts);
+                
+                // Try again if elements not found and we haven't tried too many times
+                if (attempts < 10) {
                     console.log('[INIT] Retrying in 100ms...');
                     setTimeout(initButton, 100);
                 }
@@ -2550,26 +2572,34 @@ class SecureChatApp {
         const input = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
         
+        console.log('[UI] handleMessageInput called');
+        console.log('[UI] Input element:', input);
+        console.log('[UI] Send button element:', sendBtn);
+        
         if (!input || !sendBtn) {
-            console.log('[UI] Button elements not found yet');
+            console.error('[UI] ❌ Button elements not found yet');
             return;
         }
         
         const hasText = input.value.trim().length > 0;
+        console.log('[UI] Input value:', input.value);
+        console.log('[UI] Has text?', hasText, 'Length:', input.value.trim().length);
         
         // Update visual state only (no disabled attribute - always clickable)
         if (hasText) {
             // Enable send button visually
-            console.log('[UI] Enabling SEND button (has text)');
+            console.log('[UI] ✅ Enabling SEND button (has text)');
             sendBtn.style.opacity = '1';
             sendBtn.style.cursor = 'pointer';
             sendBtn.setAttribute('data-has-text', 'true');
+            console.log('[UI] Send button opacity:', sendBtn.style.opacity);
         } else {
             // Disable send button visually (but still clickable)
-            console.log('[UI] Disabling SEND button (no text)');
+            console.log('[UI] ⚪ Disabling SEND button (no text)');
             sendBtn.style.opacity = '0.5';
             sendBtn.style.cursor = 'default';
             sendBtn.setAttribute('data-has-text', 'false');
+            console.log('[UI] Send button opacity:', sendBtn.style.opacity);
         }
     }
 
