@@ -69,8 +69,8 @@ app.get('/api/v2/health', (c) => {
 // STATIC FILES
 // ============================================
 
-// Serve static files from public/static/
-app.use('/static/*', serveStatic({ root: './public' }));
+// Serve static files from public/static_v2/
+app.use('/static/*', serveStatic({ root: './public/static_v2' }));
 
 // ============================================
 // ROOT ROUTE
@@ -83,74 +83,19 @@ app.get('/', (c) => {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Amebo v2.0 - Clean Architecture</title>
-            <script src="https://cdn.tailwindcss.com"></script>
+            <title>Amebo v2.0 - Bug-Free Messaging</title>
+            <link rel="stylesheet" href="/static/css/styles.css">
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         </head>
-        <body class="bg-gray-100 p-8">
-            <div class="max-w-4xl mx-auto">
-                <h1 class="text-4xl font-bold text-gray-800 mb-6">
-                    🚀 Amebo v2.0
-                </h1>
-                <p class="text-lg text-gray-600 mb-4">
-                    Clean Architecture Rebuild - Bug-Free Messaging
-                </p>
-                
-                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                    <h2 class="text-2xl font-semibold mb-4">✨ What's New</h2>
-                    <ul class="list-disc list-inside space-y-2 text-gray-700">
-                        <li><strong>Atomic Operations</strong> - No more partial room creation</li>
-                        <li><strong>Proper Constraints</strong> - CASCADE deletes, no orphaned records</li>
-                        <li><strong>Modular Code</strong> - 100 lines in main file (vs 5,595!)</li>
-                        <li><strong>Clean Schema</strong> - 11 tables, proper indexes</li>
-                        <li><strong>Type Safety</strong> - Full TypeScript coverage</li>
-                        <li><strong>Standard Errors</strong> - Consistent error codes</li>
-                    </ul>
-                </div>
-                
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                    <h3 class="text-xl font-semibold text-blue-800 mb-3">API Endpoints (v2)</h3>
-                    <div class="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <h4 class="font-semibold text-blue-900 mb-2">Auth</h4>
-                            <ul class="space-y-1 text-gray-700">
-                                <li>POST /api/v2/auth/register</li>
-                                <li>POST /api/v2/auth/login</li>
-                                <li>POST /api/v2/auth/logout</li>
-                            </ul>
-                        </div>
-                        
-                        <div>
-                            <h4 class="font-semibold text-blue-900 mb-2">Rooms</h4>
-                            <ul class="space-y-1 text-gray-700">
-                                <li>POST /api/v2/rooms/direct</li>
-                                <li>GET /api/v2/rooms/user/:id</li>
-                                <li>POST /api/v2/rooms/:id/leave</li>
-                            </ul>
-                        </div>
-                        
-                        <div>
-                            <h4 class="font-semibold text-blue-900 mb-2">Messages</h4>
-                            <ul class="space-y-1 text-gray-700">
-                                <li>POST /api/v2/messages/send</li>
-                                <li>GET /api/v2/messages/:roomId</li>
-                            </ul>
-                        </div>
-                        
-                        <div>
-                            <h4 class="font-semibold text-blue-900 mb-2">Users</h4>
-                            <ul class="space-y-1 text-gray-700">
-                                <li>GET /api/v2/users/search</li>
-                                <li>GET /api/v2/users/:id</li>
-                                <li>PUT /api/v2/users/:id/privacy</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="mt-6 text-center text-gray-500 text-sm">
-                    v2.0.0 - Built from the ground up for reliability
+        <body>
+            <div id="app">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading...</p>
                 </div>
             </div>
+            
+            <script type="module" src="/static/js/app.js"></script>
         </body>
         </html>
     `);
