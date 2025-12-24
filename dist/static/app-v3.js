@@ -2420,6 +2420,7 @@ class SecureChatApp {
                                 rows="1"
                                 style="flex: 1; min-width: 0; padding: 9px 14px; border: none; border-radius: 18px; background: white; font-size: 14px; outline: none; max-width: 100%; resize: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; line-height: 1.4; max-height: 90px; overflow-y: auto;"
                                 oninput="app.autoResizeTextarea(this); app.handleMessageInput();"
+                                onkeyup="app.handleMessageInput();"
                                 onkeypress="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); app.sendMessage(); }"
                             ></textarea>
                             
@@ -2428,8 +2429,8 @@ class SecureChatApp {
                                 <i class="fas fa-microphone"></i>
                             </button>
                             
-                            <!-- Send Button (always visible, disabled when empty) -->
-                            <button id="sendBtn" onclick="app.sendMessage()" style="background: #25d366; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.3); flex-shrink: 0; align-self: flex-end; margin-bottom: 3px; transition: all 0.2s; opacity: 0.5;" title="Send Message" onmouseover="if(!this.disabled) { this.style.transform='scale(1.05)'; this.style.boxShadow='0 3px 8px rgba(37, 211, 102, 0.5)'; }" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 5px rgba(37, 211, 102, 0.3)'" disabled>
+                            <!-- Send Button (always visible, grayed when empty) -->
+                            <button id="sendBtn" onclick="app.sendMessage()" style="background: #25d366; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 5px rgba(37, 211, 102, 0.3); flex-shrink: 0; align-self: flex-end; margin-bottom: 3px; transition: all 0.2s; opacity: 0.5; touch-action: manipulation; -webkit-tap-highlight-color: transparent;" title="Send Message" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 3px 8px rgba(37, 211, 102, 0.5)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 5px rgba(37, 211, 102, 0.3)'">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                             
@@ -2556,19 +2557,19 @@ class SecureChatApp {
         
         const hasText = input.value.trim().length > 0;
         
-        // Enable/disable send button based on input
+        // Update visual state only (no disabled attribute - always clickable)
         if (hasText) {
-            // Enable send button
+            // Enable send button visually
             console.log('[UI] Enabling SEND button (has text)');
-            sendBtn.disabled = false;
             sendBtn.style.opacity = '1';
             sendBtn.style.cursor = 'pointer';
+            sendBtn.setAttribute('data-has-text', 'true');
         } else {
-            // Disable send button
+            // Disable send button visually (but still clickable)
             console.log('[UI] Disabling SEND button (no text)');
-            sendBtn.disabled = true;
             sendBtn.style.opacity = '0.5';
-            sendBtn.style.cursor = 'not-allowed';
+            sendBtn.style.cursor = 'default';
+            sendBtn.setAttribute('data-has-text', 'false');
         }
     }
 
