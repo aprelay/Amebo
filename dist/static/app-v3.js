@@ -2880,36 +2880,47 @@ class SecureChatApp {
     }
 
     async loadMessages() {
-        if (!this.currentRoom) return;
+        if (!this.currentRoom) {
+            console.log('[LOAD] ⚠️ No current room, cannot load messages');
+            return;
+        }
+        
+        console.log('[LOAD] 📥 Loading messages for room:', this.currentRoom.id, this.currentRoom.room_code);
         
         // Recursion guard - prevent stack overflow
         if (this.isLoadingMessages) {
-            console.log('[LOAD] Already loading messages, skipping duplicate call');
+            console.log('[LOAD] ⚠️ Already loading messages, skipping duplicate call');
             return;
         }
         
         this.isLoadingMessages = true;
+        console.log('[LOAD] 🔒 Loading lock acquired');
         
         // Check if we're still on the chat page (messages container exists)
         const container = document.getElementById('messages');
         if (!container) {
-            console.error('[V3] Messages container not found! Not on chat page anymore.');
+            console.error('[LOAD] ❌ Messages container not found! Not on chat page anymore.');
             this.isLoadingMessages = false;
             return;
         }
         
+        console.log('[LOAD] ✅ Messages container found');
+        
         // Track if this is initial load or update
         const isInitialLoad = !this.messages || this.messages.length === 0;
+        console.log('[LOAD] Initial load:', isInitialLoad, 'Current messages:', this.messages?.length || 0);
     
         // Check cache first (only on initial load)
         if (isInitialLoad) {
             const cachedMessages = this.messageCache.get(this.currentRoom.id);
             if (cachedMessages && cachedMessages.length > 0) {
+                console.log('[LOAD] 💾 Using cached messages:', cachedMessages.length);
                 this.messages = cachedMessages;
                 container.innerHTML = cachedMessages.map(msg => this.renderMessage(msg)).join('');
                 setTimeout(() => this.scrollToBottom(), 50);
                 // Still fetch in background to get new messages
             } else {
+                console.log('[LOAD] 💫 No cache, showing loading spinner');
                 // Show loading spinner with fast fade-in
                 container.innerHTML = `
                     <div class="text-gray-500 text-center py-8">
@@ -2921,12 +2932,17 @@ class SecureChatApp {
         }
 
         try {
+            console.log('[LOAD] 🌐 Fetching messages from API...');
             const response = await fetch(`${API_BASE}/api/messages/${this.currentRoom.id}`);
+            console.log('[LOAD] 📡 API response status:', response.status);
+            
             const data = await response.json();
+            console.log('[LOAD] 📦 API returned:', data.messages?.length || 0, 'messages');
             
             const newMessages = data.messages || [];
 
             if (newMessages.length === 0) {
+                console.log('[LOAD] 📭 No messages in room');
                 container.innerHTML = `
                     <div class="text-gray-500 text-center py-8">
                         <i class="fas fa-shield-halved text-4xl mb-2"></i>
@@ -2937,10 +2953,12 @@ class SecureChatApp {
                 `;
                 this.messages = [];
             } else {
+                console.log('[LOAD] 🔓 Decrypting', newMessages.length, 'messages...');
                 // Decrypt messages in batches for better performance
                 const roomKey = this.roomKeys.get(this.currentRoom.id);
                 
                 if (!roomKey) {
+                    console.error('[LOAD] ❌ No encryption key for room!');
                     container.innerHTML = `
                         <div class="text-red-500 text-center py-8">
                             <i class="fas fa-exclamation-triangle text-4xl mb-2"></i>
