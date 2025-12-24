@@ -9291,8 +9291,10 @@ class SecureChatApp {
             `;
         }).join('');
         
-        // Re-initialize button handlers
-        this.initContactButtons();
+        // Re-initialize button handlers after DOM update
+        setTimeout(() => {
+            this.initContactButtons();
+        }, 0);
     }
     
     async loadMyContacts() {
@@ -9343,30 +9345,51 @@ class SecureChatApp {
     }
     
     initContactButtons() {
-        // Chat buttons
-        document.querySelectorAll('.contact-chat-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+        console.log('[CONTACTS] 🔧 Initializing contact buttons...');
+        
+        // Chat buttons - use onclick instead of addEventListener to avoid duplicates
+        const chatButtons = document.querySelectorAll('.contact-chat-btn');
+        console.log('[CONTACTS] Found', chatButtons.length, 'chat buttons');
+        
+        chatButtons.forEach((btn, index) => {
+            const contactId = btn.dataset.contactId;
+            const contactUsername = btn.dataset.contactUsername;
+            console.log(`[CONTACTS] Button ${index + 1}:`, { contactId, contactUsername });
+            
+            // Remove old listener by cloning
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            
+            // Add fresh listener
+            newBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const contactId = btn.dataset.contactId;
-                const contactUsername = btn.dataset.contactUsername;
                 console.log('[CONTACTS] 💬 Chat button clicked:', { contactId, contactUsername });
                 this.startDirectMessage(contactId, contactUsername);
             });
         });
         
         // Remove buttons
-        document.querySelectorAll('.contact-remove-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+        const removeButtons = document.querySelectorAll('.contact-remove-btn');
+        console.log('[CONTACTS] Found', removeButtons.length, 'remove buttons');
+        
+        removeButtons.forEach(btn => {
+            const contactId = btn.dataset.contactId;
+            
+            // Remove old listener by cloning
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            
+            // Add fresh listener
+            newBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const contactId = btn.dataset.contactId;
                 console.log('[CONTACTS] ❌ Remove button clicked:', contactId);
                 this.removeContact(contactId);
             });
         });
         
-        console.log('[CONTACTS] ✅ Initialized', document.querySelectorAll('.contact-chat-btn').length, 'contact buttons');
+        console.log('[CONTACTS] ✅ Initialized', chatButtons.length, 'chat buttons +', removeButtons.length, 'remove buttons');
     }
     
     async removeContact(contactId) {
