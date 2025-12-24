@@ -1855,15 +1855,24 @@ class SecureChatApp {
                         </div>
                     </div>
 
-                    <!-- Search Users Card - Compact -->
+                    <!-- Search Users & Contacts Card - Compact -->
                     <div class="bg-white rounded-lg shadow-md p-4 mb-3">
-                        <button 
-                            onclick="app.showUserSearch()"
-                            class="w-full bg-green-600 text-white px-4 py-2 text-sm rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2"
-                        >
-                            <i class="fas fa-search"></i>
-                            Find Users
-                        </button>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button 
+                                onclick="app.showUserSearch()"
+                                class="bg-green-600 text-white px-4 py-2 text-sm rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2"
+                            >
+                                <i class="fas fa-search"></i>
+                                Find Users
+                            </button>
+                            <button 
+                                onclick="app.showContactsWithSearch()"
+                                class="bg-blue-600 text-white px-4 py-2 text-sm rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                            >
+                                <i class="fas fa-address-book"></i>
+                                My Contacts
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Room List -->
@@ -9149,17 +9158,17 @@ class SecureChatApp {
         }
     }
     
-    // Show My Contacts
-    async showMyContacts() {
-        console.log('[CONTACTS] 📋 Showing contacts page for:', this.currentUser.email);
+    // Show My Contacts with Search
+    async showContactsWithSearch() {
+        console.log('[CONTACTS] 📋 Showing contacts with search for:', this.currentUser.email);
         
         document.getElementById('app').innerHTML = `
             <div class="min-h-screen bg-gray-100 p-4">
                 <div class="max-w-md mx-auto">
                     <div class="bg-white rounded-2xl shadow-lg p-6">
-                        <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center justify-between mb-4">
                             <h1 class="text-2xl font-bold text-gray-800">
-                                <i class="fas fa-users text-purple-600 mr-2"></i>
+                                <i class="fas fa-address-book text-blue-600 mr-2"></i>
                                 My Contacts
                             </h1>
                             <div class="flex gap-2">
@@ -9169,6 +9178,20 @@ class SecureChatApp {
                                 <button onclick="app.showRoomList()" class="text-gray-600 hover:text-gray-800">
                                     <i class="fas fa-times text-2xl"></i>
                                 </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Search Box -->
+                        <div class="mb-4">
+                            <div class="relative">
+                                <input 
+                                    type="text" 
+                                    id="contact-search" 
+                                    placeholder="Search contacts by name or email..."
+                                    class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    oninput="app.filterContacts(this.value)"
+                                />
+                                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
                             </div>
                         </div>
 
@@ -9186,6 +9209,92 @@ class SecureChatApp {
         await this.loadMyContacts();
     }
     
+    // Show My Contacts (without search - for legacy compatibility)
+    async showMyContacts() {
+        await this.showContactsWithSearch();
+    }
+    
+    // Filter contacts by search query
+    filterContacts(query) {
+        if (!this.allContacts) return;
+        
+        const lowerQuery = query.toLowerCase().trim();
+        const listDiv = document.getElementById('contacts-list');
+        
+        if (!lowerQuery) {
+            // Show all contacts if search is empty
+            this.renderContactsList(this.allContacts, listDiv);
+            return;
+        }
+        
+        // Filter contacts by username or email
+        const filtered = this.allContacts.filter(contact => 
+            contact.username.toLowerCase().includes(lowerQuery) ||
+            contact.email.toLowerCase().includes(lowerQuery)
+        );
+        
+        if (filtered.length === 0) {
+            listDiv.innerHTML = `
+                <div class="text-gray-500 text-center py-8">
+                    <i class="fas fa-search text-4xl mb-3 text-gray-300"></i>
+                    <p>No contacts found matching "${this.escapeHtml(query)}"</p>
+                </div>
+            `;
+        } else {
+            this.renderContactsList(filtered, listDiv);
+        }
+    }
+    
+    // Render contacts list (extracted for reuse)
+    renderContactsList(contacts, listDiv) {
+        listDiv.innerHTML = contacts.map(contact => {
+            const avatarHtml = contact.avatar
+                ? `<img src="${contact.avatar}" class="w-12 h-12 rounded-full object-cover" alt="Avatar">`
+                : `<div class="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center text-white font-bold text-lg">${contact.username.charAt(0).toUpperCase()}</div>`;
+            
+            const onlineStatus = contact.online_status === 'online' 
+                ? '<span class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>'
+                : '';
+            
+            return `
+                <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                    <div class="relative">
+                        ${avatarHtml}
+                        ${onlineStatus}
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-gray-800">${this.escapeHtml(contact.username)}</h3>
+                        <p class="text-sm text-gray-500">${this.escapeHtml(contact.email)}</p>
+                        ${contact.online_status === 'online' 
+                            ? '<p class="text-xs text-green-600 mt-1"><i class="fas fa-circle mr-1"></i>Online</p>'
+                            : `<p class="text-xs text-gray-400 mt-1">Last seen ${this.formatLastSeen(contact.last_seen)}</p>`
+                        }
+                    </div>
+                    <div class="flex gap-2">
+                        <button 
+                            class="contact-chat-btn bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 transition text-sm"
+                            data-contact-id="${contact.id}"
+                            data-contact-username="${this.escapeHtml(contact.username)}"
+                            title="Start chat"
+                        >
+                            <i class="fas fa-comment"></i>
+                        </button>
+                        <button 
+                            class="contact-remove-btn bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 transition text-sm"
+                            data-contact-id="${contact.id}"
+                            title="Remove contact"
+                        >
+                            <i class="fas fa-user-times"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Re-initialize button handlers
+        this.initContactButtons();
+    }
+    
     async loadMyContacts() {
         try {
             console.log('[CONTACTS] 🔄 Loading contacts for:', this.currentUser.email);
@@ -9199,6 +9308,10 @@ class SecureChatApp {
             if (response.ok) {
                 const { contacts } = await response.json();
                 console.log('[CONTACTS] ✅ Loaded', contacts.length, 'contacts:', contacts);
+                
+                // Store contacts for filtering
+                this.allContacts = contacts;
+                
                 const listDiv = document.getElementById('contacts-list');
                 
                 if (contacts.length === 0) {
@@ -9218,52 +9331,8 @@ class SecureChatApp {
                     return;
                 }
                 
-                listDiv.innerHTML = contacts.map(contact => {
-                    const avatarHtml = contact.avatar
-                        ? `<img src="${contact.avatar}" class="w-12 h-12 rounded-full object-cover" alt="Avatar">`
-                        : `<div class="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center text-white font-bold text-lg">${contact.username.charAt(0).toUpperCase()}</div>`;
-                    
-                    const onlineStatus = contact.online_status === 'online' 
-                        ? '<span class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>'
-                        : '';
-                    
-                    return `
-                        <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
-                            <div class="relative">
-                                ${avatarHtml}
-                                ${onlineStatus}
-                            </div>
-                            <div class="flex-1">
-                                <h3 class="font-semibold text-gray-800">${this.escapeHtml(contact.username)}</h3>
-                                <p class="text-sm text-gray-500">${this.escapeHtml(contact.email)}</p>
-                                ${contact.online_status === 'online' 
-                                    ? '<p class="text-xs text-green-600 mt-1"><i class="fas fa-circle mr-1"></i>Online</p>'
-                                    : `<p class="text-xs text-gray-400 mt-1">Last seen ${this.formatLastSeen(contact.last_seen)}</p>`
-                                }
-                            </div>
-                            <div class="flex gap-2">
-                                <button 
-                                    class="contact-chat-btn bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 transition text-sm"
-                                    data-contact-id="${contact.id}"
-                                    data-contact-username="${this.escapeHtml(contact.username)}"
-                                    title="Start chat"
-                                >
-                                    <i class="fas fa-comment"></i>
-                                </button>
-                                <button 
-                                    class="contact-remove-btn bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 transition text-sm"
-                                    data-contact-id="${contact.id}"
-                                    title="Remove contact"
-                                >
-                                    <i class="fas fa-user-times"></i>
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-                
-                // Add event listeners for contact buttons
-                this.initContactButtons();
+                // Use render function for consistent rendering
+                this.renderContactsList(contacts, listDiv);
             } else {
                 console.error('[CONTACTS] ❌ API error:', response.status, await response.text());
             }
