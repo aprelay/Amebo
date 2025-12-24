@@ -9850,8 +9850,21 @@ class SecureChatApp {
 
     async updateOnlineStatus(status) {
         try {
+            console.log('[STATUS] Updating to:', status);
+            console.log('[STATUS] Current user email:', this.currentUser?.email);
+            console.log('[STATUS] API_BASE:', API_BASE);
+            
+            if (!this.currentUser?.email) {
+                console.error('[STATUS] No user email - not logged in?');
+                alert('Please log in to change status');
+                return;
+            }
+            
+            const url = `${API_BASE}/api/users/status`;
+            console.log('[STATUS] Request URL:', url);
+            
             // Update in backend
-            const response = await fetch(`${API_BASE}/api/users/status`, {
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -9860,7 +9873,9 @@ class SecureChatApp {
                 body: JSON.stringify({ status })
             });
 
+            console.log('[STATUS] Response status:', response.status);
             const data = await response.json();
+            console.log('[STATUS] Response data:', data);
 
             if (data.success) {
                 // Save to localStorage
@@ -9885,10 +9900,16 @@ class SecureChatApp {
                 this.showToast(`Status changed to ${statusText}`, 'success');
                 console.log(`[STATUS] Updated to: ${statusText}`);
             } else {
+                console.error('[STATUS] Update failed:', data.error);
                 alert('Failed to update status: ' + (data.error || 'Unknown error'));
             }
         } catch (error) {
             console.error('[STATUS] Update error:', error);
+            console.error('[STATUS] Error details:', {
+                message: error.message,
+                stack: error.stack,
+                currentUser: this.currentUser?.email
+            });
             alert('Failed to update online status. Please try again.');
         }
     }
