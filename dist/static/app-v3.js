@@ -328,41 +328,45 @@ class SecureChatApp {
                     continue;
                 }
                 
+                // CRITICAL FIX: Filter out YOUR OWN messages before counting
+                const messagesFromOthers = messages.filter(m => m.sender_id !== this.currentUser.id);
+                
                 // Get last read message ID for this room
                 const lastReadId = this.lastReadMessageIds.get(room.id);
-                const latestMessageId = messages[messages.length - 1].id;
-                const oldestMessageId = messages[0].id;
+                const latestMessageId = messagesFromOthers.length > 0 ? messagesFromOthers[messagesFromOthers.length - 1].id : null;
                 
+                console.log(`[UNREAD] Total messages: ${messages.length}, From others: ${messagesFromOthers.length}`);
                 console.log(`[UNREAD] Last read message ID: ${lastReadId}`);
-                console.log(`[UNREAD] Latest message ID: ${latestMessageId}`);
-                console.log(`[UNREAD] Oldest message ID in list: ${oldestMessageId}`);
+                console.log(`[UNREAD] Latest message ID (from others): ${latestMessageId}`);
                 
-                if (!lastReadId) {
-                    // Never read any message in this room - all are unread
-                    this.unreadCounts.set(room.id, messages.length);
-                    console.log(`[UNREAD] Result: ${messages.length} (never read any message)`);
-                } else if (lastReadId === latestMessageId) {
-                    // FAST PATH: User has read up to the latest message - all read!
+                if (messagesFromOthers.length === 0) {
+                    // No messages from others - all read
                     this.unreadCounts.set(room.id, 0);
-                    console.log(`[UNREAD] Result: 0 (lastReadId === latest, all read!)`);
+                    console.log(`[UNREAD] Result: 0 (no messages from others)`);
+                } else if (!lastReadId) {
+                    // Never read - count only others' messages
+                    this.unreadCounts.set(room.id, messagesFromOthers.length);
+                    console.log(`[UNREAD] Result: ${messagesFromOthers.length} (never read, only counting others)`);
+                } else if (lastReadId === latestMessageId) {
+                    // FAST PATH: User has read up to the latest message from others - all read!
+                    this.unreadCounts.set(room.id, 0);
+                    console.log(`[UNREAD] Result: 0 (lastReadId === latest from others, all read!)`);
                 } else {
-                    // Count messages after last read
-                    console.log(`[UNREAD] Searching for lastReadId in ${messages.length} messages...`);
-                    const lastReadIndex = messages.findIndex(m => m.id === lastReadId);
+                    // Count others' messages after last read
+                    console.log(`[UNREAD] Searching for lastReadId in ${messagesFromOthers.length} messages from others...`);
+                    const lastReadIndex = messagesFromOthers.findIndex(m => m.id === lastReadId);
                     
                     console.log(`[UNREAD] Last read index: ${lastReadIndex}`);
                     
                     if (lastReadIndex === -1) {
-                        // LastReadId not found in the list of 50 newest messages
-                        // This means lastReadId is older than all fetched messages
-                        // Therefore, all fetched messages are newer = all unread
-                        this.unreadCounts.set(room.id, messages.length);
-                        console.log(`[UNREAD] Result: ${messages.length} (lastReadId older than all fetched messages)`);
+                        // LastReadId not found - count all others' messages as unread
+                        this.unreadCounts.set(room.id, messagesFromOthers.length);
+                        console.log(`[UNREAD] Result: ${messagesFromOthers.length} (counting all from others)`);
                     } else {
-                        // Found lastReadId - count messages after it
-                        const unreadCount = messages.length - lastReadIndex - 1;
+                        // Found lastReadId - count others' messages after it
+                        const unreadCount = messagesFromOthers.length - lastReadIndex - 1;
                         this.unreadCounts.set(room.id, Math.max(0, unreadCount));
-                        console.log(`[UNREAD] Result: ${unreadCount} (messages after index ${lastReadIndex})`);
+                        console.log(`[UNREAD] Result: ${unreadCount} (others' messages after index ${lastReadIndex})`);
                     }
                 }
             } catch (error) {
@@ -3567,24 +3571,21 @@ class SecureChatApp {
             if (data.success) {
                 console.log('[SEND] ✅ Message sent successfully!');
                 
+                // INSTANT UI UPDATE: Clear input immediately
                 input.value = '';
-                // Reset button opacity
                 const sendBtn = document.getElementById('sendBtn');
                 if (sendBtn) sendBtn.style.opacity = '0.5';
                 
-                // INSTANT RELOAD: Invalidate cache and reload immediately
+                // INSTANT RELOAD: Invalidate cache
                 this.messageCache.delete(this.currentRoom.id);
                 
-                // Force immediate reload (don't wait for polling)
-                this.loadMessages().then(() => {
-                    console.log('[SEND] ✅ Message displayed immediately');
-                    this.scrollToBottom(true);
-                }).catch(e => console.log('[SEND] Reload error:', e));
+                // ⚡ BLAZING FAST: Fire and forget - don't block UI
+                this.loadMessages().catch(e => console.log('[SEND] Reload error:', e));
                 
-                console.log('[SEND] ✅ Message reloading...');
-                
-                // Award tokens for messaging (don't await - fire and forget)
+                // Award tokens (fire and forget)
                 this.awardTokens(1, 'message').catch(e => console.log('[TOKENS] Award failed:', e));
+                
+                console.log('[SEND] ⚡ Message sent, reloading in background');
             } else {
                 console.error('[SEND] ❌ Send failed:', data.error);
                 this.showToast('Failed to send message', 'error');
@@ -4017,7 +4018,7 @@ class SecureChatApp {
     startPolling() {
         if (this.messagePoller) clearInterval(this.messagePoller);
         
-        console.log('[POLL] ▶️ Starting real-time message polling (500ms interval - ULTRA FAST)');
+        console.log('[POLL] ▶️ Starting real-time message polling (1s interval - OPTIMIZED)');
         console.log('[POLL] 🎯 Current room:', this.currentRoom?.id, this.currentRoom?.room_code);
         
         this.messagePoller = setInterval(async () => {
@@ -4031,7 +4032,7 @@ class SecureChatApp {
             } else {
                 console.log('[POLL] ⚠️ No current room - skipping poll');
             }
-        }, 500); // 🚀 ULTRA-FAST: 500ms (0.5 second) for instant messaging
+        }, 1000); // ⚡ OPTIMIZED: 1 second (faster than 500ms, less server load)
     }
 
     logout() {
@@ -4887,28 +4888,40 @@ class SecureChatApp {
                 const lastReadId = this.lastReadMessageIds.get(room.id);
                 const latestMessageId = messages[messages.length - 1].id;
                 
+                // CRITICAL FIX: Filter out YOUR OWN messages before counting
+                const messagesFromOthers = messages.filter(m => m.sender_id !== this.currentUser.id);
+                
                 if (!lastReadId) {
-                    // Never read any message - all unread
-                    const unreadCount = messages.length;
+                    // Never read any message - count only others' messages
+                    const unreadCount = messagesFromOthers.length;
                     if (this.unreadCounts.get(room.id) !== unreadCount) {
                         this.unreadCounts.set(room.id, unreadCount);
                         hasUpdates = true;
-                        console.log('[UNREAD] New room with unread:', room.id, unreadCount);
+                        console.log('[UNREAD] New room with unread (from others):', room.id, unreadCount);
                     }
                 } else {
-                    // Find last read message
-                    const lastReadIndex = messages.findIndex(m => m.id === lastReadId);
+                    // Find last read message in others' messages only
+                    const lastReadIndex = messagesFromOthers.findIndex(m => m.id === lastReadId);
                     
                     if (lastReadIndex === -1) {
-                        // Last read not found - all unread
-                        const unreadCount = messages.length;
-                        if (this.unreadCounts.get(room.id) !== unreadCount) {
-                            this.unreadCounts.set(room.id, unreadCount);
-                            hasUpdates = true;
+                        // Last read not found - check if it equals latest from others
+                        if (messagesFromOthers.length > 0 && lastReadId === messagesFromOthers[messagesFromOthers.length - 1].id) {
+                            // All read
+                            if (this.unreadCounts.get(room.id) !== 0) {
+                                this.unreadCounts.set(room.id, 0);
+                                hasUpdates = true;
+                            }
+                        } else {
+                            // Count all others' messages as unread
+                            const unreadCount = messagesFromOthers.length;
+                            if (this.unreadCounts.get(room.id) !== unreadCount) {
+                                this.unreadCounts.set(room.id, unreadCount);
+                                hasUpdates = true;
+                            }
                         }
                     } else {
-                        // Count messages after last read
-                        const unreadCount = messages.length - lastReadIndex - 1;
+                        // Count others' messages after last read
+                        const unreadCount = messagesFromOthers.length - lastReadIndex - 1;
                         const currentCount = this.unreadCounts.get(room.id) || 0;
                         
                         if (currentCount !== unreadCount) {
@@ -4916,7 +4929,7 @@ class SecureChatApp {
                             hasUpdates = true;
                             
                             if (unreadCount > currentCount) {
-                                console.log('[UNREAD] ✨ New messages in room:', room.id, 'Count:', unreadCount);
+                                console.log('[UNREAD] ✨ New messages from others:', room.id, 'Count:', unreadCount);
                             }
                         }
                     }
