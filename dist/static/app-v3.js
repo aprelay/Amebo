@@ -3452,11 +3452,12 @@ class SecureChatApp {
         }
         this.isSendingMessage = true;
 
-        console.log('[V3] Sending encrypted message');
+        console.log('[SEND] 📤 Sending message:', content.substring(0, 50));
 
         // CRITICAL FIX: Stop polling temporarily to prevent collision
         const wasPolling = !!this.messagePoller;
         if (wasPolling) {
+            console.log('[SEND] ⏸️ Pausing polling during send');
             clearInterval(this.messagePoller);
             this.messagePoller = null;
         }
@@ -3466,6 +3467,8 @@ class SecureChatApp {
             const roomKey = this.roomKeys.get(this.currentRoom.id);
             const encrypted = await CryptoUtils.encryptMessage(content, roomKey);
 
+            console.log('[SEND] 🔒 Message encrypted, sending to server...');
+            
             const response = await fetch(`${API_BASE}/api/messages/send`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -3478,15 +3481,22 @@ class SecureChatApp {
             });
 
             const data = await response.json();
-            console.log('[V3] Send response:', data);
+            console.log('[SEND] 📥 Server response:', data);
 
             if (data.success) {
+                console.log('[SEND] ✅ Message sent successfully!');
+                
                 input.value = '';
                 // Reset button back to microphone
                 this.handleMessageInput();
-                // Invalidate cache to force reload with new message
+                
+                // INSTANT MESSAGE DISPLAY:
+                // Invalidate cache and reload messages immediately
+                console.log('[SEND] 🔄 Reloading messages to show new message...');
                 this.messageCache.delete(this.currentRoom.id);
                 await this.loadMessages();
+                
+                console.log('[SEND] ✅ Messages reloaded, new message should be visible');
                 
                 // Force scroll to bottom after sending your own message
                 setTimeout(() => {
@@ -3495,12 +3505,17 @@ class SecureChatApp {
                 
                 // Award tokens for messaging
                 await this.awardTokens(1, 'message');
+            } else {
+                console.error('[SEND] ❌ Send failed:', data.error);
+                this.showToast('Failed to send message', 'error');
             }
         } catch (error) {
-            console.error('[V3] Error sending message:', error);
+            console.error('[SEND] ❌ Error sending message:', error);
+            this.showToast('Error sending message', 'error');
         } finally {
             // Restart polling after sending
             if (wasPolling) {
+                console.log('[SEND] ▶️ Resuming polling');
                 this.startPolling();
             }
             // Release sending lock
@@ -3922,6 +3937,8 @@ class SecureChatApp {
     startPolling() {
         if (this.messagePoller) clearInterval(this.messagePoller);
         
+        console.log('[POLL] ▶️ Starting real-time message polling (1 second interval)');
+        
         this.messagePoller = setInterval(async () => {
             if (this.currentRoom) {
                 // Always load messages (smart append logic handles rendering)
@@ -3930,7 +3947,7 @@ class SecureChatApp {
                 // Poll typing indicators
                 await this.pollTypingIndicators(this.currentRoom.id);
             }
-        }, 3000);
+        }, 1000); // 🚀 FASTER: 1 second for real-time messaging (was 3 seconds)
     }
 
     logout() {
