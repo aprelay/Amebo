@@ -9383,11 +9383,16 @@ class SecureChatApp {
     
     // Start pinging online status every 60 seconds
     startOnlineStatusUpdates() {
+        // Get user's preferred status from localStorage (default: online)
+        const preferredStatus = localStorage.getItem('onlineStatus') || 'online';
+        
         // Initial status update (silent - no UI refresh)
-        this.updateOnlineStatus('online', true); // true = silent mode
+        this.updateOnlineStatus(preferredStatus, true); // Use preferred status
         
         this.onlineStatusInterval = setInterval(() => {
-            this.updateOnlineStatus('online', true); // true = silent mode
+            // Keep user's chosen status, don't force online
+            const currentStatus = localStorage.getItem('onlineStatus') || 'online';
+            this.updateOnlineStatus(currentStatus, true); // Use current status
         }, 60000); // Update every minute
         
         // Set to offline on page unload
@@ -9889,24 +9894,15 @@ class SecureChatApp {
                 
                 // Only show UI updates if not silent mode
                 if (!silent) {
-                    // Update UI to reflect new status (without navigation)
-                    const statusButtons = document.querySelectorAll('.status-option');
-                    statusButtons.forEach(btn => {
-                        if (btn.dataset.status === status) {
-                            btn.classList.add('bg-blue-50', 'border-blue-500');
-                            btn.classList.remove('border-gray-300');
-                        } else {
-                            btn.classList.remove('bg-blue-50', 'border-blue-500');
-                            btn.classList.add('border-gray-300');
-                        }
-                    });
-                    
                     // Show success message
                     const statusText = status === 'online' ? 'Online' : 
                                        status === 'away' ? 'Away' : 
                                        'Invisible';
                     this.showToast(`Status changed to ${statusText}`, 'success');
                     console.log(`[STATUS] Updated to: ${statusText}`);
+                    
+                    // Refresh the status page to show new selection
+                    this.showAccountStatus();
                 } else {
                     // Silent mode - just log
                     console.log(`[STATUS] Background update to: ${status}`);
