@@ -9383,14 +9383,16 @@ class SecureChatApp {
     
     // Start pinging online status every 60 seconds
     startOnlineStatusUpdates() {
-        this.updateOnlineStatus('online');
+        // Initial status update (silent - no UI refresh)
+        this.updateOnlineStatus('online', true); // true = silent mode
+        
         this.onlineStatusInterval = setInterval(() => {
-            this.updateOnlineStatus('online');
+            this.updateOnlineStatus('online', true); // true = silent mode
         }, 60000); // Update every minute
         
         // Set to offline on page unload
         window.addEventListener('beforeunload', () => {
-            this.updateOnlineStatus('offline');
+            this.updateOnlineStatus('offline', true); // true = silent mode
         });
     }
     
@@ -9848,20 +9850,24 @@ class SecureChatApp {
         `;
     }
 
-    async updateOnlineStatus(status) {
+    async updateOnlineStatus(status, silent = false) {
         try {
-            console.log('[STATUS] Updating to:', status);
-            console.log('[STATUS] Current user email:', this.currentUser?.email);
-            console.log('[STATUS] API_BASE:', API_BASE);
+            if (!silent) {
+                console.log('[STATUS] Updating to:', status);
+                console.log('[STATUS] Current user email:', this.currentUser?.email);
+                console.log('[STATUS] API_BASE:', API_BASE);
+            }
             
             if (!this.currentUser?.email) {
-                console.error('[STATUS] No user email - not logged in?');
-                alert('Please log in to change status');
+                if (!silent) {
+                    console.error('[STATUS] No user email - not logged in?');
+                    alert('Please log in to change status');
+                }
                 return;
             }
             
             const url = `${API_BASE}/api/users/status`;
-            console.log('[STATUS] Request URL:', url);
+            if (!silent) console.log('[STATUS] Request URL:', url);
             
             // Update in backend
             const response = await fetch(url, {
@@ -9873,44 +9879,54 @@ class SecureChatApp {
                 body: JSON.stringify({ status })
             });
 
-            console.log('[STATUS] Response status:', response.status);
+            if (!silent) console.log('[STATUS] Response status:', response.status);
             const data = await response.json();
-            console.log('[STATUS] Response data:', data);
+            if (!silent) console.log('[STATUS] Response data:', data);
 
             if (data.success) {
                 // Save to localStorage
                 localStorage.setItem('onlineStatus', status);
                 
-                // Update UI to reflect new status (without navigation)
-                const statusButtons = document.querySelectorAll('.status-option');
-                statusButtons.forEach(btn => {
-                    if (btn.dataset.status === status) {
-                        btn.classList.add('bg-blue-50', 'border-blue-500');
-                        btn.classList.remove('border-gray-300');
-                    } else {
-                        btn.classList.remove('bg-blue-50', 'border-blue-500');
-                        btn.classList.add('border-gray-300');
-                    }
-                });
-                
-                // Show success message
-                const statusText = status === 'online' ? 'Online' : 
-                                   status === 'away' ? 'Away' : 
-                                   'Invisible';
-                this.showToast(`Status changed to ${statusText}`, 'success');
-                console.log(`[STATUS] Updated to: ${statusText}`);
+                // Only show UI updates if not silent mode
+                if (!silent) {
+                    // Update UI to reflect new status (without navigation)
+                    const statusButtons = document.querySelectorAll('.status-option');
+                    statusButtons.forEach(btn => {
+                        if (btn.dataset.status === status) {
+                            btn.classList.add('bg-blue-50', 'border-blue-500');
+                            btn.classList.remove('border-gray-300');
+                        } else {
+                            btn.classList.remove('bg-blue-50', 'border-blue-500');
+                            btn.classList.add('border-gray-300');
+                        }
+                    });
+                    
+                    // Show success message
+                    const statusText = status === 'online' ? 'Online' : 
+                                       status === 'away' ? 'Away' : 
+                                       'Invisible';
+                    this.showToast(`Status changed to ${statusText}`, 'success');
+                    console.log(`[STATUS] Updated to: ${statusText}`);
+                } else {
+                    // Silent mode - just log
+                    console.log(`[STATUS] Background update to: ${status}`);
+                }
             } else {
-                console.error('[STATUS] Update failed:', data.error);
-                alert('Failed to update status: ' + (data.error || 'Unknown error'));
+                if (!silent) {
+                    console.error('[STATUS] Update failed:', data.error);
+                    alert('Failed to update status: ' + (data.error || 'Unknown error'));
+                }
             }
         } catch (error) {
-            console.error('[STATUS] Update error:', error);
-            console.error('[STATUS] Error details:', {
-                message: error.message,
-                stack: error.stack,
-                currentUser: this.currentUser?.email
-            });
-            alert('Failed to update online status. Please try again.');
+            if (!silent) {
+                console.error('[STATUS] Update error:', error);
+                console.error('[STATUS] Error details:', {
+                    message: error.message,
+                    stack: error.stack,
+                    currentUser: this.currentUser?.email
+                });
+                alert('Failed to update online status. Please try again.');
+            }
         }
     }
 
