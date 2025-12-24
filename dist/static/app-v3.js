@@ -330,44 +330,36 @@ class SecureChatApp {
                 
                 // Get last read message ID for this room
                 const lastReadId = this.lastReadMessageIds.get(room.id);
-                console.log(`[UNREAD] Last read message ID: ${lastReadId} (type: ${typeof lastReadId})`);
-                console.log(`[UNREAD] Latest message ID: ${messages[messages.length - 1].id} (type: ${typeof messages[messages.length - 1].id})`);
+                const latestMessageId = messages[messages.length - 1].id;
+                const oldestMessageId = messages[0].id;
+                
+                console.log(`[UNREAD] Last read message ID: ${lastReadId}`);
+                console.log(`[UNREAD] Latest message ID: ${latestMessageId}`);
+                console.log(`[UNREAD] Oldest message ID in list: ${oldestMessageId}`);
                 
                 if (!lastReadId) {
                     // Never read any message in this room - all are unread
                     this.unreadCounts.set(room.id, messages.length);
                     console.log(`[UNREAD] Result: ${messages.length} (never read any message)`);
+                } else if (lastReadId === latestMessageId) {
+                    // FAST PATH: User has read up to the latest message - all read!
+                    this.unreadCounts.set(room.id, 0);
+                    console.log(`[UNREAD] Result: 0 (lastReadId === latest, all read!)`);
                 } else {
                     // Count messages after last read
                     console.log(`[UNREAD] Searching for lastReadId in ${messages.length} messages...`);
-                    const lastReadIndex = messages.findIndex(m => {
-                        const matches = m.id === lastReadId;
-                        if (matches) {
-                            console.log(`[UNREAD] Found match at index ${messages.findIndex(msg => msg.id === lastReadId)}: ${m.id} === ${lastReadId}`);
-                        }
-                        return matches;
-                    });
+                    const lastReadIndex = messages.findIndex(m => m.id === lastReadId);
                     
                     console.log(`[UNREAD] Last read index: ${lastReadIndex}`);
                     
                     if (lastReadIndex === -1) {
-                        // Last read message not found in current message list
-                        // CRITICAL FIX: Check if lastReadId matches the LATEST message
-                        // If so, all messages are read (user just exited the room)
-                        const latestMessageId = messages[messages.length - 1].id;
-                        
-                        if (lastReadId === latestMessageId) {
-                            // User has read up to latest message - all read!
-                            this.unreadCounts.set(room.id, 0);
-                            console.log(`[UNREAD] Result: 0 (lastReadId matches latest message - all read!)`);
-                        } else {
-                            // LastReadId is old/missing - assume all unread
-                            this.unreadCounts.set(room.id, messages.length);
-                            console.log(`[UNREAD] Result: ${messages.length} (last read message NOT FOUND, assuming all unread)`);
-                            console.log(`[UNREAD] Message IDs in room:`, messages.slice(-5).map(m => `${m.id} (${typeof m.id})`));
-                        }
+                        // LastReadId not found in the list of 50 newest messages
+                        // This means lastReadId is older than all fetched messages
+                        // Therefore, all fetched messages are newer = all unread
+                        this.unreadCounts.set(room.id, messages.length);
+                        console.log(`[UNREAD] Result: ${messages.length} (lastReadId older than all fetched messages)`);
                     } else {
-                        // Count messages after last read index
+                        // Found lastReadId - count messages after it
                         const unreadCount = messages.length - lastReadIndex - 1;
                         this.unreadCounts.set(room.id, Math.max(0, unreadCount));
                         console.log(`[UNREAD] Result: ${unreadCount} (messages after index ${lastReadIndex})`);
@@ -1575,6 +1567,17 @@ class SecureChatApp {
 
     async showRoomList() {
         console.log('[V3] Showing room list with token balance');
+        
+        // CRITICAL FIX: Mark current room as read BEFORE clearing it
+        if (this.currentRoom) {
+            console.log('[NAV] Marking current room as read before leaving:', this.currentRoom.id);
+            this.markCurrentRoomAsReadSync();
+        }
+        
+        // CRITICAL FIX: Clear currentRoom when returning to room list
+        // This ensures updateUnreadCounts() recalculates properly
+        this.currentRoom = null;
+        console.log('[NAV] Cleared currentRoom - now on room list');
         
         // Stop message polling when leaving chat room
         if (this.messagePoller) {
