@@ -770,18 +770,35 @@ app.post('/api/users/update-profile', async (c) => {
   try {
     const { userId, displayName, bio } = await c.req.json()
     
+    console.log('[PROFILE] 📝 Update request - User:', userId, 'DisplayName:', displayName)
+    
     if (!userId) {
+      console.error('[PROFILE] ❌ Missing user ID')
       return c.json({ error: 'User ID required' }, 400)
     }
+    
+    // EDGE CASE: Verify user exists before updating
+    const userExists = await c.env.DB.prepare(`
+      SELECT id, username FROM users WHERE id = ?
+    `).bind(userId).first()
+    
+    if (!userExists) {
+      console.error('[PROFILE] ❌ User not found:', userId)
+      return c.json({ error: 'User not found' }, 404)
+    }
+    
+    console.log('[PROFILE] ✅ User exists:', userExists.username)
 
-    await c.env.DB.prepare(`
+    const result = await c.env.DB.prepare(`
       UPDATE users SET display_name = ?, bio = ? WHERE id = ?
     `).bind(displayName || null, bio || null, userId).run()
+    
+    console.log('[PROFILE] ✅ Profile updated:', result)
 
     return c.json({ success: true, message: 'Profile updated', displayName, bio })
-  } catch (error) {
-    console.error('Profile update error:', error)
-    return c.json({ error: 'Failed to update profile' }, 500)
+  } catch (error: any) {
+    console.error('[PROFILE] ❌ Update error:', error.message, error.stack)
+    return c.json({ error: 'Failed to update profile', details: error.message }, 500)
   }
 })
 
@@ -1326,34 +1343,56 @@ app.post('/api/rooms/:roomId/leave', async (c) => {
       return c.json({ error: 'User not found' }, 404)
     }
     
-    // Remove user from room_members
-    await c.env.DB.prepare(`
+    // ENHANCED: Remove user from room_members with logging
+    console.log('[LEAVE] 🚪 Removing user from room - Room:', roomId, 'User:', user.id)
+    
+    const deleteResult = await c.env.DB.prepare(`
       DELETE FROM room_members WHERE room_id = ? AND user_id = ?
     `).bind(roomId, user.id).run()
+    
+    console.log('[LEAVE] 📝 Delete result:', deleteResult)
     
     // Check if room has any remaining members
     const remainingMembers = await c.env.DB.prepare(`
       SELECT COUNT(*) as count FROM room_members WHERE room_id = ?
     `).bind(roomId).first()
     
+    console.log('[LEAVE] 👥 Remaining members:', remainingMembers?.count)
+    
     // If no members left, delete the room and associated data
     if (remainingMembers && remainingMembers.count === 0) {
+      console.log('[LEAVE] 🗑️ No members left, cleaning up room data...')
+      
       // Delete messages
-      await c.env.DB.prepare(`
+      const msgDelete = await c.env.DB.prepare(`
         DELETE FROM messages WHERE room_id = ?
       `).bind(roomId).run()
+      console.log('[LEAVE] 📧 Deleted', msgDelete.meta?.changes || 0, 'messages')
       
       // Delete DM mapping if it's a direct message room
-      await c.env.DB.prepare(`
+      const dmDelete = await c.env.DB.prepare(`
         DELETE FROM direct_message_rooms WHERE room_id = ?
       `).bind(roomId).run()
+      console.log('[LEAVE] 💬 Deleted DM mapping')
+      
+      // Delete typing status
+      try {
+        await c.env.DB.prepare(`
+          DELETE FROM typing_status WHERE room_id = ?
+        `).bind(roomId).run()
+        console.log('[LEAVE] ⌨️ Deleted typing status')
+      } catch (e) {
+        console.log('[LEAVE] ⚠️ Typing status cleanup skipped (table may not exist)')
+      }
       
       // Delete the room
-      await c.env.DB.prepare(`
+      const roomDelete = await c.env.DB.prepare(`
         DELETE FROM chat_rooms WHERE id = ?
       `).bind(roomId).run()
       
-      console.log(`[ROOM] Deleted empty room: ${roomId}`)
+      console.log('[LEAVE] ✅ Deleted empty room:', roomId)
+    } else {
+      console.log('[LEAVE] ✅ User removed, room still has', remainingMembers?.count, 'members')
     }
     
     return c.json({
@@ -1379,7 +1418,9 @@ app.post('/api/messages/send', async (c) => {
       return c.json({ error: 'All fields required' }, 400)
     }
 
-    // Verify user is member of room
+    // ENHANCED: Verify user is member of room with comprehensive logging
+    console.log('[SEND] 🔍 Verifying membership - Room:', roomId, 'Sender:', senderId)
+    
     let member = await c.env.DB.prepare(`
       SELECT * FROM room_members WHERE room_id = ? AND user_id = ?
     `).bind(roomId, senderId).first()
@@ -1394,11 +1435,14 @@ app.post('/api/messages/send', async (c) => {
       `).bind(roomId, senderId, senderId).first()
       
       if (dmRoom) {
-        console.log('[SEND] ✅ DM room found, auto-adding user as member')
+        console.log('[SEND] ✅ DM room found:', dmRoom, '- auto-adding user as member')
+        
         // Auto-add user as member for DM rooms
-        await c.env.DB.prepare(`
+        const insertResult = await c.env.DB.prepare(`
           INSERT OR IGNORE INTO room_members (room_id, user_id) VALUES (?, ?)
         `).bind(roomId, senderId).run()
+        
+        console.log('[SEND] 📝 Insert result:', insertResult)
         
         // Verify it was added
         member = await c.env.DB.prepare(`
@@ -1406,13 +1450,50 @@ app.post('/api/messages/send', async (c) => {
         `).bind(roomId, senderId).first()
         
         if (!member) {
-          console.error('[SEND] ❌ Failed to auto-add member')
-          return c.json({ error: 'Failed to add room member' }, 500)
+          console.error('[SEND] ❌ Failed to auto-add member after INSERT')
+          
+          // EDGE CASE FIX: Try one more time with explicit transaction
+          try {
+            await c.env.DB.prepare(`
+              INSERT INTO room_members (room_id, user_id, joined_at) 
+              VALUES (?, ?, datetime('now'))
+            `).bind(roomId, senderId).run()
+            
+            member = await c.env.DB.prepare(`
+              SELECT * FROM room_members WHERE room_id = ? AND user_id = ?
+            `).bind(roomId, senderId).first()
+            
+            if (member) {
+              console.log('[SEND] ✅ Retry successful, member added')
+            }
+          } catch (retryError) {
+            console.error('[SEND] ❌ Retry also failed:', retryError)
+          }
+          
+          if (!member) {
+            return c.json({ error: 'Failed to add room member', debug: { roomId, senderId, dmRoom } }, 500)
+          }
+        } else {
+          console.log('[SEND] ✅ Member verified after auto-add')
         }
       } else {
-        console.error('[SEND] ❌ Not a member and not a DM participant')
-        return c.json({ error: 'Not a member of this room' }, 403)
+        console.error('[SEND] ❌ Not a member and not a DM participant - Room:', roomId, 'User:', senderId)
+        
+        // EDGE CASE: Check if room exists at all
+        const roomExists = await c.env.DB.prepare(`
+          SELECT id, room_type FROM chat_rooms WHERE id = ?
+        `).bind(roomId).first()
+        
+        if (!roomExists) {
+          console.error('[SEND] ❌ Room does not exist:', roomId)
+          return c.json({ error: 'Room not found' }, 404)
+        }
+        
+        console.error('[SEND] 🚫 Access denied - Room exists but user not authorized')
+        return c.json({ error: 'Not a member of this room', debug: { roomType: roomExists.room_type } }, 403)
       }
+    } else {
+      console.log('[SEND] ✅ User is a verified member')
     }
 
     const messageId = crypto.randomUUID()
@@ -5010,31 +5091,40 @@ app.post('/api/typing/start', async (c) => {
     const userEmail = c.req.header('X-User-Email')
     const { room_id } = await c.req.json()
     
+    console.log('[TYPING] ⌨️ Start typing - Email:', userEmail, 'Room:', room_id)
+    
     if (!userEmail || !room_id) {
+      console.error('[TYPING] ❌ Missing required fields')
       return c.json({ error: 'User email and room ID required' }, 400)
     }
     
     const user = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(userEmail).first()
     if (!user) {
+      console.error('[TYPING] ❌ User not found:', userEmail)
       return c.json({ error: 'User not found' }, 404)
     }
     
+    console.log('[TYPING] 👤 User found:', user.id)
+    
     // Insert or update typing status - with error handling for missing table
     try {
-      await c.env.DB.prepare(`
+      const result = await c.env.DB.prepare(`
         INSERT OR REPLACE INTO typing_status (room_id, user_id, started_at)
         VALUES (?, ?, datetime('now'))
       `).bind(room_id, user.id).run()
+      
+      console.log('[TYPING] ✅ Typing status updated:', result)
     } catch (dbError: any) {
-      console.error('[TYPING] DB error (table might not exist):', dbError.message)
+      console.error('[TYPING] ⚠️ DB error (non-critical):', dbError.message)
       // Silently fail if typing_status table doesn't exist
       // This is non-critical functionality
+      return c.json({ success: true, warning: 'Typing status not available' })
     }
     
     return c.json({ success: true })
-  } catch (error) {
-    console.error('[TYPING] Start error:', error)
-    return c.json({ error: 'Failed to start typing' }, 500)
+  } catch (error: any) {
+    console.error('[TYPING] ❌ Start error:', error.message, error.stack)
+    return c.json({ error: 'Failed to start typing', details: error.message }, 500)
   }
 })
 
