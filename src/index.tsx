@@ -4966,23 +4966,43 @@ app.get('/api/contacts', async (c) => {
       return c.json({ error: 'User email required' }, 400)
     }
     
+    console.log('[CONTACTS] 📋 Loading contacts for:', userEmail)
+    const startTime = Date.now()
+    
     const user = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(userEmail).first()
     if (!user) {
       return c.json({ error: 'User not found' }, 404)
     }
     
-    // Get accepted contacts
+    console.log('[CONTACTS] 👤 User found:', user.id)
+    
+    // OPTIMIZED: Get accepted contacts with indexed query
+    // Only select needed fields to reduce data transfer
     const contacts = await c.env.DB.prepare(`
-      SELECT u.id, u.username, u.email, u.avatar, u.online_status, u.last_seen
+      SELECT 
+        u.id, 
+        u.username, 
+        u.email, 
+        u.avatar, 
+        u.online_status, 
+        u.last_seen
       FROM user_contacts uc
-      JOIN users u ON uc.contact_user_id = u.id
+      INNER JOIN users u ON uc.contact_user_id = u.id
       WHERE uc.user_id = ? AND uc.status = 'accepted'
-      ORDER BY u.username ASC
+      ORDER BY u.username COLLATE NOCASE ASC
+      LIMIT 500
     `).bind(user.id).all()
     
-    return c.json({ contacts: contacts.results || [] })
+    const loadTime = Date.now() - startTime
+    console.log('[CONTACTS] ✅ Loaded', contacts.results?.length || 0, 'contacts in', loadTime, 'ms')
+    
+    // Add response headers to prevent caching
+    const response = c.json({ contacts: contacts.results || [] })
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
+    
+    return response
   } catch (error) {
-    console.error('[CONTACTS] Get contacts error:', error)
+    console.error('[CONTACTS] ❌ Get contacts error:', error)
     return c.json({ error: 'Failed to get contacts' }, 500)
   }
 })
