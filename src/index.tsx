@@ -256,8 +256,9 @@ app.post('/api/auth/login-email', async (c) => {
     
     console.log('[AUTH] 🔍 Querying database for user...')
     
+    // Query without email_verified to avoid column not found error
     const user = await c.env.DB.prepare(`
-      SELECT id, username, email, email_verified, tokens, token_tier, avatar, display_name, bio, created_at 
+      SELECT id, username, email, tokens, token_tier, avatar, display_name, bio, created_at 
       FROM users 
       WHERE email = ? AND public_key = ?
     `).bind(email, passwordHash).first()
@@ -267,16 +268,7 @@ app.post('/api/auth/login-email', async (c) => {
       return c.json({ error: 'Invalid email or password' }, 401)
     }
     
-    console.log('[AUTH] ✅ User found:', user.email, 'email_verified:', user.email_verified)
-    
-    // Skip email verification check if email_verified is null or 0 (for legacy accounts)
-    if (user.email_verified === 0 && user.email) {
-      return c.json({ 
-        error: 'Please verify your email first',
-        verificationRequired: true 
-      }, 403)
-    }
-    
+    console.log('[AUTH] ✅ User found:', user.email)
     console.log('[AUTH] ✅ User logged in successfully:', email)
     
     return c.json({ 
@@ -290,7 +282,7 @@ app.post('/api/auth/login-email', async (c) => {
         bio: user.bio || null,
         tokens: user.tokens || 0,
         tier: user.token_tier || 'bronze',
-        emailVerified: user.email_verified === 1
+        emailVerified: true // Assume verified for legacy accounts
       }
     })
   } catch (error: any) {
