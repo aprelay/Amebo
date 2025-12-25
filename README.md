@@ -4,7 +4,36 @@ A Progressive Web App (PWA) with military-grade encrypted messaging and payment 
 
 ## 🚀 Live Demo
 
-**Access the app here:** https://3000-imrhbc4utrnhlsvcgsjvy-0e616f0a.sandbox.novita.ai
+**Production:** https://amebo-app.pages.dev
+
+## ⚡ INSTANT DEPLOYMENT SYSTEM
+
+**Push updates to ALL devices in < 1 minute!**
+
+```bash
+# Deploy instantly (< 1 minute to all users)
+./deploy-instant.sh
+
+# Auto-deploy on file changes
+./deploy-watch.sh
+```
+
+**Features:**
+- 🚀 **15-25 second deployment** from code to production
+- 📱 **Auto-update on all devices** within 60 seconds
+- 🔄 **Service Worker auto-increment** on every deploy
+- 🔔 **User notifications** when updates are available
+- 👀 **File watcher** for automatic continuous deployment
+- ⏱️ **Performance metrics** for each deployment step
+
+**Quick Start:**
+1. Set API token: `export CLOUDFLARE_API_TOKEN='your-token'`
+2. Deploy: `./deploy-instant.sh`
+3. Done! All users get update within 60 seconds ✅
+
+**Documentation:**
+- 📖 [Quick Start Guide](./INSTANT_DEPLOYMENT_QUICKSTART.md) - Get started in 5 minutes
+- 📚 [Full Documentation](./INSTANT_DEPLOYMENT_GUIDE.md) - Complete reference guide
 
 ## 🆕 Latest Updates (December 2025)
 
