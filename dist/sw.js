@@ -1,7 +1,8 @@
 // Service Worker for PWA - Auto-Update Version
 // Increment this version number when you want to force an update
-const CACHE_VERSION = 41; // Change this number to force update - V1 FIXES DEPLOYED
+const CACHE_VERSION = 43; // AUTO-DEPLOY: 2025-12-25 21:47:40
 const CACHE_NAME = `amebo-v${CACHE_VERSION}`;
+const UPDATE_CHECK_INTERVAL = 30000; // Check for updates every 30 seconds
 const urlsToCache = [
   '/',
   '/static/app-v3.js',
@@ -209,4 +210,16 @@ self.addEventListener('message', async (event) => {
       console.log('[SW] ⚠️ Badge API not supported');
     }
   }
+  
+  // Handle manual update check request
+  if (event.data && event.data.type === 'CHECK_FOR_UPDATE') {
+    console.log('[SW] Manual update check requested');
+    self.registration.update();
+  }
 });
+
+// Auto-check for updates every 30 seconds
+setInterval(() => {
+  console.log('[SW] Auto-checking for updates...');
+  self.registration.update();
+}, UPDATE_CHECK_INTERVAL);

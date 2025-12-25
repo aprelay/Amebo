@@ -8,6 +8,8 @@
     "preview": "wrangler pages dev dist",
     "deploy": "npm run build && wrangler pages deploy dist --project-name amebo-app",
     "deploy:prod": "npm run build && wrangler pages deploy dist --project-name amebo-app",
+    "deploy:instant": "./deploy-instant.sh",
+    "deploy:watch": "./deploy-watch.sh",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "db:migrate:local": "wrangler d1 migrations apply webapp-production --local",
     "db:migrate:prod": "wrangler d1 migrations apply webapp-production",
