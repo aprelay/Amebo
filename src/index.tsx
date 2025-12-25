@@ -238,7 +238,10 @@ app.post('/api/auth/login-email', async (c) => {
   try {
     const { email, password } = await c.req.json()
     
+    console.log('[AUTH] 🔐 Login attempt for:', email)
+    
     if (!email || !password) {
+      console.log('[AUTH] ❌ Missing email or password')
       return c.json({ error: 'Email and password required' }, 400)
     }
     
@@ -251,6 +254,8 @@ app.post('/api/auth/login-email', async (c) => {
       .map(b => b.toString(16).padStart(2, '0'))
       .join('')
     
+    console.log('[AUTH] 🔍 Querying database for user...')
+    
     const user = await c.env.DB.prepare(`
       SELECT id, username, email, email_verified, tokens, token_tier, avatar, display_name, bio, created_at 
       FROM users 
@@ -258,17 +263,21 @@ app.post('/api/auth/login-email', async (c) => {
     `).bind(email, passwordHash).first()
     
     if (!user) {
+      console.log('[AUTH] ❌ Invalid credentials for:', email)
       return c.json({ error: 'Invalid email or password' }, 401)
     }
     
-    if (!user.email_verified) {
+    console.log('[AUTH] ✅ User found:', user.email, 'email_verified:', user.email_verified)
+    
+    // Skip email verification check if email_verified is null or 0 (for legacy accounts)
+    if (user.email_verified === 0 && user.email) {
       return c.json({ 
         error: 'Please verify your email first',
         verificationRequired: true 
       }, 403)
     }
     
-    console.log(`[AUTH] User logged in: ${email}`)
+    console.log('[AUTH] ✅ User logged in successfully:', email)
     
     return c.json({ 
       success: true, 
@@ -285,8 +294,13 @@ app.post('/api/auth/login-email', async (c) => {
       }
     })
   } catch (error: any) {
-    console.error('[AUTH] Login error:', error)
-    return c.json({ error: 'Login failed' }, 500)
+    console.error('[AUTH] ❌ Login error details:', error)
+    console.error('[AUTH] Error message:', error.message)
+    console.error('[AUTH] Error stack:', error.stack)
+    return c.json({ 
+      error: 'Login failed', 
+      details: error.message 
+    }, 500)
   }
 })
 
