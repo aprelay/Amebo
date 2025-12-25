@@ -1,6 +1,6 @@
 // Service Worker for PWA - Auto-Update Version
 // Increment this version number when you want to force an update
-const CACHE_VERSION = 44; // AUTO-DEPLOY: 2025-12-25 22:04:15
+const CACHE_VERSION = 45; // AUTO-DEPLOY: 2025-12-25 22:07:18
 const CACHE_NAME = `amebo-v${CACHE_VERSION}`;
 const UPDATE_CHECK_INTERVAL = 30000; // Check for updates every 30 seconds
 const urlsToCache = [
