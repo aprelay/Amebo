@@ -1170,41 +1170,91 @@ app.post('/api/rooms/direct', async (c) => {
     `).bind(user1Id, user2Id, user2Id, user1Id).first()
     
     if (existingDM) {
-      // Get room details with other user info
-      const room = await c.env.DB.prepare(`
-        SELECT 
-          r.*,
-          u2.id as other_user_id,
-          u2.username as other_user_username,
-          u2.display_name as other_user_display_name,
-          u2.email as other_user_email,
-          u2.avatar as other_user_avatar,
-          u2.online_status as other_user_online_status,
-          u2.last_seen as other_user_last_seen
-        FROM chat_rooms r
-        LEFT JOIN users u2 ON u2.id = ?
-        WHERE r.id = ?
-      `).bind(user2Id, existingDM.room_id).first()
+      console.log('[DM CREATE] 🔍 Found existing DM mapping:', existingDM.room_id)
       
-      // Format room with other_user object
-      const formattedRoom = {
-        ...room,
-        other_user: room.other_user_id ? {
-          id: room.other_user_id,
-          username: room.other_user_username,
-          display_name: room.other_user_display_name,
-          email: room.other_user_email,
-          avatar: room.other_user_avatar,
-          online_status: room.other_user_online_status,
-          last_seen: room.other_user_last_seen
-        } : null
+      // CRITICAL FIX: Check if BOTH users are still members
+      // If user deleted the chat, they're no longer a member
+      const bothMembers = await c.env.DB.prepare(`
+        SELECT user_id FROM room_members 
+        WHERE room_id = ? AND user_id IN (?, ?)
+      `).bind(existingDM.room_id, user1Id, user2Id).all()
+      
+      const memberIds = (bothMembers.results || []).map((m: any) => m.user_id)
+      const user1IsMember = memberIds.includes(user1Id)
+      const user2IsMember = memberIds.includes(user2Id)
+      
+      console.log('[DM CREATE] 👥 Membership check - User1:', user1IsMember, 'User2:', user2IsMember)
+      
+      // If BOTH users are still members, return existing room
+      if (user1IsMember && user2IsMember) {
+        console.log('[DM CREATE] ✅ Both users are members, returning existing room')
+        
+        // Get room details with other user info
+        const room = await c.env.DB.prepare(`
+          SELECT 
+            r.*,
+            u2.id as other_user_id,
+            u2.username as other_user_username,
+            u2.display_name as other_user_display_name,
+            u2.email as other_user_email,
+            u2.avatar as other_user_avatar,
+            u2.online_status as other_user_online_status,
+            u2.last_seen as other_user_last_seen
+          FROM chat_rooms r
+          LEFT JOIN users u2 ON u2.id = ?
+          WHERE r.id = ?
+        `).bind(user2Id, existingDM.room_id).first()
+        
+        // Format room with other_user object
+        const formattedRoom = {
+          ...room,
+          other_user: room.other_user_id ? {
+            id: room.other_user_id,
+            username: room.other_user_username,
+            display_name: room.other_user_display_name,
+            email: room.other_user_email,
+            avatar: room.other_user_avatar,
+            online_status: room.other_user_online_status,
+            last_seen: room.other_user_last_seen
+          } : null
+        }
+        
+        return c.json({
+          success: true,
+          room: formattedRoom,
+          isNew: false
+        })
+      } else {
+        // One or both users deleted the chat - clean up old room and create fresh
+        console.log('[DM CREATE] 🗑️ User(s) deleted chat, cleaning up old room:', existingDM.room_id)
+        
+        // Delete old messages
+        await c.env.DB.prepare(`
+          DELETE FROM messages WHERE room_id = ?
+        `).bind(existingDM.room_id).run()
+        
+        // Delete typing status
+        try {
+          await c.env.DB.prepare(`
+            DELETE FROM typing_status WHERE room_id = ?
+          `).bind(existingDM.room_id).run()
+        } catch (e) {
+          console.log('[DM CREATE] ⚠️ Typing status cleanup skipped')
+        }
+        
+        // Delete old room
+        await c.env.DB.prepare(`
+          DELETE FROM chat_rooms WHERE id = ?
+        `).bind(existingDM.room_id).run()
+        
+        // Delete DM mapping
+        await c.env.DB.prepare(`
+          DELETE FROM direct_message_rooms WHERE room_id = ?
+        `).bind(existingDM.room_id).run()
+        
+        console.log('[DM CREATE] ✅ Old room cleaned up, will create fresh room')
+        // Continue to create new room below
       }
-      
-      return c.json({
-        success: true,
-        room: formattedRoom,
-        isNew: false
-      })
     }
     
     // Create new DM room
