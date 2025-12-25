@@ -1,6 +1,6 @@
 // Service Worker for PWA - Auto-Update Version
 // Increment this version number when you want to force an update
-const CACHE_VERSION = 40; // Change this number to force update
+const CACHE_VERSION = 41; // Change this number to force update - V1 FIXES DEPLOYED
 const CACHE_NAME = `amebo-v${CACHE_VERSION}`;
 const urlsToCache = [
   '/',
