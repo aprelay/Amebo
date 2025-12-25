@@ -256,9 +256,9 @@ app.post('/api/auth/login-email', async (c) => {
     
     console.log('[AUTH] 🔍 Querying database for user...')
     
-    // Query without email_verified to avoid column not found error
+    // Query with only essential columns that exist in database
     const user = await c.env.DB.prepare(`
-      SELECT id, username, email, tokens, token_tier, avatar, display_name, bio, created_at 
+      SELECT id, username, email, avatar, created_at 
       FROM users 
       WHERE email = ? AND public_key = ?
     `).bind(email, passwordHash).first()
@@ -278,10 +278,10 @@ app.post('/api/auth/login-email', async (c) => {
         username: user.username,
         email: user.email,
         avatar: user.avatar || null,
-        display_name: user.display_name || null,
-        bio: user.bio || null,
-        tokens: user.tokens || 0,
-        tier: user.token_tier || 'bronze',
+        display_name: user.username, // Fallback to username
+        bio: null, // Not in database
+        tokens: 0, // Default for legacy accounts
+        tier: 'bronze', // Default for legacy accounts
         emailVerified: true // Assume verified for legacy accounts
       }
     })
